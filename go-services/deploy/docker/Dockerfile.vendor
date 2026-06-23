@@ -1,0 +1,33 @@
+# Vendored, offline Go build for k3s deploys.
+#
+# Why this exists (in addition to Dockerfile.service):
+#   1. In-container `go mod download` is unreliable on the build host (slow cold
+#      downloads that intermittently fail). Run `go mod vendor` first, then this
+#      Dockerfile builds with `-mod=vendor` and never touches the network.
+#   2. The host Docker image store is corrupted, so build via the isolated
+#      `lmsbuilder` buildx builder and import the result straight into k3s
+#      containerd. See scripts/build-k3s.sh which orchestrates both.
+#
+# Usage (handled by scripts/build-k3s.sh):
+#   cd go-services && go mod vendor
+#   docker buildx build --builder lmsbuilder \
+#     --build-arg SERVICE=<name> -f deploy/docker/Dockerfile.vendor \
+#     --output type=docker,dest=/tmp/<name>.tar go-services
+#   sudo k3s ctr images import /tmp/<name>.tar
+ARG SERVICE=account-service
+
+FROM golang:1.22-alpine AS builder
+ARG SERVICE
+WORKDIR /app
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -ldflags="-s -w" -o /service ./cmd/${SERVICE}
+
+FROM alpine:3.20
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /app
+COPY --from=builder /service .
+COPY migrations/ ./migrations/
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
+    CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+ENTRYPOINT ["./service"]

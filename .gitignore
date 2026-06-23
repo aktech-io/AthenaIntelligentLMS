@@ -43,3 +43,6 @@ Thumbs.db
 **/__pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Go vendored deps (created at build time by scripts/build-k3s.sh)
+go-services/vendor/
