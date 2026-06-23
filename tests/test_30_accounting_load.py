@@ -249,15 +249,36 @@ class TestEODAndInterest:
     eod_result_1 = None
 
     def test_01_run_eod_first_time(self, headers):
+        # EOD is idempotent per business date. On a persistent DB it may already have
+        # completed for today, so detect that up front to keep this test re-runnable.
+        prior = requests.get(f"{BASE}/api/v1/eod/history", headers=headers)
+        prior_dates = set()
+        if prior.status_code == 200 and isinstance(prior.json(), list):
+            prior_dates = {
+                run["runDate"] for run in prior.json()
+                if run.get("status") in ("COMPLETED", "PARTIAL")
+            }
+
         resp = requests.post(f"{BASE}/api/v1/eod/run", headers=headers)
         assert resp.status_code == 200, f"EOD failed: {resp.text}"
         data = resp.json()
         TestEODAndInterest.eod_result_1 = data
 
         assert data["status"] in ("COMPLETED", "PARTIAL"), f"EOD status: {data['status']}"
-        assert data["accountsAccrued"] >= 1, f"No accounts accrued"
-        print(f"\n  EOD run 1: {data['accountsAccrued']} accrued, "
-              f"total interest={data.get('totalInterestAccrued', 'N/A')}")
+
+        if data["runDate"] in prior_dates:
+            # Idempotent re-run: EOD already completed for this business date, so this
+            # call returns the existing result (no new accruals expected this call).
+            # Accrual coverage on a fresh run is asserted in the else branch below, and
+            # interest math is verified by test_03_verify_interest_math.
+            print(f"\n  EOD run 1 (idempotent re-run for {data['runDate']}): "
+                  f"already completed, {data['accountsAccrued']} accrued this call")
+        else:
+            # Genuinely the first EOD for this business date: at least one eligible
+            # account (e.g. the funded savings accounts from test_29) must accrue.
+            assert data["accountsAccrued"] >= 1, "No accounts accrued on first EOD run"
+            print(f"\n  EOD run 1: {data['accountsAccrued']} accrued, "
+                  f"total interest={data.get('totalInterestAccrued', 'N/A')}")
 
     def test_02_eod_idempotency(self, headers):
         """Running EOD again on the same day should return the existing completed result."""
