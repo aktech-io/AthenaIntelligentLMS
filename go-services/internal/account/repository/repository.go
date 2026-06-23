@@ -142,7 +142,7 @@ func (r *Repository) ListAccountsByTenant(ctx context.Context, tenantID string, 
 	}
 	defer rows.Close()
 
-	var accounts []*model.Account
+	accounts := []*model.Account{}
 	for rows.Next() {
 		a := &model.Account{}
 		if err := rows.Scan(
@@ -175,7 +175,7 @@ func (r *Repository) GetAccountsByCustomer(ctx context.Context, customerID, tena
 	}
 	defer rows.Close()
 
-	var accounts []*model.Account
+	accounts := []*model.Account{}
 	for rows.Next() {
 		a := &model.Account{}
 		if err := rows.Scan(
@@ -211,7 +211,7 @@ func (r *Repository) SearchAccounts(ctx context.Context, tenantID, q string) ([]
 	}
 	defer rows.Close()
 
-	var accounts []*model.Account
+	accounts := []*model.Account{}
 	for rows.Next() {
 		a := &model.Account{}
 		if err := rows.Scan(
@@ -319,7 +319,7 @@ func scanTransaction(row pgx.Row) (*model.AccountTransaction, error) {
 }
 
 func scanTransactions(rows pgx.Rows) ([]*model.AccountTransaction, error) {
-	var txns []*model.AccountTransaction
+	txns := []*model.AccountTransaction{}
 	for rows.Next() {
 		t := &model.AccountTransaction{}
 		if err := rows.Scan(
