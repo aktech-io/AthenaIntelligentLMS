@@ -34,6 +34,8 @@ export interface CreateProductRequest {
   scheduleType: string;
   penaltyRate?: number;
   penaltyGraceDays?: number;
+  requiresTwoPersonAuth?: boolean;
+  authThresholdAmount?: number;
 }
 
 export type UpdateProductRequest = Partial<CreateProductRequest>;

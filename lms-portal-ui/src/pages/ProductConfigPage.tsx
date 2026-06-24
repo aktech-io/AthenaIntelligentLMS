@@ -123,6 +123,8 @@ const ProductConfigPage = () => {
 
   // Step 5
   const [enabledStages, setEnabledStages] = useState<string[]>(["officer", "analyst", "committee"]);
+  const [requiresTwoPersonAuth, setRequiresTwoPersonAuth] = useState(false);
+  const [authThreshold, setAuthThreshold] = useState("");
 
   // Step 6
   const [docs, setDocs] = useState<DocRow[]>(defaultDocs);
@@ -205,6 +207,10 @@ const ProductConfigPage = () => {
         gracePeriodDays: parseInt(gracePeriod) || 7,
         repaymentFrequency: freqMap[repaymentFreq] ?? "MONTHLY",
         scheduleType: scheduleMap[interestMethod] ?? "EMI",
+        requiresTwoPersonAuth: requiresTwoPersonAuth,
+        authThresholdAmount: requiresTwoPersonAuth
+          ? parseFloat(authThreshold) || 0
+          : undefined,
       });
       setConfirmOpen(false);
       toast({ title: "Product Created", description: `${productName} has been created and is now pending activation.` });
@@ -742,6 +748,33 @@ const ProductConfigPage = () => {
                       <span className="text-muted-foreground">→</span>
                       <Badge className="bg-success/15 text-success font-sans text-[10px]">Disbursement</Badge>
                     </div>
+                  </div>
+
+                  {/* Per-product dual approval override */}
+                  <div className="pt-4 border-t space-y-3">
+                    <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${requiresTwoPersonAuth ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+                      <div className="flex items-center gap-3">
+                        <Switch checked={requiresTwoPersonAuth} onCheckedChange={setRequiresTwoPersonAuth} />
+                        <div>
+                          <p className="text-xs font-sans font-medium">Require dual approval (maker-checker)</p>
+                          <p className="text-[10px] text-muted-foreground font-sans">A second authoriser must approve before this product can be approved/disbursed.</p>
+                        </div>
+                      </div>
+                    </div>
+                    {requiresTwoPersonAuth && (
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider font-sans">Approval threshold (KES)</Label>
+                        <Input
+                          value={authThreshold}
+                          onChange={e => setAuthThreshold(e.target.value)}
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          className="mt-1 text-xs font-mono"
+                        />
+                        <p className="text-[10px] text-muted-foreground font-sans mt-1">0 or blank means dual approval is always required.</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

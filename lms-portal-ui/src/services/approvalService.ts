@@ -25,6 +25,7 @@ export interface PendingApproval {
 }
 
 const BASE = "/proxy/auth/api/v1";
+const LOAN_BASE = "/proxy/loans/api/v1";
 
 export const approvalService = {
   async listControlConfig(): Promise<ControlConfig[]> {
@@ -47,6 +48,30 @@ export const approvalService = {
     });
     if (result.error || !result.data) {
       throw new Error(result.error ?? "Failed to update control config");
+    }
+    return result.data;
+  },
+
+  async listLoanControlConfig(): Promise<ControlConfig[]> {
+    const result = await apiGet<ControlConfig[]>(`${LOAN_BASE}/control-config`);
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to load loan control config");
+    }
+    return result.data;
+  },
+
+  async updateLoanControlConfig(
+    operation: string,
+    enabled: boolean,
+    threshold: number
+  ): Promise<ControlConfig[]> {
+    const result = await apiPut<ControlConfig[]>(`${LOAN_BASE}/control-config`, {
+      operation,
+      enabled,
+      threshold,
+    });
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to update loan control config");
     }
     return result.data;
   },

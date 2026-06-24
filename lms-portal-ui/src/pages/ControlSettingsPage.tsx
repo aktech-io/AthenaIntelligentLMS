@@ -21,6 +21,13 @@ const operationLabels: Record<string, string> = {
   ACCOUNT_CLOSE: "Account Closure",
 };
 
+const loanOperationLabels: Record<string, string> = {
+  LOAN_APPROVE: "Loan Approval",
+  LOAN_DISBURSE: "Loan Disbursement",
+};
+
+const LOAN_OPERATIONS = ["LOAN_APPROVE", "LOAN_DISBURSE"];
+
 interface RowState {
   enabled: boolean;
   threshold: string;
@@ -66,7 +73,56 @@ const ControlSettingsPage = () => {
     },
   });
 
+  const { data: loanConfigs, isLoading: loanLoading } = useQuery({
+    queryKey: ["loan-control-config"],
+    queryFn: () => approvalService.listLoanControlConfig(),
+    retry: false,
+  });
+
+  const [loanDraft, setLoanDraft] = useState<Record<string, RowState>>({});
+
+  useEffect(() => {
+    if (loanConfigs) {
+      const next: Record<string, RowState> = {};
+      loanConfigs.forEach((c) => {
+        next[c.operation] = {
+          enabled: c.enabled,
+          threshold: String(c.thresholdAmount ?? 0),
+        };
+      });
+      setLoanDraft(next);
+    }
+  }, [loanConfigs]);
+
+  const saveLoanMutation = useMutation({
+    mutationFn: (vars: { operation: string; enabled: boolean; threshold: number }) =>
+      approvalService.updateLoanControlConfig(vars.operation, vars.enabled, vars.threshold),
+    onSuccess: (data, vars) => {
+      toast({
+        title: "Saved",
+        description: `Dual-control settings for ${loanOperationLabels[vars.operation] ?? vars.operation} updated.`,
+      });
+      queryClient.setQueryData(["loan-control-config"], data);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const rows: ControlConfig[] = configs ?? [];
+
+  // Ensure both LOAN operations always render, even if the backend returns none yet.
+  const loanRows: ControlConfig[] = LOAN_OPERATIONS.map((operation) => {
+    const existing = (loanConfigs ?? []).find((c) => c.operation === operation);
+    return (
+      existing ?? {
+        tenantId: "",
+        operation,
+        enabled: false,
+        thresholdAmount: 0,
+      }
+    );
+  });
 
   return (
     <DashboardLayout
@@ -171,6 +227,95 @@ const ControlSettingsPage = () => {
                           })
                         }
                         disabled={saveMutation.isPending}
+                      >
+                        <Save className="h-3.5 w-3.5 mr-1" /> Save
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Loan Controls</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loanLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y">
+                {loanRows.map((c) => {
+                  const state = loanDraft[c.operation] ?? {
+                    enabled: c.enabled,
+                    threshold: String(c.thresholdAmount ?? 0),
+                  };
+                  const setState = (patch: Partial<RowState>) =>
+                    setLoanDraft((prev) => ({
+                      ...prev,
+                      [c.operation]: { ...state, ...patch },
+                    }));
+                  return (
+                    <div
+                      key={c.operation}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium font-sans">
+                          {loanOperationLabels[c.operation] ?? c.operation}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                          {c.operation}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`enabled-${c.operation}`}
+                          checked={state.enabled}
+                          onCheckedChange={(checked) => setState({ enabled: checked })}
+                        />
+                        <Label
+                          htmlFor={`enabled-${c.operation}`}
+                          className="text-xs font-sans cursor-pointer"
+                        >
+                          {state.enabled ? "Enabled" : "Disabled"}
+                        </Label>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs font-sans text-muted-foreground">
+                            Threshold (KES)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-[140px] h-8 text-sm font-mono"
+                            value={state.threshold}
+                            onChange={(e) => setState({ threshold: e.target.value })}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-sans">
+                          0 = always require dual approval
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="text-xs h-8"
+                        onClick={() =>
+                          saveLoanMutation.mutate({
+                            operation: c.operation,
+                            enabled: state.enabled,
+                            threshold: parseFloat(state.threshold) || 0,
+                          })
+                        }
+                        disabled={saveLoanMutation.isPending}
                       >
                         <Save className="h-3.5 w-3.5 mr-1" /> Save
                       </Button>

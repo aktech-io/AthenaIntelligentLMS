@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
@@ -44,6 +45,23 @@ func requiresSoD(ctx context.Context, repo *repository.Repository, tenantID, op 
 		return false
 	}
 	return amount.GreaterThanOrEqual(threshold)
+}
+
+// loanSoDRequired reports whether segregation of duties must be enforced for a
+// loan operation, combining the tenant-level control with a per-product override.
+// The product override is tighten-only: a product can require SoD even when the
+// tenant does not, but can never disable a tenant-level requirement.
+func (s *Service) loanSoDRequired(ctx context.Context, tenantID string, productID uuid.UUID, op string, amount decimal.Decimal) bool {
+	if requiresSoD(ctx, s.repo, tenantID, op, amount) {
+		return true
+	}
+	cfg := s.productClient.GetProductAuthConfig(ctx, productID)
+	if cfg != nil && cfg.RequiresTwoPersonAuth {
+		if cfg.AuthThresholdAmount == nil || amount.GreaterThanOrEqual(*cfg.AuthThresholdAmount) {
+			return true
+		}
+	}
+	return false
 }
 
 // EffectiveControlConfig returns the active config for all loan operations

@@ -188,7 +188,7 @@ func (s *Service) Approve(ctx context.Context, id uuid.UUID, req model.ApproveAp
 	}
 
 	// Maker-checker: the approver must differ from the application creator.
-	if requiresSoD(ctx, s.repo, tenantID, OpLoanApprove, req.ApprovedAmount) {
+	if s.loanSoDRequired(ctx, tenantID, app.ProductID, OpLoanApprove, req.ApprovedAmount) {
 		if app.CreatedBy != nil && *app.CreatedBy == userID && userID != "" {
 			return nil, errors.NewBusinessError("maker-checker violation: the approver must differ from the application creator")
 		}
@@ -273,7 +273,7 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 	}
 
 	// Maker-checker: the disburser must differ from the approver/reviewer and creator.
-	if requiresSoD(ctx, s.repo, tenantID, OpLoanDisburse, req.DisbursedAmount) && userID != "" {
+	if s.loanSoDRequired(ctx, tenantID, app.ProductID, OpLoanDisburse, req.DisbursedAmount) && userID != "" {
 		if app.ReviewerID != nil && *app.ReviewerID == userID {
 			return nil, errors.NewBusinessError("maker-checker violation: the disburser must differ from the approver")
 		}

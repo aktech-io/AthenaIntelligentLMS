@@ -39,14 +39,22 @@ type ScheduleConfig struct {
 	RepaymentFrequency *string
 }
 
+// AuthConfig holds the per-product maker-checker override from a product.
+type AuthConfig struct {
+	RequiresTwoPersonAuth bool
+	AuthThresholdAmount   *decimal.Decimal
+}
+
 // productResponse is the partial response from product-service.
 type productResponse struct {
-	Status             string                 `json:"status"`
-	MinAmount          *decimal.Decimal       `json:"minAmount"`
-	MaxAmount          *decimal.Decimal       `json:"maxAmount"`
-	ScheduleType       *string                `json:"scheduleType"`
-	RepaymentFrequency *string                `json:"repaymentFrequency"`
-	Configuration      map[string]interface{} `json:"configuration"`
+	Status                string                 `json:"status"`
+	MinAmount             *decimal.Decimal       `json:"minAmount"`
+	MaxAmount             *decimal.Decimal       `json:"maxAmount"`
+	ScheduleType          *string                `json:"scheduleType"`
+	RepaymentFrequency    *string                `json:"repaymentFrequency"`
+	RequiresTwoPersonAuth bool                   `json:"requiresTwoPersonAuth"`
+	AuthThresholdAmount   *decimal.Decimal       `json:"authThresholdAmount"`
+	Configuration         map[string]interface{} `json:"configuration"`
 }
 
 // ValidateAndGetAmountLimits validates that the product is ACTIVE and returns its amount limits.
@@ -113,4 +121,27 @@ func (c *ProductClient) GetProductScheduleConfig(ctx context.Context, productID 
 	}
 
 	return sc
+}
+
+// GetProductAuthConfig fetches the per-product maker-checker override for a product.
+// Returns a zero-value AuthConfig on any error (fail-open: never fails the caller).
+func (c *ProductClient) GetProductAuthConfig(ctx context.Context, productID uuid.UUID) *AuthConfig {
+	if productID == uuid.Nil {
+		return &AuthConfig{}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/products/%s", c.baseURL, productID)
+	var resp productResponse
+	err := c.client.Get(ctx, url, &resp)
+	if err != nil {
+		c.logger.Warn("Could not fetch product auth config",
+			zap.String("productId", productID.String()),
+			zap.Error(err))
+		return &AuthConfig{}
+	}
+
+	return &AuthConfig{
+		RequiresTwoPersonAuth: resp.RequiresTwoPersonAuth,
+		AuthThresholdAmount:   resp.AuthThresholdAmount,
+	}
 }
