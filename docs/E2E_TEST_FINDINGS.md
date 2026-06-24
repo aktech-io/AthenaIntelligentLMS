@@ -109,9 +109,9 @@ Assessment (2026-06-24): only **accounting** was audit-grade (maker-checker + `f
 4. ✅ **F17 FIXED (2026-06-24)** — `loanManagementService.applyRepayment` now POSTs to `/loans/api/v1/repayments` with `loanId` in the body (was hitting GET-only `/loans/{id}/repayments` → 405). Playwright-verified: Post Payment → 201, "Payment Posted" toast, outstanding 27,667→25,305, installments 1–2 marked PAID.
 
 ### P1 — workflows are completable & data is visible
-5. **F13** Add Submit / Start-Review / Disburse actions to loan detail (complete the lifecycle in UI).
-6. **F12** Replace free-text Customer ID / Product UUID in loan application with pickers.
-7. **F7** Include balances in the account list endpoint (or batch-fetch) so the directory isn't all blanks.
+5. ✅ **F13 FIXED (2026-06-25)** — loan-detail Decision tab now shows status-driven lifecycle actions: DRAFT→**Submit**, SUBMITTED→**Start Review**, UNDER_REVIEW→Approve/Decline, APPROVED→**Disburse** (dialog with amount + borrower-account picker; surfaces the SoD 422). Playwright-verified: Submit → 200 → SUBMITTED → Start Review shown.
+6. ✅ **F12 FIXED (2026-06-25)** — New Loan Application uses a **customer search picker** (sets the customerId string) and a **product dropdown** (ACTIVE loan products) instead of free-text ID/UUID. Verified: picked Bob + Personal Loan → 201. (Bonus: with F23 fixed, product min/max validation now rejects out-of-range amounts through the UI with a clear toast.)
+7. ✅ **F7 FIXED (2026-06-25)** — `ListAccounts` batch-fetches balances for the page and attaches them; the Account Directory shows real balances (was all blank). Verified via API + directory screenshot.
 
 ### P2 — correctness & UX polish
 9. **F2** Activate/seed Current + Fixed-Deposit products so account-type selection is real.
