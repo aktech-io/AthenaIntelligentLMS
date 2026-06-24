@@ -92,7 +92,6 @@ Severity: 🔴 blocker · 🟠 major · 🟡 minor · 🔵 note
 5. **F13** Add Submit / Start-Review / Disburse actions to loan detail (complete the lifecycle in UI).
 6. **F12** Replace free-text Customer ID / Product UUID in loan application with pickers.
 7. **F7** Include balances in the account list endpoint (or batch-fetch) so the directory isn't all blanks.
-8. **F15** Align loan field names (`disbursedAmount`/`outstandingPrincipal`) UI↔API so amounts show.
 
 ### P2 — correctness & UX polish
 9. **F2** Activate/seed Current + Fixed-Deposit products so account-type selection is real.
@@ -101,6 +100,24 @@ Severity: 🔴 blocker · 🟠 major · 🟡 minor · 🔵 note
 12. **F11** Show product name (not UUID) on account detail.
 13. **F19/F18** Honor statement date range; fix `customerName` label.
 14. **F6** Surface KYC completion in-flow; decide whether downstream steps enforce KYC.
+15. **F21** Make reporting summary reflect live portfolio (or refresh snapshot) — currently stale.
+16. **F22** Fix the `NaN` cell on the Overdraft Management page.
+
+### Stage 10 — Interest, EOD & DPD ✅
+- ✅ **EOD run works** (`POST /eod/run` → COMPLETED): 29 accounts accrued, KES 1,093.30 interest. `interest-summary` / `post-interest` behave correctly (422 "no unposted interest" when nothing accrued).
+- ✅ **DPD/staging works**: loan reports `dpd: 0, stage: PERFORMING`.
+- 🔵 Same-day-opened account (Alice) didn't accrue on the EOD whose runDate predates the open time — arguably correct (no full day elapsed).
+
+### Stage 11 — Other subsystems (probed)
+- ✅ Compliance is **generating alerts** (LARGE_TRANSACTION / HIGH / OPEN).
+- ✅ Overdraft wallets exist; float accounts exist; collections functional (0 open cases — expected, loan performing).
+- 🟡 **F21 — Reporting summary looks stale/snapshot-based.** `reporting/summary` shows totalLoans 4 / totalDisbursed 145,000 — excludes the new loan and most of the 18 loans in loan-mgmt. Portfolio numbers don't reflect live data.
+- 🟡 **F22 — Overdraft Management page renders a stray `NaN`** (utilization/calc cell).
+
+### Stage 12 — UI render tour (18 pages) ✅
+- Reports, Trial Balance, Balance Sheet, Income Statement, Cash Flow, Collections, Collections Workbench, Wallets, Float, Fixed Deposits, Interest Accrual, Active Loans, Loan Detail, Loan Applications, AML, Ledger, Transactions — **all render with no console/page errors** (only the overdraft NaN above).
+- ✅ ~~F15 loan amounts blank~~ — **false alarm**: Loan Detail (Principal 30,000 / Outstanding 27,667 / 15% / full 12-row schedule, installment 1 PAID) and Active Loans list both show amounts correctly. My earlier "null" was wrong raw-API field names.
+- ✅ **F17 confirmed live**: loan-detail "Post Payment" → red toast *"Payment Failed — Request failed with status 405"* (screenshot captured).
 
 ### Verified working ✅ (no action)
 - Customer creation, account opening + **initial deposit funding**, transfer engine (API), loan state machine (API), amortization schedule, repayment allocation, **double-entry GL + balanced trial balance**, statements.
