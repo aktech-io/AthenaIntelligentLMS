@@ -363,11 +363,16 @@ func (s *AccountingService) EntryExists(ctx context.Context, sourceEvent, source
 // PostLoanDisbursement creates a journal entry for a loan disbursement.
 // DR Loans Receivable (1100) / CR Cash (1000)
 func (s *AccountingService) PostLoanDisbursement(ctx context.Context, tenantID, applicationID string, amount decimal.Decimal) error {
+	// Loan disbursed into the borrower's deposit account:
+	//   DR Loans Receivable (1100)   — the bank's asset (amount owed by borrower)
+	//   CR Customer Deposits (2000)  — the bank's liability (amount it now owes the
+	//                                  borrower in their deposit account)
+	// (Cash 1000 is only credited for over-the-counter cash-out disbursements.)
 	drAccount, err := s.resolveAccountID(ctx, tenantID, "1100")
 	if err != nil {
 		return err
 	}
-	crAccount, err := s.resolveAccountID(ctx, tenantID, "1000")
+	crAccount, err := s.resolveAccountID(ctx, tenantID, "2000")
 	if err != nil {
 		return err
 	}
