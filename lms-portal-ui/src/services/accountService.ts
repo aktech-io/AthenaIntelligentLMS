@@ -211,6 +211,30 @@ export const accountService = {
     return result.data;
   },
 
+  async deposit(id: string, amount: number, description?: string): Promise<Transaction> {
+    const result = await apiPost<Transaction>(`${BASE}/${id}/credit`, {
+      amount,
+      description: description || "Cash deposit",
+      channel: "TELLER",
+    });
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to deposit");
+    }
+    return result.data;
+  },
+
+  async withdraw(id: string, amount: number, description?: string): Promise<Transaction> {
+    const result = await apiPost<Transaction>(`${BASE}/${id}/debit`, {
+      amount,
+      description: description || "Cash withdrawal",
+      channel: "TELLER",
+    });
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to withdraw");
+    }
+    return result.data;
+  },
+
   async getBalance(id: string): Promise<BalanceResponse> {
     const result = await apiGet<BalanceResponse>(`${BASE}/${id}/balance`);
     if (result.error || !result.data) {

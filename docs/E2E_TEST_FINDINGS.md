@@ -84,7 +84,7 @@ Severity: 🔴 blocker · 🟠 major · 🟡 minor · 🔵 note
 
 ### P0 — money must move through the UI (root cause of "data doesn't flow")
 1. **F14** Wire loan disbursement to credit the disbursement account (account-service credit + matching GL), persist `disbursementAccountId`. Decide cash-out vs to-account model (F20).
-2. **F1** Add Deposit / Withdraw actions on Account Detail (backend `credit`/`debit` already exist).
+2. ✅ **F1 FIXED (2026-06-24)** — Added Deposit / Withdraw buttons + dialog on Account Detail (`accountService.deposit/withdraw` → `POST /accounts/{id}/credit|debit`). Playwright-verified: deposit 7,500 → 16,000→23,500; withdraw 2,000 → 23,500→21,500; balance/toast update live.
 3. **F10** Build the Transfer screen (backend transfer engine already works, incl. THIRD_PARTY rules).
 4. **F17** Fix loan-detail repayment endpoint (`POST /api/v1/repayments` + `loanId`).
 

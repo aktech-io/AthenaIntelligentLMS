@@ -14,8 +14,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   ArrowLeft, Snowflake, Sun, XCircle, DollarSign,
   ChevronLeft, ChevronRight, Info, CreditCard, TrendingUp, FileText,
+  ArrowDownToLine, ArrowUpFromLine,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -99,6 +104,12 @@ const AccountDetailPage = () => {
   const [stmtFrom, setStmtFrom] = useState(defaults.from);
   const [stmtTo, setStmtTo] = useState(defaults.to);
   const [stmtRequested, setStmtRequested] = useState(false);
+
+  // Cash transaction (deposit / withdraw) dialog
+  const [cashOpen, setCashOpen] = useState(false);
+  const [cashMode, setCashMode] = useState<"deposit" | "withdraw">("deposit");
+  const [cashAmount, setCashAmount] = useState("");
+  const [cashDesc, setCashDesc] = useState("");
 
   // ─── Queries ──────────────────────────────
 
@@ -184,6 +195,44 @@ const AccountDetailPage = () => {
       toast({ title: "Close Failed", description: err.message, variant: "destructive" });
     },
   });
+
+  const cashMutation = useMutation({
+    mutationFn: () => {
+      const amt = parseFloat(cashAmount);
+      const desc = cashDesc.trim() || undefined;
+      return cashMode === "deposit"
+        ? accountService.deposit(accountId!, amt, desc)
+        : accountService.withdraw(accountId!, amt, desc);
+    },
+    onSuccess: () => {
+      toast({
+        title: cashMode === "deposit" ? "Deposit Successful" : "Withdrawal Successful",
+        description: `${fmtCurrency(parseFloat(cashAmount), account?.currency ?? "KES")} ${
+          cashMode === "deposit" ? "credited to" : "debited from"
+        } the account.`,
+      });
+      setCashOpen(false);
+      setCashAmount("");
+      setCashDesc("");
+      queryClient.invalidateQueries({ queryKey: ["account", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-balance", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-transactions", accountId] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: cashMode === "deposit" ? "Deposit Failed" : "Withdrawal Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openCashDialog = (mode: "deposit" | "withdraw") => {
+    setCashMode(mode);
+    setCashAmount("");
+    setCashDesc("");
+    setCashOpen(true);
+  };
 
   // ─── Loading state ────────────────────────
 
@@ -286,6 +335,23 @@ const AccountDetailPage = () => {
             </Badge>
             {!isClosed && (
               <>
+                <Button
+                  size="sm"
+                  className="text-xs font-sans bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => openCashDialog("deposit")}
+                  disabled={isFrozen}
+                >
+                  <ArrowDownToLine className="h-3.5 w-3.5 mr-1" /> Deposit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-sans"
+                  onClick={() => openCashDialog("withdraw")}
+                  disabled={isFrozen}
+                >
+                  <ArrowUpFromLine className="h-3.5 w-3.5 mr-1" /> Withdraw
+                </Button>
                 {isFrozen ? (
                   <Button
                     variant="outline"
@@ -332,6 +398,75 @@ const AccountDetailPage = () => {
             )}
           </div>
         </div>
+
+        {/* Deposit / Withdraw dialog */}
+        <Dialog open={cashOpen} onOpenChange={setCashOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading">
+                {cashMode === "deposit" ? "Deposit to" : "Withdraw from"} {account.accountNumber}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="text-xs text-muted-foreground font-sans">
+                Available balance:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmtCurrency(availBal, currency)}
+                </span>
+              </div>
+              <div>
+                <Label className="text-xs">Amount ({currency})</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-1 text-sm font-mono"
+                  placeholder="0.00"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  autoFocus
+                />
+                {cashMode === "withdraw" &&
+                  parseFloat(cashAmount || "0") > availBal && (
+                    <p className="text-[10px] text-destructive mt-1">
+                      Amount exceeds available balance.
+                    </p>
+                  )}
+              </div>
+              <div>
+                <Label className="text-xs">Description (optional)</Label>
+                <Input
+                  className="mt-1 text-sm font-sans"
+                  placeholder={cashMode === "deposit" ? "Cash deposit" : "Cash withdrawal"}
+                  value={cashDesc}
+                  onChange={(e) => setCashDesc(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setCashOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="text-xs"
+                onClick={() => cashMutation.mutate()}
+                disabled={
+                  cashMutation.isPending ||
+                  !cashAmount ||
+                  parseFloat(cashAmount) <= 0 ||
+                  (cashMode === "withdraw" && parseFloat(cashAmount) > availBal)
+                }
+              >
+                {cashMutation.isPending
+                  ? "Processing..."
+                  : cashMode === "deposit"
+                  ? "Confirm Deposit"
+                  : "Confirm Withdrawal"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
