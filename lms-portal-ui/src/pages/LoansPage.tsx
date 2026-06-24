@@ -33,12 +33,16 @@ import {
   loanOriginationService,
   type LoanApplication as ApiLoanApplication,
 } from "@/services/loanOriginationService";
+import { customerService, type Customer } from "@/services/customerService";
+import { productService } from "@/services/productService";
+import { accountService } from "@/services/accountService";
 
 // ─── Local Types ─────────────────────────────────────
 type ApplicationStage = "received" | "kyc_pending" | "under_assessment" | "credit_committee" | "approved" | "rejected";
 
 interface LoanApplication {
   id: string;
+  customerId: string;
   customerName: string;
   customerInitials: string;
   amount: number;
@@ -91,6 +95,7 @@ function adaptApplication(app: ApiLoanApplication): LoanApplication {
   const stage = statusToStage(app.status);
   return {
     id: app.id,
+    customerId: app.customerId,
     customerName: app.customerId,
     customerInitials: app.customerId.slice(0, 2).toUpperCase(),
     amount: app.requestedAmount,
@@ -389,11 +394,36 @@ const LoansPage = () => {
 function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [customerId, setCustomerId] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [productId, setProductId] = useState("");
   const [amount, setAmount] = useState("");
   const [tenor, setTenor] = useState("");
   const [purpose, setPurpose] = useState("");
+
+  const customerId = selectedCustomer?.customerId ?? "";
+
+  const customerResults = useQuery({
+    queryKey: ["customers-search", customerSearch],
+    queryFn: () => customerService.searchCustomers(customerSearch),
+    enabled: customerSearch.trim().length >= 2 && !selectedCustomer,
+    staleTime: 30_000,
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products", "loan-active"],
+    queryFn: () => productService.listProducts(0, 100),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const loanProducts = (productsQuery.data?.content ?? []).filter(
+    (p) => p.status === "ACTIVE" && (p.productType?.toUpperCase().includes("LOAN") ?? false)
+  );
+
+  const resetForm = () => {
+    setSelectedCustomer(null); setCustomerSearch(""); setProductId("");
+    setAmount(""); setTenor(""); setPurpose("");
+  };
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -409,7 +439,7 @@ function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       toast({ title: "Application Created", description: `${app.id} created and ready for submission` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onOpenChange(false);
-      setCustomerId(""); setProductId(""); setAmount(""); setTenor(""); setPurpose("");
+      resetForm();
     },
     onError: (err: Error) => {
       toast({ title: "Create Failed", description: err.message, variant: "destructive" });
@@ -424,12 +454,70 @@ function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div>
-            <label className="text-xs font-sans font-medium">Customer ID</label>
-            <Input className="mt-1 text-xs font-mono" placeholder="e.g. CUST-001" value={customerId} onChange={e => setCustomerId(e.target.value)} />
+            <label className="text-xs font-sans font-medium">Customer</label>
+            {selectedCustomer ? (
+              <div className="mt-1 flex items-center justify-between rounded-md border px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-sans font-medium truncate">{selectedCustomer.firstName} {selectedCustomer.lastName}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">{selectedCustomer.customerId}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[10px] font-sans shrink-0"
+                  onClick={() => { setSelectedCustomer(null); setCustomerSearch(""); }}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <div className="relative mt-1">
+                <Input
+                  className="text-xs font-sans"
+                  placeholder="Search by name or ID..."
+                  value={customerSearch}
+                  onChange={e => setCustomerSearch(e.target.value)}
+                />
+                {customerSearch.trim().length >= 2 && (
+                  <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+                    {customerResults.isLoading ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground font-sans">Searching...</div>
+                    ) : (customerResults.data?.length ?? 0) === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground font-sans">No customers found</div>
+                    ) : (
+                      customerResults.data!.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); }}
+                          className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted"
+                        >
+                          <span className="text-xs font-sans font-medium">{c.firstName} {c.lastName}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">{c.customerId}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div>
-            <label className="text-xs font-sans font-medium">Product ID</label>
-            <Input className="mt-1 text-xs font-mono" placeholder="Product UUID" value={productId} onChange={e => setProductId(e.target.value)} />
+            <label className="text-xs font-sans font-medium">Product</label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger className="mt-1 text-xs font-sans">
+                <SelectValue placeholder={productsQuery.isLoading ? "Loading products..." : "Select a loan product"} />
+              </SelectTrigger>
+              <SelectContent>
+                {loanProducts.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground font-sans">No active loan products</div>
+                ) : (
+                  loanProducts.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs font-sans">{p.name}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -468,10 +556,35 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
   const [approveAmount, setApproveAmount] = useState(app.amount.toString());
   const [approveRate, setApproveRate] = useState(app.interestRate?.toString() ?? "15");
   const [declineNotes, setDeclineNotes] = useState("");
+  const [disburseOpen, setDisburseOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const canApprove = !["APPROVED", "DISBURSED", "REJECTED", "CANCELLED"].includes(app.backendStatus);
+  const status = (app.backendStatus ?? "").toUpperCase();
+
+  const submitMutation = useMutation({
+    mutationFn: () => loanOriginationService.submitApplication(app.id),
+    onSuccess: () => {
+      toast({ title: "Application Submitted", description: `${app.id} submitted for review` });
+      queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
+      onClose();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Submit Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: () => loanOriginationService.startReview(app.id),
+    onSuccess: () => {
+      toast({ title: "Review Started", description: `${app.id} is now under review` });
+      queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
+      onClose();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Start Review Failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   const approveMutation = useMutation({
     mutationFn: () =>
@@ -639,12 +752,57 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
           </TabsContent>
 
           <TabsContent value="decision" className="mt-0 space-y-4">
-            {!canApprove ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm font-medium">No actions available</p>
-                <p className="text-xs mt-1">This application is already {app.backendStatus.toLowerCase()}.</p>
-              </div>
-            ) : (
+            {status === "DRAFT" && (
+              <Card className="p-4 space-y-3 border-l-4 border-l-info">
+                <p className="text-xs font-sans font-semibold text-info">Submit Application</p>
+                <p className="text-[11px] text-muted-foreground font-sans">
+                  Submit this draft application to begin the review process.
+                </p>
+                <Button
+                  className="w-full bg-info hover:bg-info/90 text-white font-sans text-xs"
+                  onClick={() => submitMutation.mutate()}
+                  disabled={submitMutation.isPending}
+                >
+                  <FileText className="h-4 w-4 mr-1.5" />
+                  {submitMutation.isPending ? "Submitting..." : "Submit"}
+                </Button>
+              </Card>
+            )}
+
+            {status === "SUBMITTED" && (
+              <Card className="p-4 space-y-3 border-l-4 border-l-accent">
+                <p className="text-xs font-sans font-semibold">Start Review</p>
+                <p className="text-[11px] text-muted-foreground font-sans">
+                  Move this application into review for credit assessment.
+                </p>
+                <Button
+                  className="w-full font-sans text-xs"
+                  onClick={() => reviewMutation.mutate()}
+                  disabled={reviewMutation.isPending}
+                >
+                  <Eye className="h-4 w-4 mr-1.5" />
+                  {reviewMutation.isPending ? "Starting..." : "Start Review"}
+                </Button>
+              </Card>
+            )}
+
+            {status === "APPROVED" && (
+              <Card className="p-4 space-y-3 border-l-4 border-l-success">
+                <p className="text-xs font-sans font-semibold text-success">Disburse Loan</p>
+                <p className="text-[11px] text-muted-foreground font-sans">
+                  Approved for {formatKES(app.approvedAmount ?? app.amount)}. Disburse funds to the borrower's account.
+                </p>
+                <Button
+                  className="w-full bg-success hover:bg-success/90 text-white font-sans text-xs"
+                  onClick={() => setDisburseOpen(true)}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  Disburse
+                </Button>
+              </Card>
+            )}
+
+            {status === "UNDER_REVIEW" && (
               <>
                 {/* Approve Section */}
                 <Card className="p-4 space-y-3 border-l-4 border-l-success">
@@ -704,10 +862,121 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                 </Card>
               </>
             )}
+
+            {!["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED"].includes(status) && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm font-medium">No actions available</p>
+                <p className="text-xs mt-1">This application is {app.backendStatus.toLowerCase()}.</p>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>
+
+      <DisburseDialog app={app} open={disburseOpen} onOpenChange={setDisburseOpen} onDone={onClose} />
     </div>
+  );
+}
+
+// ─── Disburse Dialog ───
+function DisburseDialog({
+  app, open, onOpenChange, onDone,
+}: {
+  app: LoanApplication;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onDone: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [disbursedAmount, setDisbursedAmount] = useState((app.approvedAmount ?? app.amount).toString());
+  const [accountId, setAccountId] = useState("");
+
+  const customerQuery = useQuery({
+    queryKey: ["customers-search", "resolve", app.customerId],
+    queryFn: () => customerService.searchCustomers(app.customerId),
+    enabled: open && !!app.customerId,
+    staleTime: 60_000,
+  });
+  const internalCustomer =
+    customerQuery.data?.find((c) => c.customerId === app.customerId) ?? customerQuery.data?.[0];
+
+  const accountsQuery = useQuery({
+    queryKey: ["customer-accounts", internalCustomer?.id],
+    queryFn: () => accountService.getCustomerAccounts(internalCustomer!.id),
+    enabled: open && !!internalCustomer?.id,
+    staleTime: 30_000,
+  });
+  const accounts = accountsQuery.data ?? [];
+
+  const disburseMutation = useMutation({
+    mutationFn: () =>
+      loanOriginationService.disburseApplication(app.id, {
+        disbursedAmount: parseFloat(disbursedAmount),
+        disbursementAccount: accountId,
+      }),
+    onSuccess: () => {
+      toast({ title: "Loan Disbursed", description: `${app.id} disbursed for ${formatKES(parseFloat(disbursedAmount))}` });
+      queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
+      onOpenChange(false);
+      onDone();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Disbursement Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const accountsLoading = customerQuery.isLoading || accountsQuery.isLoading;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-heading">Disburse Loan</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <label className="text-xs font-sans font-medium">Disbursed Amount (KES)</label>
+            <Input
+              type="number"
+              className="mt-1 text-xs font-mono"
+              value={disbursedAmount}
+              onChange={e => setDisbursedAmount(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-sans font-medium">Disbursement Account</label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className="mt-1 text-xs font-sans">
+                <SelectValue placeholder={accountsLoading ? "Loading accounts..." : "Select account"} />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground font-sans">No accounts found</div>
+                ) : (
+                  accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id} className="text-xs font-sans">
+                      {a.accountNumber} · {a.accountType}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="text-xs font-sans">Cancel</Button>
+          <Button
+            size="sm"
+            onClick={() => disburseMutation.mutate()}
+            disabled={!disbursedAmount || !accountId || disburseMutation.isPending}
+            className="text-xs font-sans"
+          >
+            {disburseMutation.isPending ? "Disbursing..." : "Disburse"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
