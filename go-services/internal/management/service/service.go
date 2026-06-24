@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/management/event"
@@ -24,6 +25,7 @@ type Service struct {
 	schedGen  *ScheduleGenerator
 	publisher *event.ManagementPublisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // New creates a new Service.
@@ -33,6 +35,7 @@ func New(repo *repository.Repository, schedGen *ScheduleGenerator, publisher *ev
 		schedGen:  schedGen,
 		publisher: publisher,
 		logger:    logger,
+		auditor:   audit.New(repo, logger),
 	}
 }
 
@@ -368,6 +371,19 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 
+	s.auditor.Record(ctx, "LOAN_REPAYMENT", "LOAN", loan.ID.String(), nil, nil,
+		map[string]any{
+			"repaymentId":      repayment.ID,
+			"amount":           req.Amount,
+			"principalApplied": principalApplied,
+			"interestApplied":  interestApplied,
+			"feeApplied":       feeApplied,
+			"penaltyApplied":   penaltyApplied,
+			"outstandingAfter": totalOutstanding,
+			"paymentMethod":    req.PaymentMethod,
+			"loanClosed":       loan.Status == model.LoanStatusClosed,
+		})
+
 	// Publish events (non-transactional, best-effort)
 	s.publisher.PublishRepaymentCompleted(ctx, loan, repayment)
 	if loan.Status == model.LoanStatusClosed {
@@ -376,6 +392,11 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 
 	resp := model.ToRepaymentResponse(repayment)
 	return &resp, nil
+}
+
+// ListAuditLog returns audit-trail entries for the loans domain.
+func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
+	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
 // ---------------------------------------------------------------------------

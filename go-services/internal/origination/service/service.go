@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/origination/client"
 	"github.com/athena-lms/go-services/internal/origination/event"
 	"github.com/athena-lms/go-services/internal/origination/model"
@@ -21,6 +22,7 @@ type Service struct {
 	publisher     *event.Publisher
 	productClient *client.ProductClient
 	logger        *zap.Logger
+	auditor       *audit.Logger
 }
 
 // New creates a new Service.
@@ -30,6 +32,7 @@ func New(repo *repository.Repository, publisher *event.Publisher, productClient 
 		publisher:     publisher,
 		productClient: productClient,
 		logger:        logger,
+		auditor:       audit.New(repo, logger),
 	}
 }
 
@@ -143,6 +146,9 @@ func (s *Service) Submit(ctx context.Context, id uuid.UUID, tenantID, userID str
 		return nil, fmt.Errorf("submit application: %w", err)
 	}
 
+	s.auditor.Record(ctx, "LOAN_APP_SUBMIT", "LOAN_APPLICATION", app.ID.String(),
+		map[string]any{"status": model.StatusDraft},
+		map[string]any{"status": model.StatusSubmitted}, nil)
 	s.publisher.PublishSubmitted(ctx, app)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
@@ -164,6 +170,10 @@ func (s *Service) StartReview(ctx context.Context, id uuid.UUID, tenantID, userI
 	if err != nil {
 		return nil, fmt.Errorf("start review: %w", err)
 	}
+
+	s.auditor.Record(ctx, "LOAN_APP_REVIEW_START", "LOAN_APPLICATION", app.ID.String(),
+		map[string]any{"status": model.StatusSubmitted},
+		map[string]any{"status": model.StatusUnderReview, "reviewerId": userID}, nil)
 
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
@@ -198,6 +208,10 @@ func (s *Service) Approve(ctx context.Context, id uuid.UUID, req model.ApproveAp
 		return nil, fmt.Errorf("approve application: %w", err)
 	}
 
+	s.auditor.Record(ctx, "LOAN_APP_APPROVE", "LOAN_APPLICATION", app.ID.String(),
+		map[string]any{"status": model.StatusUnderReview},
+		map[string]any{"status": model.StatusApproved},
+		map[string]any{"approvedAmount": req.ApprovedAmount, "interestRate": req.InterestRate, "reviewNotes": req.ReviewNotes})
 	s.publisher.PublishApproved(ctx, app)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
@@ -227,6 +241,10 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, req model.RejectAppl
 		return nil, fmt.Errorf("reject application: %w", err)
 	}
 
+	s.auditor.Record(ctx, "LOAN_APP_REJECT", "LOAN_APPLICATION", app.ID.String(),
+		map[string]any{"status": model.StatusUnderReview},
+		map[string]any{"status": model.StatusRejected},
+		map[string]any{"reason": req.Reason})
 	s.publisher.PublishRejected(ctx, app, req.Reason)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
@@ -259,6 +277,11 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 	if err != nil {
 		return nil, fmt.Errorf("disburse application: %w", err)
 	}
+
+	s.auditor.Record(ctx, "LOAN_APP_DISBURSE", "LOAN_APPLICATION", app.ID.String(),
+		map[string]any{"status": model.StatusApproved},
+		map[string]any{"status": model.StatusDisbursed},
+		map[string]any{"disbursedAmount": req.DisbursedAmount, "disbursementAccount": req.DisbursementAccount})
 
 	// Fetch schedule config and publish
 	scheduleConfig := s.productClient.GetProductScheduleConfig(ctx, app.ProductID)

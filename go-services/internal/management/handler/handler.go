@@ -43,6 +43,28 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1/repayments", func(r chi.Router) {
 		r.Post("/", h.ApplyRepayment)
 	})
+	r.Get("/api/v1/audit-log", h.ListAuditLog)
+}
+
+// ListAuditLog handles GET /api/v1/audit-log for the loans domain.
+func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	entityType := r.URL.Query().Get("entityType")
+	entityID := r.URL.Query().Get("entityId")
+	limit := 50
+	if v, err := strconv.Atoi(r.URL.Query().Get("size")); err == nil && v > 0 {
+		limit = v
+	}
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && v > 0 {
+		offset = v * limit
+	}
+	records, err := h.svc.ListAuditLog(r.Context(), tenantID, entityType, entityID, limit, offset)
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to fetch audit log", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, records)
 }
 
 // List handles GET /api/v1/loans

@@ -86,7 +86,7 @@ Assessment (2026-06-24): only **accounting** was audit-grade (maker-checker + `f
 
 ### Phase A — Shared audit trail
 - ✅ **A.1 account-service DONE (2026-06-24)** — new reusable `internal/common/audit` package (auto-extracts user/role/tenant from context); per-service `audit_log` table (migration 000010) + `created_by` on `account_transactions`; `GET /api/v1/audit-log?entityType=&entityId=` to read the trail. Wired into **credit, debit, transfer, status change (freeze/close/reactivate)**. Playwright/API-verified: a UI deposit recorded `ACCOUNT_CREDIT / admin@athena.com / ADMIN` with before/after + details; transfer, freeze, reactivate all logged with actor. Transactions now carry `createdBy`.
-- ⏳ **A.2** — management (repayments) + origination (loan lifecycle) audit, on the shared `athena_loans` DB.
+- ✅ **A.2 loans DONE (2026-06-24)** — shared `audit_log` table on `athena_loans` (migration `loans/7`); audit wired into **repayment** (management) and the full **loan lifecycle** — submit, review-start, approve, reject, disburse (origination), each with actor/role + before/after + details. Read endpoint `GET /proxy/loans/api/v1/audit-log`. Verified: a full apply→submit→review→approve→disburse→repay run produced 5 audit entries all attributed to `admin/ADMIN` with amounts/rates/account captured.
 
 ### Phase B — Configurable maker-checker (pending)
 - Control config (tenant + product level, toggleable, threshold-based) + pending-approval queue + `checker != maker` enforcement on: manual credit/debit, transfers above threshold, loan approval & disbursement, account closure. Approval-queue UI.
