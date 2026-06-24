@@ -119,6 +119,16 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 	}
 	transferType := model.TransferType(upper)
 
+	// Maker-checker: queue for a second authoriser when required.
+	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpTransfer, req.Amount) {
+		narration := ""
+		if req.Narration != nil {
+			narration = *req.Narration
+		}
+		return nil, queueApproval(ctx, s.repo, tenantID, OpTransfer, "ACCOUNT", req.SourceAccountID.String(),
+			req.Amount, narration, req)
+	}
+
 	// Resolve source account
 	sourceAccount, err := s.repo.GetAccountByIDAndTenant(ctx, req.SourceAccountID, tenantID)
 	if err != nil {

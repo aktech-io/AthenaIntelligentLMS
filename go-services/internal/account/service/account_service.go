@@ -188,6 +188,15 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		return nil, errors.BadRequest("amount must be positive")
 	}
 
+	// Maker-checker: queue for a second authoriser when required.
+	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountCredit, req.Amount) {
+		desc := ""
+		if req.Description != nil {
+			desc = *req.Description
+		}
+		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountCredit, "ACCOUNT", accountID.String(), req.Amount, desc, req)
+	}
+
 	// Idempotency check
 	if req.IdempotencyKey != nil {
 		existing, err := s.repo.GetTransactionByIdempotencyKey(ctx, *req.IdempotencyKey)
@@ -281,6 +290,15 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req TransactionRequest, tenantID string) (*model.AccountTransaction, error) {
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
 		return nil, errors.BadRequest("amount must be positive")
+	}
+
+	// Maker-checker: queue for a second authoriser when required.
+	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountDebit, req.Amount) {
+		desc := ""
+		if req.Description != nil {
+			desc = *req.Description
+		}
+		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountDebit, "ACCOUNT", accountID.String(), req.Amount, desc, req)
 	}
 
 	// Idempotency check

@@ -16,6 +16,7 @@ import (
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/model"
 	"github.com/athena-lms/go-services/internal/account/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/errors"
 )
 
@@ -24,11 +25,12 @@ type AccountOpeningService struct {
 	repo      *repository.Repository
 	publisher *event.Publisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // NewAccountOpeningService creates a new AccountOpeningService.
 func NewAccountOpeningService(repo *repository.Repository, publisher *event.Publisher, logger *zap.Logger) *AccountOpeningService {
-	return &AccountOpeningService{repo: repo, publisher: publisher, logger: logger}
+	return &AccountOpeningService{repo: repo, publisher: publisher, logger: logger, auditor: audit.New(repo, logger)}
 }
 
 // OpenAccountRequest is the DTO for opening an account with a deposit product.
@@ -222,10 +224,21 @@ func (s *AccountOpeningService) CloseAccount(ctx context.Context, accountID uuid
 				bal.AvailableBalance.String(), account.Currency))
 	}
 
+	// Maker-checker: account closure requires a second authoriser when enabled.
+	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountClose, decimal.Zero) {
+		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountClose, "ACCOUNT", accountID.String(),
+			decimal.Zero, "Account closure: "+reason, map[string]any{"reason": reason})
+	}
+
 	if err := s.repo.CloseAccount(ctx, accountID, reason); err != nil {
 		return nil, err
 	}
 	account.Status = model.AccountStatusClosed
+
+	s.auditor.Record(ctx, "ACCOUNT_CLOSE", "ACCOUNT", accountID.String(),
+		map[string]any{"status": "ACTIVE"}, map[string]any{"status": model.AccountStatusClosed},
+		map[string]any{"reason": reason})
+
 	return account, nil
 }
 

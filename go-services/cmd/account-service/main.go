@@ -90,10 +90,12 @@ func main() {
 	interestSvc := service.NewInterestService(repo, acctPub, logger)
 	dormancySvc := service.NewDormancyService(repo, acctPub, logger)
 	eodSvc := service.NewEODService(interestSvc, dormancySvc, logger)
+	approvalSvc := service.NewApprovalService(repo, accountSvc, transferSvc, openingSvc, logger)
 	hdlr := handler.NewWithRepo(accountSvc, customerSvc, transferSvc, repo, logger)
 	hdlr.SetOpeningService(openingSvc)
 	hdlr.SetInterestService(interestSvc)
 	hdlr.SetEODService(eodSvc)
+	hdlr.SetApprovalService(approvalSvc)
 
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)

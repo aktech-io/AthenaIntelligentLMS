@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/account/model"
@@ -27,9 +28,13 @@ type Handler struct {
 	openingSvc  *service.AccountOpeningService
 	interestSvc *service.InterestService
 	eodSvc      *service.EODService
+	approvalSvc *service.ApprovalService
 	repo        *repository.Repository
 	logger      *zap.Logger
 }
+
+// SetApprovalService sets the maker-checker approval service.
+func (h *Handler) SetApprovalService(svc *service.ApprovalService) { h.approvalSvc = svc }
 
 // New creates a new Handler.
 func New(accountSvc *service.AccountService, customerSvc *service.CustomerService, transferSvc *service.TransferService, logger *zap.Logger) *Handler {
@@ -108,6 +113,81 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		})
 	})
 	r.Get("/api/v1/audit-log", h.ListAuditLog)
+
+	r.Route("/api/v1/control-config", func(r chi.Router) {
+		r.Get("/", h.ListControlConfig)
+		r.Put("/", h.UpdateControlConfig)
+	})
+	r.Route("/api/v1/pending-approvals", func(r chi.Router) {
+		r.Get("/", h.ListPendingApprovals)
+		r.Post("/{id}/approve", h.ApprovePending)
+		r.Post("/{id}/reject", h.RejectPending)
+	})
+}
+
+// ListControlConfig returns the effective maker-checker config for the tenant.
+func (h *Handler) ListControlConfig(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	httputil.WriteJSON(w, http.StatusOK, h.approvalSvc.EffectiveConfig(r.Context(), tenantID))
+}
+
+// UpdateControlConfig upserts a control config row.
+func (h *Handler) UpdateControlConfig(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	var req struct {
+		Operation string          `json:"operation"`
+		Enabled   bool            `json:"enabled"`
+		Threshold decimal.Decimal `json:"threshold"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteBadRequest(w, "Invalid request body", r.URL.Path)
+		return
+	}
+	if err := h.approvalSvc.UpsertConfig(r.Context(), tenantID, req.Operation, req.Enabled, req.Threshold); err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, h.approvalSvc.EffectiveConfig(r.Context(), tenantID))
+}
+
+// ListPendingApprovals returns queued approvals (optional ?status=).
+func (h *Handler) ListPendingApprovals(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	status := r.URL.Query().Get("status")
+	page, size := parsePagination(r)
+	items, err := h.approvalSvc.ListPending(r.Context(), tenantID, status, size, page*size)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, items)
+}
+
+// ApprovePending approves and executes a queued operation.
+func (h *Handler) ApprovePending(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	id := chi.URLParam(r, "id")
+	p, err := h.approvalSvc.Approve(r.Context(), tenantID, id)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, p)
+}
+
+// RejectPending declines a queued operation.
+func (h *Handler) RejectPending(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	id := chi.URLParam(r, "id")
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := h.approvalSvc.Reject(r.Context(), tenantID, id, req.Reason); err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{"status": "REJECTED", "id": id})
 }
 
 // ListAuditLog returns the account-service audit trail, optionally filtered by
@@ -922,6 +1002,14 @@ func (h *Handler) GetEODHistory(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error) {
 	switch e := err.(type) {
+	case *service.ErrPendingApproval:
+		// Operation queued for dual control — 202 Accepted.
+		httputil.WriteJSON(w, http.StatusAccepted, map[string]any{
+			"status":    "PENDING_APPROVAL",
+			"pendingId": e.PendingID,
+			"operation": e.Operation,
+			"message":   "Submitted for approval — a second authoriser must approve this operation.",
+		})
 	case *errors.NotFoundError:
 		httputil.WriteNotFound(w, e.Message, r.URL.Path)
 	case *errors.BusinessError:
