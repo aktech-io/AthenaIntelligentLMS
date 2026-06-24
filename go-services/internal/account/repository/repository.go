@@ -281,6 +281,30 @@ func (r *Repository) GetBalanceByAccountID(ctx context.Context, accountID uuid.U
 	return scanBalance(row)
 }
 
+// GetBalancesByAccountIDs fetches balances for many accounts in one query,
+// keyed by account ID (used to attach balances to account-list responses).
+func (r *Repository) GetBalancesByAccountIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*model.AccountBalance, error) {
+	out := map[uuid.UUID]*model.AccountBalance{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, account_id, available_balance, current_balance, ledger_balance, updated_at
+		 FROM account_balances WHERE account_id = ANY($1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		b, err := scanBalance(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[b.AccountID] = b
+	}
+	return out, rows.Err()
+}
+
 // GetBalanceForUpdate fetches balance with FOR UPDATE lock (must run inside tx).
 func (r *Repository) GetBalanceForUpdate(ctx context.Context, tx pgx.Tx, accountID uuid.UUID) (*model.AccountBalance, error) {
 	row := tx.QueryRow(ctx,

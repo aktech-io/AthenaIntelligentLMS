@@ -145,11 +145,25 @@ func (s *AccountService) GetAccount(ctx context.Context, id uuid.UUID, tenantID 
 	return account, nil
 }
 
-// ListAccounts returns paginated accounts for a tenant.
+// ListAccounts returns paginated accounts for a tenant, each with its balance
+// attached so the directory can show balances without per-row fetches.
 func (s *AccountService) ListAccounts(ctx context.Context, tenantID string, page, size int) (dto.PageResponse, error) {
 	accounts, total, err := s.repo.ListAccountsByTenant(ctx, tenantID, size, page*size)
 	if err != nil {
 		return dto.PageResponse{}, err
+	}
+	ids := make([]uuid.UUID, 0, len(accounts))
+	for _, a := range accounts {
+		ids = append(ids, a.ID)
+	}
+	if balances, berr := s.repo.GetBalancesByAccountIDs(ctx, ids); berr == nil {
+		for _, a := range accounts {
+			if b, ok := balances[a.ID]; ok {
+				a.Balance = b
+			}
+		}
+	} else {
+		s.logger.Warn("could not batch-fetch account balances for list", zap.Error(berr))
 	}
 	return dto.NewPageResponse(accounts, page, size, total), nil
 }
