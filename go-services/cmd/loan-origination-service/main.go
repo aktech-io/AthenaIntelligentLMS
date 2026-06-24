@@ -88,7 +88,7 @@ func main() {
 	}
 
 	// Wire up origination components
-	productBaseURL := envStr("PRODUCT_SERVICE_URL", "http://localhost:8087")
+	productBaseURL := envStr("PRODUCT_SERVICE_URL", "http://product-service.lms.svc.cluster.local:8087")
 	repo := repository.New(pool)
 	evtPublisher := origevent.NewPublisher(pub, logger)
 	productClient := origclient.NewProductClient(cfg.InternalServiceKey, productBaseURL, logger)

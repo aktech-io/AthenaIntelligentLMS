@@ -85,7 +85,7 @@ func main() {
 	notifHandler := handler.New(svc, logger)
 
 	// Customer client for email resolution
-	accountURL := envStr("ATHENA_ACCOUNT_URL", "http://lms-account-service:8086")
+	accountURL := envStr("ATHENA_ACCOUNT_URL", "http://account-service.lms.svc.cluster.local:8086")
 	customerClient := client.NewCustomerClient(accountURL, cfg.InternalServiceKey, logger)
 
 	// Router

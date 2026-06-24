@@ -92,7 +92,7 @@ func main() {
 	ovPublisher := ovevent.NewPublisher(pub, logger)
 	auditSvc := service.NewAuditService(repo, logger)
 	walletSvc := service.NewWalletService(repo, ovPublisher, auditSvc, logger)
-	scoringURL := envStr("AI_SCORING_URL", "http://go-ai-scoring-service:8096")
+	scoringURL := envStr("AI_SCORING_URL", "http://ai-scoring-service.lms.svc.cluster.local:8096")
 	scoringClient := client.NewScoringClient(scoringURL, cfg.InternalServiceKey, logger)
 	walletSvc.SetScoringClient(scoringClient)
 	eodSvc := service.NewEODService(repo, ovPublisher, auditSvc, logger)

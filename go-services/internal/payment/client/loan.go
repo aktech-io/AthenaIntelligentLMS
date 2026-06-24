@@ -25,7 +25,7 @@ type LoanManagementClient struct {
 func NewLoanManagementClient(serviceKey string, logger *zap.Logger) *LoanManagementClient {
 	baseURL := os.Getenv("LOAN_MANAGEMENT_URL")
 	if baseURL == "" {
-		baseURL = "http://lms-loan-management-service:8089"
+		baseURL = "http://loan-management-service.lms.svc.cluster.local:8089"
 	}
 	return &LoanManagementClient{
 		client:  httputil.NewServiceClient(serviceKey),
