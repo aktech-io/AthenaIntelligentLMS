@@ -60,5 +60,49 @@ Severity: 🔴 blocker · 🟠 major · 🟡 minor · 🔵 note
 - 🔴 **F10 — No transfer UI at all.** `accountService.initiateTransfer` / `getTransfersByAccount` exist but are wired to **zero** pages/components (grep of all `.tsx` finds no transfer screen).
 - ✅ Backend transfer engine is solid: API transfer **Alice → Bob KES 10,000** returned `COMPLETED` (ref e2e-tf-002); balances moved Alice 50,000→40,000, Bob 1,000→11,000. It even enforces business rules (INTERNAL = same customer; cross-customer must be `THIRD_PARTY`). So the fix is purely "build the transfer screen," not backend work.
 
-### Stage 7+ — Loan / Repayment / Statements / GL (pending)
+### Stage 7 — Loan application & lifecycle (mostly backend; UI truncated)
+- 🟠 **F12 — Loan application form has NO dropdowns.** "New Loan Application" asks for **Customer ID** (free text) and **Product UUID** (free text). Operator must know/paste raw IDs — the clearest instance of your "previously created data doesn't appear in dropdowns" complaint. Should be customer + product pickers.
+- 🟠 **F13 — Loan lifecycle truncated in UI.** Backend state machine is DRAFT→SUBMITTED→UNDER_REVIEW→APPROVED→DISBURSED (all work via API). The UI loan-detail only wires **Approve/Decline** — no **Submit**, **Start Review**, or **Disburse** buttons (those service methods exist, unused). So you can't take a loan live from the UI.
+- ✅ Backend lifecycle verified end-to-end via API; loan created ACTIVE (id 2c99177c) with a correct **12-installment amortization schedule** (equal 2,707.75 @ 15%).
+- 🟡 **F15 — Loan list/detail field mismatch.** UI reads `principalAmount`/`outstandingBalance`; backend returns `disbursedAmount`/`outstandingPrincipal` → loan amounts render blank in the UI list.
+
+### Stage 8 — Disbursement & Repayment
+- 🔴 **F14 — Loan disbursement does NOT credit the borrower's account.** Disbursing 30,000 to Alice's account left her balance at 40,000 (no credit transaction); loan's `disbursementAccountId` is null. GL posts the disbursement (see Stage 9) but the operational deposit ledger never receives it → **the accounting GL and the account-service balances diverge.** Core integration gap.
+- 🔴 **F17 — Loan-detail repayment uses the wrong endpoint.** `LoanDetailPage` POSTs `/loans/{id}/repayments` which is **GET-only → 405**. Correct endpoint is `POST /api/v1/repayments` with `loanId` in the body (the Teller page uses it correctly). Repayment from the loan screen is broken.
+- ✅ Repayment via the correct endpoint works: 2,707.75 split interest 375 + principal 2,332.75; outstanding 30,000→27,667.25; COMPLETED.
+
+### Stage 9 — Statements & Settlement GLs ✅ (accounting solid)
+- ✅ **Settlement GLs are correct double-entry.** Disbursement → **DR Loans Receivable 30,000 / CR Cash 30,000** (`sourceEvent: loan.disbursed`, system-generated, POSTED). Repayment also posts a balanced entry. **Trial balance balances** (DR=CR=11,748,119.12, `balanced: true`, 37 GL accounts).
+- 🔵 **F20 — GL credits Cash on disbursement, not Customer Deposits.** Correct *if* loans are paid out as cash; but since the API accepts a `disbursementAccount`, disbursing "to an account" should DR Loans Receivable / CR Customer Deposits **and** credit that deposit account. Tied to F14 — decide the disbursement model (cash-out vs to-account) and make GL + account ledger consistent.
+- ✅ Account statement: opening/closing balances, running `balanceAfter`, proper CREDIT/DEBIT types. Mini-statement works.
+- 🟡 **F19 — Statement ignores `from`/`to` params** (returns a fixed ~30-day window). 🟡 **F18 — statement labels the account name as `customerName`.**
+- 🟡 **F8 (refined)** — `/accounts/{id}/transactions` returns `type: null`, but `/statement` & `/mini-statement` return proper `transactionType`. The Transactions tab (using the former) can't categorise; statements can.
+
+---
+
+## Prioritized fix roadmap
+
+### P0 — money must move through the UI (root cause of "data doesn't flow")
+1. **F14** Wire loan disbursement to credit the disbursement account (account-service credit + matching GL), persist `disbursementAccountId`. Decide cash-out vs to-account model (F20).
+2. **F1** Add Deposit / Withdraw actions on Account Detail (backend `credit`/`debit` already exist).
+3. **F10** Build the Transfer screen (backend transfer engine already works, incl. THIRD_PARTY rules).
+4. **F17** Fix loan-detail repayment endpoint (`POST /api/v1/repayments` + `loanId`).
+
+### P1 — workflows are completable & data is visible
+5. **F13** Add Submit / Start-Review / Disburse actions to loan detail (complete the lifecycle in UI).
+6. **F12** Replace free-text Customer ID / Product UUID in loan application with pickers.
+7. **F7** Include balances in the account list endpoint (or batch-fetch) so the directory isn't all blanks.
+8. **F15** Align loan field names (`disbursedAmount`/`outstandingPrincipal`) UI↔API so amounts show.
+
+### P2 — correctness & UX polish
+9. **F2** Activate/seed Current + Fixed-Deposit products so account-type selection is real.
+10. **F5** Paginate / raise cap on customer search.
+11. **F8** Populate transaction `type` on the transactions endpoint.
+12. **F11** Show product name (not UUID) on account detail.
+13. **F19/F18** Honor statement date range; fix `customerName` label.
+14. **F6** Surface KYC completion in-flow; decide whether downstream steps enforce KYC.
+
+### Verified working ✅ (no action)
+- Customer creation, account opening + **initial deposit funding**, transfer engine (API), loan state machine (API), amortization schedule, repayment allocation, **double-entry GL + balanced trial balance**, statements.
+
 
