@@ -1,7 +1,7 @@
 """Collections service tests."""
 import pytest
 import requests
-from conftest import url, TIMEOUT
+from conftest import url, TIMEOUT, unique_id
 
 
 @pytest.mark.collections
@@ -261,7 +261,7 @@ class TestCollectionsOfficers:
 
     def test_create_officer(self, admin_headers):
         r = requests.post(url("collections", "/api/v1/collections/officers"),
-                          json={"username": "test_officer", "maxCases": 30},
+                          json={"username": unique_id("officer").lower(), "maxCases": 30},
                           headers=admin_headers, timeout=TIMEOUT)
         assert r.status_code == 201
 

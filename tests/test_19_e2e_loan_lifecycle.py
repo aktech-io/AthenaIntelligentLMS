@@ -59,6 +59,15 @@ class TestLoanLifecycleE2E:
         assert matching, f"No active product for type {ptype}"
         product = matching[0]
 
+        # Clamp the requested amount to the product's limits — product amount
+        # validation is now enforced (rejects out-of-range amounts).
+        p_min = float(product.get("minAmount") or 0)
+        p_max = float(product.get("maxAmount") or 0)
+        if amount < p_min:
+            amount = p_min
+        if p_max and amount > p_max:
+            amount = p_max
+
         # 4. Create loan application
         r = requests.post(url("loan_origination", "/api/v1/loan-applications"),
                           json={"customerId": cid, "productId": product["id"],

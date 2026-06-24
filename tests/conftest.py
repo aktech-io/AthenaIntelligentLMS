@@ -109,6 +109,37 @@ def svc_headers():
     return service_headers()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def disable_maker_checker(admin_token):
+    """Functional regression tests exercise core operations directly. Dual
+    control (maker-checker / segregation of duties) is a separate concern with
+    its own coverage, so disable it for the test session — otherwise large
+    credits/transfers are queued (HTTP 202) and single-operator loan approval
+    is blocked (SoD 422). Sensible defaults are restored on teardown."""
+    hdr = {"Content-Type": "application/json", "Authorization": f"Bearer {admin_token}"}
+    acct_ops = ["ACCOUNT_CREDIT", "ACCOUNT_DEBIT", "TRANSFER", "ACCOUNT_CLOSE"]
+    loan_ops = ["LOAN_APPROVE", "LOAN_DISBURSE"]
+
+    def _set(enabled, thresholds):
+        for op in acct_ops:
+            try:
+                requests.put(url("account", "/api/v1/control-config"), headers=hdr,
+                             json={"operation": op, "enabled": enabled,
+                                   "threshold": thresholds.get(op, 0)}, timeout=TIMEOUT)
+            except requests.RequestException:
+                pass
+        for op in loan_ops:
+            try:
+                requests.put(url("loan_origination", "/api/v1/control-config"), headers=hdr,
+                             json={"operation": op, "enabled": enabled, "threshold": 0}, timeout=TIMEOUT)
+            except requests.RequestException:
+                pass
+
+    _set(False, {})
+    yield
+    _set(True, {"ACCOUNT_CREDIT": 100000, "ACCOUNT_DEBIT": 100000, "TRANSFER": 100000})
+
+
 @pytest.fixture(scope="session")
 def test_customer(admin_headers):
     """Create a reusable test customer and return its data."""

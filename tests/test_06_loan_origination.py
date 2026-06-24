@@ -119,10 +119,14 @@ class TestLoanApplicationWorkflow:
                           headers=admin_headers, timeout=TIMEOUT)
         items = r0.json().get("content", r0.json()) if isinstance(r0.json(), dict) else r0.json()
         active = [p for p in items if p.get("status") == "ACTIVE"]
+        prod = active[0]
+        amount = max(5000.0, float(prod.get("minAmount") or 0))
+        if prod.get("maxAmount"):
+            amount = min(amount, float(prod["maxAmount"]))
         payload = {
             "customerId": test_customer["_customerId"],
-            "productId": active[0]["id"],
-            "requestedAmount": 5000,
+            "productId": prod["id"],
+            "requestedAmount": amount,
             "tenorMonths": 3,
             "purpose": "Reject test",
         }
