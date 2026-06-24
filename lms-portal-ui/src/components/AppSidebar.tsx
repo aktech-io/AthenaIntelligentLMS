@@ -45,6 +45,7 @@ import {
   FolderOpen,
   Briefcase,
   Settings2,
+  CheckCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -134,6 +135,8 @@ const reportsNav = [
 
 const adminNav = [
   { title: "Users & Roles", url: "/users", icon: UserCog },
+  { title: "Approvals", url: "/approvals", icon: CheckCheck },
+  { title: "Dual-Control Settings", url: "/control-settings", icon: ShieldCheck },
   { title: "System Configuration", url: "/settings", icon: Settings },
   { title: "Integrations & API", url: "/integrations", icon: Link },
   { title: "Notifications", url: "/notifications", icon: Bell },

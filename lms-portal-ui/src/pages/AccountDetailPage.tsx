@@ -204,13 +204,27 @@ const AccountDetailPage = () => {
         ? accountService.deposit(accountId!, amt, desc)
         : accountService.withdraw(accountId!, amt, desc);
     },
-    onSuccess: () => {
-      toast({
-        title: cashMode === "deposit" ? "Deposit Successful" : "Withdrawal Successful",
-        description: `${fmtCurrency(parseFloat(cashAmount), account?.currency ?? "KES")} ${
-          cashMode === "deposit" ? "credited to" : "debited from"
-        } the account.`,
-      });
+    onSuccess: (result) => {
+      const isPending =
+        !!result &&
+        typeof result === "object" &&
+        "status" in result &&
+        (result as { status?: string }).status === "PENDING_APPROVAL";
+      if (isPending) {
+        toast({
+          title: "Submitted for Approval",
+          description: `Submitted for approval — a second authoriser must approve this ${
+            cashMode === "deposit" ? "deposit" : "withdrawal"
+          }.`,
+        });
+      } else {
+        toast({
+          title: cashMode === "deposit" ? "Deposit Successful" : "Withdrawal Successful",
+          description: `${fmtCurrency(parseFloat(cashAmount), account?.currency ?? "KES")} ${
+            cashMode === "deposit" ? "credited to" : "debited from"
+          } the account.`,
+        });
+      }
       setCashOpen(false);
       setCashAmount("");
       setCashDesc("");

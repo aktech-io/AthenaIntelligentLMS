@@ -64,6 +64,8 @@ import TellerSessionPage from "./pages/TellerSessionPage";
 import ConsolidatedReportsPage from "./pages/ConsolidatedReportsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import CashFlowPage from "./pages/CashFlowPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
+import ControlSettingsPage from "./pages/ControlSettingsPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -162,6 +164,8 @@ const AppRoutes = () => (
       <Route path="/teller" element={<P><TellerSessionPage /></P>} />
       <Route path="/consolidated-reports" element={<P><ConsolidatedReportsPage /></P>} />
       <Route path="/documents" element={<P><DocumentsPage /></P>} />
+      <Route path="/approvals" element={<P><ApprovalsPage /></P>} />
+      <Route path="/control-settings" element={<P><ControlSettingsPage /></P>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </ErrorBoundary>

@@ -78,6 +78,13 @@ export interface Transaction {
   balanceAfter?: number;
 }
 
+export interface PendingApprovalResult {
+  status: string;
+  pendingId: string;
+  operation: string;
+  message: string;
+}
+
 export interface TransferRequest {
   sourceAccountId: string;
   destinationAccountId?: string;
@@ -211,8 +218,12 @@ export const accountService = {
     return result.data;
   },
 
-  async deposit(id: string, amount: number, description?: string): Promise<Transaction> {
-    const result = await apiPost<Transaction>(`${BASE}/${id}/credit`, {
+  async deposit(
+    id: string,
+    amount: number,
+    description?: string
+  ): Promise<Transaction | PendingApprovalResult> {
+    const result = await apiPost<Transaction | PendingApprovalResult>(`${BASE}/${id}/credit`, {
       amount,
       description: description || "Cash deposit",
       channel: "TELLER",
@@ -223,8 +234,12 @@ export const accountService = {
     return result.data;
   },
 
-  async withdraw(id: string, amount: number, description?: string): Promise<Transaction> {
-    const result = await apiPost<Transaction>(`${BASE}/${id}/debit`, {
+  async withdraw(
+    id: string,
+    amount: number,
+    description?: string
+  ): Promise<Transaction | PendingApprovalResult> {
+    const result = await apiPost<Transaction | PendingApprovalResult>(`${BASE}/${id}/debit`, {
       amount,
       description: description || "Cash withdrawal",
       channel: "TELLER",
