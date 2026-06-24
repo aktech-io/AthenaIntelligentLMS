@@ -189,7 +189,7 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 	}
 
 	// Maker-checker: queue for a second authoriser when required.
-	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountCredit, req.Amount) {
+	if !gateOpen(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountCredit, req.Amount) {
 		desc := ""
 		if req.Description != nil {
 			desc = *req.Description
@@ -293,7 +293,7 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 	}
 
 	// Maker-checker: queue for a second authoriser when required.
-	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountDebit, req.Amount) {
+	if !gateOpen(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountDebit, req.Amount) {
 		desc := ""
 		if req.Description != nil {
 			desc = *req.Description

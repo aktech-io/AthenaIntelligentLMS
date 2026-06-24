@@ -72,6 +72,25 @@ func isBypassed(ctx context.Context) bool {
 	return v
 }
 
+// isServiceCall reports whether the request was authenticated with the internal
+// service key (role SERVICE). System-initiated operations — loan disbursement,
+// interest posting, inter-service transfers — are governed by their own
+// workflows and bypass human maker-checker dual control.
+func isServiceCall(ctx context.Context) bool {
+	for _, r := range auth.RolesFromContext(ctx) {
+		if r == "SERVICE" {
+			return true
+		}
+	}
+	return false
+}
+
+// gateOpen reports whether maker-checker should be skipped for this call (either
+// an internal re-execution after approval, or an internal service call).
+func gateOpen(ctx context.Context) bool {
+	return isBypassed(ctx) || isServiceCall(ctx)
+}
+
 // ErrPendingApproval signals that an operation was queued for dual control
 // instead of executing. Handlers translate it to HTTP 202.
 type ErrPendingApproval struct {

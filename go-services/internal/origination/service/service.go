@@ -22,16 +22,18 @@ type Service struct {
 	repo          *repository.Repository
 	publisher     *event.Publisher
 	productClient *client.ProductClient
+	accountClient *client.AccountClient
 	logger        *zap.Logger
 	auditor       *audit.Logger
 }
 
 // New creates a new Service.
-func New(repo *repository.Repository, publisher *event.Publisher, productClient *client.ProductClient, logger *zap.Logger) *Service {
+func New(repo *repository.Repository, publisher *event.Publisher, productClient *client.ProductClient, accountClient *client.AccountClient, logger *zap.Logger) *Service {
 	return &Service{
 		repo:          repo,
 		publisher:     publisher,
 		productClient: productClient,
+		accountClient: accountClient,
 		logger:        logger,
 		auditor:       audit.New(repo, logger),
 	}
@@ -279,6 +281,24 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		}
 		if app.CreatedBy != nil && *app.CreatedBy == userID {
 			return nil, errors.NewBusinessError("maker-checker violation: the disburser must differ from the application creator")
+		}
+	}
+
+	// Credit the borrower's disbursement account BEFORE marking the loan
+	// disbursed, so the money actually arrives. If the credit fails the loan
+	// stays APPROVED and the operator can retry. The credit is idempotent on the
+	// application id, so retries do not double-fund.
+	if s.accountClient != nil {
+		if acctID, perr := uuid.Parse(req.DisbursementAccount); perr == nil {
+			desc := "Loan disbursement for application " + app.ID.String()
+			ref := "DISB-" + app.ID.String()
+			if cerr := s.accountClient.Credit(ctx, acctID, req.DisbursedAmount, desc, ref, ref); cerr != nil {
+				return nil, errors.NewBusinessError("disbursement failed: could not credit account " + req.DisbursementAccount + ": " + cerr.Error())
+			}
+		} else {
+			s.logger.Warn("disbursementAccount is not a valid account id; skipping account credit",
+				zap.String("disbursementAccount", req.DisbursementAccount),
+				zap.String("applicationId", app.ID.String()))
 		}
 	}
 

@@ -225,7 +225,7 @@ func (s *AccountOpeningService) CloseAccount(ctx context.Context, accountID uuid
 	}
 
 	// Maker-checker: account closure requires a second authoriser when enabled.
-	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountClose, decimal.Zero) {
+	if !gateOpen(ctx) && requiresApproval(ctx, s.repo, tenantID, OpAccountClose, decimal.Zero) {
 		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountClose, "ACCOUNT", accountID.String(),
 			decimal.Zero, "Account closure: "+reason, map[string]any{"reason": reason})
 	}

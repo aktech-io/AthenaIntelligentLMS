@@ -120,7 +120,7 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 	transferType := model.TransferType(upper)
 
 	// Maker-checker: queue for a second authoriser when required.
-	if !isBypassed(ctx) && requiresApproval(ctx, s.repo, tenantID, OpTransfer, req.Amount) {
+	if !gateOpen(ctx) && requiresApproval(ctx, s.repo, tenantID, OpTransfer, req.Amount) {
 		narration := ""
 		if req.Narration != nil {
 			narration = *req.Narration

@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Snowflake, Sun, XCircle, DollarSign,
   ChevronLeft, ChevronRight, Info, CreditCard, TrendingUp, FileText,
-  ArrowDownToLine, ArrowUpFromLine,
+  ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +33,7 @@ import {
   type InterestAccrual,
   type InterestPosting,
   type StatementResponse,
+  type TransferResponse,
 } from "@/services/accountService";
 
 // ─── Helpers ──────────────────────────────────────────
@@ -111,6 +112,13 @@ const AccountDetailPage = () => {
   const [cashAmount, setCashAmount] = useState("");
   const [cashDesc, setCashDesc] = useState("");
 
+  // Transfer dialog
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferDest, setTransferDest] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferType, setTransferType] = useState("THIRD_PARTY");
+  const [transferNarration, setTransferNarration] = useState("");
+
   // ─── Queries ──────────────────────────────
 
   const { data: account, isLoading: accountLoading } = useQuery({
@@ -145,6 +153,13 @@ const AccountDetailPage = () => {
     queryKey: ["account-statement", accountId, stmtFrom, stmtTo],
     queryFn: () => accountService.getStatement(accountId!, stmtFrom, stmtTo),
     enabled: !!accountId && stmtRequested,
+    retry: false,
+  });
+
+  const { data: transfersPage, isLoading: transfersLoading } = useQuery({
+    queryKey: ["account-transfers", accountId],
+    queryFn: () => accountService.getTransfersByAccount(accountId!),
+    enabled: !!accountId,
     retry: false,
   });
 
@@ -241,11 +256,65 @@ const AccountDetailPage = () => {
     },
   });
 
+  const transferMutation = useMutation({
+    mutationFn: () => {
+      const amt = parseFloat(transferAmount);
+      return accountService.initiateTransfer({
+        sourceAccountId: accountId!,
+        destinationAccountNumber: transferDest.trim(),
+        amount: amt,
+        transferType,
+        narration: transferNarration.trim() || undefined,
+      });
+    },
+    onSuccess: (result) => {
+      const isPending =
+        !!result &&
+        typeof result === "object" &&
+        "status" in result &&
+        (result as { status?: string }).status === "PENDING_APPROVAL";
+      if (isPending) {
+        toast({
+          title: "Submitted for Approval",
+          description:
+            "Submitted for approval — a second authoriser must approve this transfer.",
+        });
+      } else {
+        toast({
+          title: "Transfer Successful",
+          description: `${fmtCurrency(
+            parseFloat(transferAmount),
+            account?.currency ?? "KES"
+          )} transferred from the account.`,
+        });
+      }
+      setTransferOpen(false);
+      setTransferDest("");
+      setTransferAmount("");
+      setTransferNarration("");
+      queryClient.invalidateQueries({ queryKey: ["account-balance", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-transactions", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-transfers", accountId] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Transfer Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const openCashDialog = (mode: "deposit" | "withdraw") => {
     setCashMode(mode);
     setCashAmount("");
     setCashDesc("");
     setCashOpen(true);
+  };
+
+  const openTransferDialog = () => {
+    setTransferDest("");
+    setTransferAmount("");
+    setTransferType("THIRD_PARTY");
+    setTransferNarration("");
+    setTransferOpen(true);
   };
 
   // ─── Loading state ────────────────────────
@@ -314,6 +383,8 @@ const AccountDetailPage = () => {
 
   const stmtTransactions: Transaction[] = statement?.transactions?.content ?? [];
 
+  const transfers: TransferResponse[] = transfersPage?.content ?? [];
+
   // ─── Render ───────────────────────────────
 
   return (
@@ -365,6 +436,15 @@ const AccountDetailPage = () => {
                   disabled={isFrozen}
                 >
                   <ArrowUpFromLine className="h-3.5 w-3.5 mr-1" /> Withdraw
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-sans"
+                  onClick={openTransferDialog}
+                  disabled={isFrozen}
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5 mr-1" /> Transfer
                 </Button>
                 {isFrozen ? (
                   <Button
@@ -482,6 +562,113 @@ const AccountDetailPage = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Transfer dialog */}
+        <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-heading">
+                Transfer from {account.accountNumber}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="text-xs text-muted-foreground font-sans">
+                Available balance:{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {fmtCurrency(availBal, currency)}
+                </span>
+              </div>
+              <div>
+                <Label className="text-xs">Source account</Label>
+                <Input
+                  className="mt-1 text-sm font-mono"
+                  value={account.accountNumber}
+                  readOnly
+                  disabled
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Destination account number</Label>
+                <Input
+                  className="mt-1 text-sm font-mono"
+                  placeholder="Destination account number"
+                  value={transferDest}
+                  onChange={(e) => setTransferDest(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Amount ({currency})</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-1 text-sm font-mono"
+                  placeholder="0.00"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                />
+                {parseFloat(transferAmount || "0") > availBal && (
+                  <p className="text-[10px] text-destructive mt-1">
+                    Amount exceeds available balance.
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">Transfer type</Label>
+                <Select value={transferType} onValueChange={setTransferType}>
+                  <SelectTrigger className="mt-1 h-9 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INTERNAL" className="text-xs">
+                      Internal (same customer)
+                    </SelectItem>
+                    <SelectItem value="THIRD_PARTY" className="text-xs">
+                      Third party
+                    </SelectItem>
+                    <SelectItem value="EXTERNAL" className="text-xs">
+                      External
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Narration (optional)</Label>
+                <Input
+                  className="mt-1 text-sm font-sans"
+                  placeholder="Transfer narration"
+                  value={transferNarration}
+                  onChange={(e) => setTransferNarration(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setTransferOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="text-xs"
+                onClick={() => transferMutation.mutate()}
+                disabled={
+                  transferMutation.isPending ||
+                  !transferDest.trim() ||
+                  !transferAmount ||
+                  parseFloat(transferAmount) <= 0 ||
+                  parseFloat(transferAmount) > availBal
+                }
+              >
+                {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
@@ -576,6 +763,9 @@ const AccountDetailPage = () => {
             </TabsTrigger>
             <TabsTrigger value="transactions" className="text-xs">
               <CreditCard className="h-3.5 w-3.5 mr-1" /> Transactions
+            </TabsTrigger>
+            <TabsTrigger value="transfers" className="text-xs">
+              <ArrowLeftRight className="h-3.5 w-3.5 mr-1" /> Transfers
             </TabsTrigger>
             <TabsTrigger value="interest" className="text-xs">
               <TrendingUp className="h-3.5 w-3.5 mr-1" /> Interest
@@ -740,6 +930,96 @@ const AccountDetailPage = () => {
                       </div>
                     </div>
                   </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─── Transfers Tab ────────────────── */}
+          <TabsContent value="transfers">
+            <Card>
+              <CardContent className="p-0">
+                {transfersLoading ? (
+                  <div className="p-4 space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full" />
+                    ))}
+                  </div>
+                ) : transfers.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                    <p className="text-sm font-medium">No transfers</p>
+                    <p className="text-xs mt-1">No transfers found for this account.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Direction</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Counterparty</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transfers.map((t) => {
+                        const isOutgoing = t.sourceAccountId === accountId;
+                        const counterparty = isOutgoing
+                          ? t.destinationAccountNumber ?? t.destinationAccountId
+                          : t.sourceAccountNumber ?? t.sourceAccountId;
+                        return (
+                          <TableRow key={t.id} className="table-row-hover">
+                            <TableCell className="text-xs font-sans">
+                              {fmtDate(t.initiatedAt)}
+                            </TableCell>
+                            <TableCell className="text-xs font-sans">
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] ${
+                                  isOutgoing
+                                    ? "bg-red-100 text-red-700 border-red-300"
+                                    : "bg-green-100 text-green-700 border-green-300"
+                                }`}
+                              >
+                                {isOutgoing ? "Outgoing" : "Incoming"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {counterparty ?? "--"}
+                            </TableCell>
+                            <TableCell className="text-xs font-sans">
+                              <Badge variant="outline" className="text-[9px]">
+                                {t.transferType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-sans">
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] ${
+                                  statusColors[t.status?.toUpperCase()] ??
+                                  "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {t.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {t.reference ?? "--"}
+                            </TableCell>
+                            <TableCell
+                              className={`text-xs font-mono text-right font-semibold ${
+                                isOutgoing ? "text-red-600" : "text-green-600"
+                              }`}
+                            >
+                              {fmtCurrency(t.amount, t.currency ?? currency)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>

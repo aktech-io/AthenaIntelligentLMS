@@ -330,8 +330,10 @@ export const accountService = {
     return result.data;
   },
 
-  async initiateTransfer(req: TransferRequest): Promise<TransferResponse> {
-    const result = await apiPost<TransferResponse>(TRANSFER_BASE, req);
+  async initiateTransfer(
+    req: TransferRequest
+  ): Promise<TransferResponse | PendingApprovalResult> {
+    const result = await apiPost<TransferResponse | PendingApprovalResult>(TRANSFER_BASE, req);
     if (result.error || !result.data) {
       throw new Error(result.error ?? "Failed to initiate transfer");
     }
