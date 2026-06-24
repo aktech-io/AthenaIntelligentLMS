@@ -86,7 +86,7 @@ Severity: 🔴 blocker · 🟠 major · 🟡 minor · 🔵 note
 1. **F14** Wire loan disbursement to credit the disbursement account (account-service credit + matching GL), persist `disbursementAccountId`. Decide cash-out vs to-account model (F20).
 2. ✅ **F1 FIXED (2026-06-24)** — Added Deposit / Withdraw buttons + dialog on Account Detail (`accountService.deposit/withdraw` → `POST /accounts/{id}/credit|debit`). Playwright-verified: deposit 7,500 → 16,000→23,500; withdraw 2,000 → 23,500→21,500; balance/toast update live.
 3. **F10** Build the Transfer screen (backend transfer engine already works, incl. THIRD_PARTY rules).
-4. **F17** Fix loan-detail repayment endpoint (`POST /api/v1/repayments` + `loanId`).
+4. ✅ **F17 FIXED (2026-06-24)** — `loanManagementService.applyRepayment` now POSTs to `/loans/api/v1/repayments` with `loanId` in the body (was hitting GET-only `/loans/{id}/repayments` → 405). Playwright-verified: Post Payment → 201, "Payment Posted" toast, outstanding 27,667→25,305, installments 1–2 marked PAID.
 
 ### P1 — workflows are completable & data is visible
 5. **F13** Add Submit / Start-Review / Disburse actions to loan detail (complete the lifecycle in UI).

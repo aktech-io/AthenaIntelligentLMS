@@ -60,6 +60,7 @@ export interface DpdInfo {
 }
 
 const BASE = "/proxy/loans/api/v1/loans";
+const REPAYMENTS_BASE = "/proxy/loans/api/v1/repayments";
 
 export const loanManagementService = {
   async listLoans(
@@ -101,7 +102,9 @@ export const loanManagementService = {
   },
 
   async applyRepayment(id: string, req: RepaymentRequest): Promise<Repayment> {
-    const result = await apiPost<Repayment>(`${BASE}/${id}/repayments`, req);
+    // Repayments post to the top-level /repayments endpoint with loanId in the
+    // body. POST /loans/{id}/repayments is GET-only on the backend (405).
+    const result = await apiPost<Repayment>(REPAYMENTS_BASE, { loanId: id, ...req });
     if (result.error || !result.data) {
       throw new Error(result.error ?? "Failed to apply repayment");
     }
