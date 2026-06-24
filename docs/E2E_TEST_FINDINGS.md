@@ -113,15 +113,15 @@ Assessment (2026-06-24): only **accounting** was audit-grade (maker-checker + `f
 6. ✅ **F12 FIXED (2026-06-25)** — New Loan Application uses a **customer search picker** (sets the customerId string) and a **product dropdown** (ACTIVE loan products) instead of free-text ID/UUID. Verified: picked Bob + Personal Loan → 201. (Bonus: with F23 fixed, product min/max validation now rejects out-of-range amounts through the UI with a clear toast.)
 7. ✅ **F7 FIXED (2026-06-25)** — `ListAccounts` batch-fetches balances for the page and attaches them; the Account Directory shows real balances (was all blank). Verified via API + directory screenshot.
 
-### P2 — correctness & UX polish
-9. **F2** Activate/seed Current + Fixed-Deposit products so account-type selection is real.
-10. **F5** Paginate / raise cap on customer search.
-11. **F8** Populate transaction `type` on the transactions endpoint.
-12. **F11** Show product name (not UUID) on account detail.
-13. **F19/F18** Honor statement date range; fix `customerName` label.
-14. **F6** Surface KYC completion in-flow; decide whether downstream steps enforce KYC.
-15. **F21** Make reporting summary reflect live portfolio (or refresh snapshot) — currently stale.
-16. **F22** Fix the `NaN` cell on the Overdraft Management page.
+### P2 — correctness & UX polish — ✅ ALL DONE (2026-06-25)
+9. ✅ **F2** — activated Current + Fixed-Deposit deposit products; account-type selection now offers SAVINGS/CURRENT/FIXED_DEPOSIT.
+10. ✅ **F5** — customer search now `ORDER BY created_at DESC` + configurable limit (default 50); newly created customers surface (E2E-A-001/B-001 now appear first — fixes the original symptom).
+11. ✅ **F8** — false alarm: transactions endpoint returns `transactionType` (populated); original test read wrong field.
+12. ✅ **F11** — account detail shows the deposit product **name** (not UUID).
+13. ✅ **F18** — statement uses the customer's real name (resolves internal-uuid or business id). ✅ **F19** false alarm: handler honors `startDate`/`endDate` (original test used wrong param names).
+14. ✅ **F6** — `PATCH /customers/{id}/kyc` (audited) + "Verify KYC" action in Customer Directory. Verified: PENDING → VERIFIED via UI. (KYC is not currently enforced by downstream steps — operators can now complete it explicitly.)
+15. ✅ **F21** — reporting summary pulls **live** portfolio totals from new `GET /loans/portfolio-stats` (counts/disbursed/outstanding by status) instead of the stale/empty event-snapshot. Verified: live figures match the loan book.
+16. ✅ **F22** — overdraft page guards numeric computes (`num()` helper); shows 0/0% instead of `NaN`.
 
 ### Stage 10 — Interest, EOD & DPD ✅
 - ✅ **EOD run works** (`POST /eod/run` → COMPLETED): 29 accounts accrued, KES 1,093.30 interest. `interest-summary` / `post-interest` behave correctly (422 "no unposted interest" when nothing accrued).
