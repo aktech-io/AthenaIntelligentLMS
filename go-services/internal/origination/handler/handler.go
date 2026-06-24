@@ -8,9 +8,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
+	"github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/common/httputil"
 	"github.com/athena-lms/go-services/internal/origination/model"
 	"github.com/athena-lms/go-services/internal/origination/service"
@@ -44,6 +46,35 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/{id}/notes", h.AddNote)
 		r.Get("/customer/{customerId}", h.ListByCustomer)
 	})
+	r.Route("/api/v1/control-config", func(r chi.Router) {
+		r.Get("/", h.ListControlConfig)
+		r.Put("/", h.UpdateControlConfig)
+	})
+}
+
+// ListControlConfig returns the effective loan maker-checker config.
+func (h *Handler) ListControlConfig(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	httputil.WriteJSON(w, http.StatusOK, h.svc.EffectiveControlConfig(r.Context(), tenantID))
+}
+
+// UpdateControlConfig upserts a loan control config row.
+func (h *Handler) UpdateControlConfig(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	var req struct {
+		Operation string          `json:"operation"`
+		Enabled   bool            `json:"enabled"`
+		Threshold decimal.Decimal `json:"threshold"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteBadRequest(w, "Invalid request body", r.URL.Path)
+		return
+	}
+	if err := h.svc.UpsertControlConfig(r.Context(), tenantID, req.Operation, req.Enabled, req.Threshold); err != nil {
+		httputil.WriteErrorJSON(w, http.StatusBadRequest, "BAD_REQUEST", err.Error(), r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, h.svc.EffectiveControlConfig(r.Context(), tenantID))
 }
 
 // Create handles POST /api/v1/loan-applications
@@ -353,6 +384,17 @@ func parseUUID(s string) (uuid.UUID, error) {
 
 func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error) {
 	msg := err.Error()
+
+	// Typed domain errors carry an explicit status code (e.g. maker-checker
+	// violations are 422 BusinessError).
+	switch e := err.(type) {
+	case *errors.NotFoundError:
+		httputil.WriteNotFound(w, e.Message, r.URL.Path)
+		return
+	case *errors.BusinessError:
+		httputil.WriteErrorJSON(w, e.StatusCode, http.StatusText(e.StatusCode), e.Message, r.URL.Path)
+		return
+	}
 
 	if strings.Contains(msg, "not found") {
 		httputil.WriteNotFound(w, msg, r.URL.Path)

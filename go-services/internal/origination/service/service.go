@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/audit"
+	"github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/origination/client"
 	"github.com/athena-lms/go-services/internal/origination/event"
 	"github.com/athena-lms/go-services/internal/origination/model"
@@ -186,6 +187,13 @@ func (s *Service) Approve(ctx context.Context, id uuid.UUID, req model.ApproveAp
 		return nil, err
 	}
 
+	// Maker-checker: the approver must differ from the application creator.
+	if requiresSoD(ctx, s.repo, tenantID, OpLoanApprove, req.ApprovedAmount) {
+		if app.CreatedBy != nil && *app.CreatedBy == userID && userID != "" {
+			return nil, errors.NewBusinessError("maker-checker violation: the approver must differ from the application creator")
+		}
+	}
+
 	app.ApprovedAmount = &req.ApprovedAmount
 	app.InterestRate = &req.InterestRate
 	app.ReviewNotes = req.ReviewNotes
@@ -262,6 +270,16 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 	app, err := s.findWithStatus(ctx, id, tenantID, model.StatusApproved)
 	if err != nil {
 		return nil, err
+	}
+
+	// Maker-checker: the disburser must differ from the approver/reviewer and creator.
+	if requiresSoD(ctx, s.repo, tenantID, OpLoanDisburse, req.DisbursedAmount) && userID != "" {
+		if app.ReviewerID != nil && *app.ReviewerID == userID {
+			return nil, errors.NewBusinessError("maker-checker violation: the disburser must differ from the approver")
+		}
+		if app.CreatedBy != nil && *app.CreatedBy == userID {
+			return nil, errors.NewBusinessError("maker-checker violation: the disburser must differ from the application creator")
+		}
 	}
 
 	app.DisbursedAmount = &req.DisbursedAmount
