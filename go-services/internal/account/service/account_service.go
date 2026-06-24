@@ -534,9 +534,26 @@ func (s *AccountService) GetStatement(ctx context.Context, accountID uuid.UUID, 
 		return nil, err
 	}
 
+	// Prefer the customer's real name; fall back to the account name, then the
+	// raw customer id.
 	customerName := account.CustomerID
 	if account.AccountName != nil {
 		customerName = *account.AccountName
+	}
+	// account.CustomerID may hold the internal UUID (accounts opened via the
+	// wizard) or the business customer_id — resolve either way.
+	var cust *model.Customer
+	if cid, perr := uuid.Parse(account.CustomerID); perr == nil {
+		cust, _ = s.repo.GetCustomerByIDAndTenant(ctx, cid, tenantID)
+	}
+	if cust == nil {
+		cust, _ = s.repo.GetCustomerByCustomerIDAndTenant(ctx, account.CustomerID, tenantID)
+	}
+	if cust != nil {
+		full := strings.TrimSpace(cust.FirstName + " " + cust.LastName)
+		if full != "" {
+			customerName = full
+		}
 	}
 
 	return &StatementResponse{

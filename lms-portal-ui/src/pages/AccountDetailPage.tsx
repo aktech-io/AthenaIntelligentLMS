@@ -35,6 +35,7 @@ import {
   type StatementResponse,
   type TransferResponse,
 } from "@/services/accountService";
+import { depositProductService } from "@/services/depositProductService";
 
 // ─── Helpers ──────────────────────────────────────────
 
@@ -160,6 +161,13 @@ const AccountDetailPage = () => {
     queryKey: ["account-transfers", accountId],
     queryFn: () => accountService.getTransfersByAccount(accountId!),
     enabled: !!accountId,
+    retry: false,
+  });
+
+  const { data: depositProduct } = useQuery({
+    queryKey: ["deposit-product", account?.depositProductId],
+    queryFn: () => depositProductService.getProduct(account!.depositProductId!),
+    enabled: !!account?.depositProductId,
     retry: false,
   });
 
@@ -781,7 +789,7 @@ const AccountDetailPage = () => {
               <CardContent className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
                   ["Account Type", account.accountType?.replace("_", " ") ?? "--"],
-                  ["Product", account.depositProductId ?? "--"],
+                  ["Product", depositProduct?.name ?? account.depositProductId ?? "--"],
                   ["Currency", currency],
                   ["KYC Tier", account.kycTier != null ? `Tier ${account.kycTier}` : "--"],
                   ["Opened Date", fmtDate(account.createdAt)],

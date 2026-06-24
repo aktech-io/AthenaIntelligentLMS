@@ -592,7 +592,12 @@ func (r *Repository) UpdateCustomer(ctx context.Context, c *model.Customer) erro
 }
 
 // SearchCustomers searches customers by name, phone, email, or customer_id.
-func (r *Repository) SearchCustomers(ctx context.Context, tenantID, q string) ([]*model.Customer, error) {
+func (r *Repository) SearchCustomers(ctx context.Context, tenantID, q string, limit int) ([]*model.Customer, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	// Newest-first so a just-created customer always surfaces even when there are
+	// many matches (previously a hard LIMIT 20 with no ordering hid new records).
 	rows, err := r.pool.Query(ctx,
 		`SELECT `+customerCols+` FROM customers
 		WHERE tenant_id = $1
@@ -600,8 +605,9 @@ func (r *Repository) SearchCustomers(ctx context.Context, tenantID, q string) ([
 		       OR phone ILIKE '%' || $2 || '%'
 		       OR email ILIKE '%' || $2 || '%'
 		       OR customer_id ILIKE '%' || $2 || '%')
-		LIMIT 20`,
-		tenantID, q)
+		ORDER BY created_at DESC
+		LIMIT $3`,
+		tenantID, q, limit)
 	if err != nil {
 		return nil, err
 	}

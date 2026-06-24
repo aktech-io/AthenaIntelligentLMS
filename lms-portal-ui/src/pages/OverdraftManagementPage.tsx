@@ -21,6 +21,12 @@ const statusStyle: Record<string, string> = {
   CLOSED: "bg-muted text-muted-foreground border-border",
 };
 
+// Coerce possibly-undefined/null/NaN numeric values to a finite number (0 fallback).
+const num = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
 const OverdraftManagementPage = () => {
   const queryClient = useQueryClient();
 
@@ -92,7 +98,7 @@ const OverdraftManagementPage = () => {
                   <span className="text-xs text-muted-foreground">Total Approved Limit</span>
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <p className="text-2xl font-heading">KES {Number(summary.totalApprovedLimit).toLocaleString()}</p>
+                <p className="text-2xl font-heading">KES {num(summary.totalApprovedLimit).toLocaleString()}</p>
               </CardContent>
             </Card>
             <Card>
@@ -102,7 +108,7 @@ const OverdraftManagementPage = () => {
                   <TrendingDown className="h-4 w-4 text-destructive" />
                 </div>
                 <p className="text-2xl font-heading text-destructive">
-                  KES {Number(summary.totalDrawnAmount).toLocaleString()}
+                  KES {num(summary.totalDrawnAmount).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
@@ -113,7 +119,7 @@ const OverdraftManagementPage = () => {
                   <AlertCircle className="h-4 w-4 text-success" />
                 </div>
                 <p className="text-2xl font-heading text-success">
-                  KES {Number(summary.totalAvailableOverdraft).toLocaleString()}
+                  KES {num(summary.totalAvailableOverdraft).toLocaleString()}
                 </p>
               </CardContent>
             </Card>
@@ -134,7 +140,7 @@ const OverdraftManagementPage = () => {
                   </div>
                   <p className="text-xl font-heading">{summary.facilitiesByBand?.[band] ?? 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    KES {Number(summary.drawnByBand?.[band] ?? 0).toLocaleString()} drawn
+                    KES {num(summary.drawnByBand?.[band]).toLocaleString()} drawn
                   </p>
                 </CardContent>
               </Card>
@@ -181,16 +187,16 @@ const OverdraftManagementPage = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-right font-mono">
-                        {Number(f.approvedLimit).toLocaleString()}
+                        {num(f.approvedLimit).toLocaleString()}
                       </TableCell>
-                      <TableCell className={`text-xs text-right font-mono ${Number(f.drawnAmount) > 0 ? "text-destructive" : ""}`}>
-                        {Number(f.drawnAmount).toLocaleString()}
+                      <TableCell className={`text-xs text-right font-mono ${num(f.drawnAmount) > 0 ? "text-destructive" : ""}`}>
+                        {num(f.drawnAmount).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-xs text-right font-mono text-success">
-                        {Number(f.availableOverdraft).toLocaleString()}
+                        {num(f.availableOverdraft).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-xs text-right">
-                        {(Number(f.interestRate) * 100).toFixed(0)}%
+                        {(num(f.interestRate) * 100).toFixed(0)}%
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] ${statusStyle[f.status] || ""}`}>

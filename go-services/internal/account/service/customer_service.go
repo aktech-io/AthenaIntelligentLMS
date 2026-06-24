@@ -242,6 +242,6 @@ func (s *CustomerService) GetByCustomerID(ctx context.Context, customerID, tenan
 }
 
 // SearchCustomers searches customers by name, phone, email, or customer_id.
-func (s *CustomerService) SearchCustomers(ctx context.Context, q, tenantID string) ([]*model.Customer, error) {
-	return s.repo.SearchCustomers(ctx, tenantID, q)
+func (s *CustomerService) SearchCustomers(ctx context.Context, q, tenantID string, limit int) ([]*model.Customer, error) {
+	return s.repo.SearchCustomers(ctx, tenantID, q, limit)
 }

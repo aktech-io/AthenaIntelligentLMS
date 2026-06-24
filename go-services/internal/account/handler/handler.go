@@ -490,7 +490,8 @@ func (h *Handler) UpdateCustomerStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SearchCustomers(w http.ResponseWriter, r *http.Request) {
 	tenantID := auth.TenantIDOrDefault(r.Context())
 	q := r.URL.Query().Get("q")
-	resp, err := h.customerSvc.SearchCustomers(r.Context(), q, tenantID)
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	resp, err := h.customerSvc.SearchCustomers(r.Context(), q, tenantID, limit)
 	if err != nil {
 		h.handleError(w, r, err)
 		return
