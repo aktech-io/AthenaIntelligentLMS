@@ -12,6 +12,7 @@ import (
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/model"
 	"github.com/athena-lms/go-services/internal/account/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
 )
@@ -22,11 +23,12 @@ type CustomerService struct {
 	repo      *repository.Repository
 	publisher *event.Publisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // NewCustomerService creates a new CustomerService.
 func NewCustomerService(repo *repository.Repository, publisher *event.Publisher, logger *zap.Logger) *CustomerService {
-	return &CustomerService{repo: repo, publisher: publisher, logger: logger}
+	return &CustomerService{repo: repo, publisher: publisher, logger: logger, auditor: audit.New(repo, logger)}
 }
 
 // CreateCustomerRequest is the DTO for customer creation.
@@ -226,6 +228,31 @@ func (s *CustomerService) UpdateCustomerStatus(ctx context.Context, id uuid.UUID
 	if err := s.repo.UpdateCustomer(ctx, customer); err != nil {
 		return nil, err
 	}
+	return customer, nil
+}
+
+// UpdateKycStatus sets a customer's KYC status (e.g. PENDING -> VERIFIED).
+func (s *CustomerService) UpdateKycStatus(ctx context.Context, id uuid.UUID, kycStatus, tenantID string) (*model.Customer, error) {
+	customer, err := s.repo.GetCustomerByIDAndTenant(ctx, id, tenantID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, errors.NotFoundResource("Customer", id)
+		}
+		return nil, err
+	}
+	upper := strings.ToUpper(strings.TrimSpace(kycStatus))
+	switch upper {
+	case "PENDING", "VERIFIED", "REJECTED":
+	default:
+		return nil, errors.BadRequest("Invalid KYC status: " + kycStatus + " (expected PENDING, VERIFIED or REJECTED)")
+	}
+	prev := customer.KycStatus
+	customer.KycStatus = upper
+	if err := s.repo.UpdateCustomer(ctx, customer); err != nil {
+		return nil, err
+	}
+	s.auditor.Record(ctx, "CUSTOMER_KYC_UPDATE", "CUSTOMER", id.String(),
+		map[string]any{"kycStatus": prev}, map[string]any{"kycStatus": upper}, nil)
 	return customer, nil
 }
 

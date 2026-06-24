@@ -89,6 +89,14 @@ export const customerService = {
     return result.data;
   },
 
+  async updateKyc(id: string, kycStatus: string): Promise<Customer> {
+    const result = await apiPatch<Customer>(`${BASE}/${id}/kyc`, { kycStatus });
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to update customer KYC status");
+    }
+    return result.data;
+  },
+
   async searchCustomers(q: string): Promise<Customer[]> {
     const result = await apiGet<Customer[]>(`${BASE}/search?q=${encodeURIComponent(q)}`);
     if (result.error || !result.data) {

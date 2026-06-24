@@ -88,6 +88,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}", h.GetCustomer)
 		r.Put("/{id}", h.UpdateCustomer)
 		r.Patch("/{id}/status", h.UpdateCustomerStatus)
+		r.Patch("/{id}/kyc", h.UpdateCustomerKyc)
 	})
 	r.Route("/api/v1/transfers", func(r chi.Router) {
 		r.Post("/", h.InitiateTransfer)
@@ -480,6 +481,29 @@ func (h *Handler) UpdateCustomerStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp, err := h.customerSvc.UpdateCustomerStatus(r.Context(), id, req.Status, tenantID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, resp)
+}
+
+// UpdateCustomerKyc sets a customer's KYC status (PENDING/VERIFIED/REJECTED).
+func (h *Handler) UpdateCustomerKyc(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httputil.WriteBadRequest(w, "Invalid customer ID", r.URL.Path)
+		return
+	}
+	var req struct {
+		KycStatus string `json:"kycStatus"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.WriteBadRequest(w, "Invalid request body", r.URL.Path)
+		return
+	}
+	resp, err := h.customerSvc.UpdateKycStatus(r.Context(), id, req.KycStatus, tenantID)
 	if err != nil {
 		h.handleError(w, r, err)
 		return

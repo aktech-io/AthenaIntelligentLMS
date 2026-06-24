@@ -394,6 +394,11 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 	return &resp, nil
 }
 
+// GetPortfolioStats returns live portfolio totals for the tenant.
+func (s *Service) GetPortfolioStats(ctx context.Context, tenantID string) (*repository.PortfolioStats, error) {
+	return s.repo.GetPortfolioStats(ctx, tenantID)
+}
+
 // ListAuditLog returns audit-trail entries for the loans domain.
 func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)

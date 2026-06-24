@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
@@ -16,13 +17,22 @@ import (
 
 // Handler exposes reporting HTTP endpoints.
 type Handler struct {
-	svc    *service.Service
-	logger *zap.Logger
+	svc         *service.Service
+	logger      *zap.Logger
+	loanClient  *httputil.ServiceClient
+	loanMgmtURL string
 }
 
 // New creates a new Handler.
 func New(svc *service.Service, logger *zap.Logger) *Handler {
 	return &Handler{svc: svc, logger: logger}
+}
+
+// SetLoanManagementClient wires the loan-management client used for live
+// portfolio figures in the summary.
+func (h *Handler) SetLoanManagementClient(client *httputil.ServiceClient, baseURL string) {
+	h.loanClient = client
+	h.loanMgmtURL = baseURL
 }
 
 // Routes registers all reporting routes on the given chi.Router.
@@ -145,6 +155,34 @@ func (h *Handler) getSummary(w http.ResponseWriter, r *http.Request) {
 		AsOfDate: today,
 	}
 
+	// Prefer LIVE portfolio totals from loan-management (the event-snapshot
+	// pipeline is a lagging/secondary source). Falls through to the snapshot for
+	// risk metrics (PAR, staging) below.
+	liveLoaded := false
+	if h.loanClient != nil && h.loanMgmtURL != "" {
+		var stats struct {
+			TotalLoans       int             `json:"totalLoans"`
+			ActiveLoans      int             `json:"activeLoans"`
+			ClosedLoans      int             `json:"closedLoans"`
+			DefaultedLoans   int             `json:"defaultedLoans"`
+			TotalDisbursed   decimal.Decimal `json:"totalDisbursed"`
+			TotalOutstanding decimal.Decimal `json:"totalOutstanding"`
+		}
+		url := h.loanMgmtURL + "/api/v1/loans/portfolio-stats"
+		if err := h.loanClient.Get(r.Context(), url, &stats); err != nil {
+			h.logger.Warn("Could not fetch live portfolio stats; falling back to snapshot",
+				zap.String("tenant", tenantID), zap.Error(err))
+		} else {
+			summary.TotalLoans = stats.TotalLoans
+			summary.ActiveLoans = stats.ActiveLoans
+			summary.ClosedLoans = stats.ClosedLoans
+			summary.DefaultedLoans = stats.DefaultedLoans
+			summary.TotalDisbursed = stats.TotalDisbursed.InexactFloat64()
+			summary.TotalOutstanding = stats.TotalOutstanding.InexactFloat64()
+			liveLoaded = true
+		}
+	}
+
 	latest, err := h.svc.GetLatestSnapshot(r.Context(), tenantID)
 	if err != nil {
 		h.logger.Warn("No latest snapshot available, returning empty summary",
@@ -152,12 +190,16 @@ func (h *Handler) getSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if latest != nil {
-		summary.TotalLoans = latest.TotalLoans
-		summary.ActiveLoans = latest.ActiveLoans
-		summary.ClosedLoans = latest.ClosedLoans
-		summary.DefaultedLoans = latest.DefaultedLoans
-		summary.TotalDisbursed = latest.TotalDisbursed
-		summary.TotalOutstanding = latest.TotalOutstanding
+		// Portfolio totals: only from the snapshot if we couldn't load them live.
+		if !liveLoaded {
+			summary.TotalLoans = latest.TotalLoans
+			summary.ActiveLoans = latest.ActiveLoans
+			summary.ClosedLoans = latest.ClosedLoans
+			summary.DefaultedLoans = latest.DefaultedLoans
+			summary.TotalDisbursed = latest.TotalDisbursed
+			summary.TotalOutstanding = latest.TotalOutstanding
+		}
+		// Risk metrics always come from the snapshot.
 		summary.TotalCollected = latest.TotalCollected
 		summary.Par30 = latest.Par30
 		summary.Par90 = latest.Par90
@@ -165,7 +207,7 @@ func (h *Handler) getSummary(w http.ResponseWriter, r *http.Request) {
 		summary.SubstandardLoans = latest.SubstandardLoans
 		summary.DoubtfulLoans = latest.DoubtfulLoans
 		summary.LossLoans = latest.LossLoans
-	} else {
+	} else if !liveLoaded {
 		summary.TotalDisbursed = 0
 		summary.TotalOutstanding = 0
 		summary.TotalCollected = 0

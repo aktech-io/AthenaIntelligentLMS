@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Download, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Download, User, ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
 import { customerService, type CreateCustomerRequest } from "@/services/customerService";
 import { useToast } from "@/hooks/use-toast";
 
@@ -79,6 +79,18 @@ const BorrowersPage = () => {
     },
     onError: (err: Error) => {
       toast({ title: "Failed to create customer", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const verifyKycMutation = useMutation({
+    mutationFn: (id: string) => customerService.updateKyc(id, "VERIFIED"),
+    onSuccess: () => {
+      toast({ title: "KYC Verified" });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customers-search"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to verify KYC", description: err.message, variant: "destructive" });
     },
   });
 
@@ -253,10 +265,29 @@ const BorrowersPage = () => {
                       <TableCell className="text-xs text-muted-foreground">{cust.email ?? "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{cust.customerType}</TableCell>
                       <TableCell>
-                        <Badge variant="outline"
-                          className={`text-[10px] font-semibold ${kycColors[cust.kycStatus ?? ""] ?? "bg-muted text-muted-foreground border-border"}`}>
-                          {cust.kycStatus ?? "—"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline"
+                            className={`text-[10px] font-semibold ${kycColors[cust.kycStatus ?? ""] ?? "bg-muted text-muted-foreground border-border"}`}>
+                            {cust.kycStatus ?? "—"}
+                          </Badge>
+                          {cust.kycStatus !== "VERIFIED" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-[10px]"
+                              disabled={verifyKycMutation.isPending && verifyKycMutation.variables === cust.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                verifyKycMutation.mutate(cust.id);
+                              }}
+                            >
+                              <ShieldCheck className="mr-1 h-3 w-3" />
+                              {verifyKycMutation.isPending && verifyKycMutation.variables === cust.id
+                                ? "Verifying..."
+                                : "Verify KYC"}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline"

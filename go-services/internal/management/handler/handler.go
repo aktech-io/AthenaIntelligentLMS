@@ -38,12 +38,24 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}/repayments", h.GetRepayments)
 		r.Get("/{id}/dpd", h.GetDpd)
 		r.Get("/customer/{customerId}", h.ListByCustomer)
+		r.Get("/portfolio-stats", h.GetPortfolioStats)
 		r.Post("/{id}/restructure", h.Restructure)
 	})
 	r.Route("/api/v1/repayments", func(r chi.Router) {
 		r.Post("/", h.ApplyRepayment)
 	})
 	r.Get("/api/v1/audit-log", h.ListAuditLog)
+}
+
+// GetPortfolioStats handles GET /api/v1/loans/portfolio-stats — live loan-book totals.
+func (h *Handler) GetPortfolioStats(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	stats, err := h.svc.GetPortfolioStats(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to compute portfolio stats", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, stats)
 }
 
 // ListAuditLog handles GET /api/v1/audit-log for the loans domain.

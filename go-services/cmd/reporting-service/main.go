@@ -16,6 +16,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/config"
+	"github.com/athena-lms/go-services/internal/common/httputil"
 	"github.com/athena-lms/go-services/internal/common/db"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
@@ -106,6 +107,8 @@ func main() {
 
 	// Handler
 	h := handler.New(svc, logger)
+	loanMgmtURL := envStr("LOAN_MANAGEMENT_URL", "http://loan-management-service.lms.svc.cluster.local:8089")
+	h.SetLoanManagementClient(httputil.NewServiceClient(cfg.InternalServiceKey), loanMgmtURL)
 
 	// Router
 	r := chi.NewRouter()
