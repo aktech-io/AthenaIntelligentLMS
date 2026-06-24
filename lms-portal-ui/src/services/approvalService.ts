@@ -25,7 +25,9 @@ export interface PendingApproval {
 }
 
 const BASE = "/proxy/auth/api/v1";
-const LOAN_BASE = "/proxy/loans/api/v1";
+// Loan maker-checker config is served by the origination service, proxied at
+// /proxy/loan-applications (not /proxy/loans, which routes to loan-management).
+const LOAN_BASE = "/proxy/loan-applications/api/v1";
 
 export const approvalService = {
   async listControlConfig(): Promise<ControlConfig[]> {
