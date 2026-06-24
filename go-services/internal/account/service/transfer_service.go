@@ -16,6 +16,7 @@ import (
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/model"
 	"github.com/athena-lms/go-services/internal/account/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
 )
@@ -28,6 +29,7 @@ type TransferService struct {
 	logger            *zap.Logger
 	productServiceURL string
 	serviceKey        string
+	auditor           *audit.Logger
 }
 
 // NewTransferService creates a new TransferService.
@@ -39,6 +41,7 @@ func NewTransferService(repo *repository.Repository, publisher *event.Publisher,
 		logger:            logger,
 		productServiceURL: productServiceURL,
 		serviceKey:        serviceKey,
+		auditor:           audit.New(repo, logger),
 	}
 }
 
@@ -246,6 +249,7 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		Reference:       &reference,
 		Description:     &debitDesc,
 		Channel:         transferChannel,
+		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, debitTxn); err != nil {
 		return nil, err
@@ -264,6 +268,7 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		Reference:       &reference,
 		Description:     &creditDesc,
 		Channel:         transferChannel,
+		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, creditTxn); err != nil {
 		return nil, err
@@ -293,6 +298,16 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+
+	s.auditor.Record(ctx, "TRANSFER", "TRANSFER", transfer.ID.String(), nil, nil,
+		map[string]any{
+			"sourceAccount":      sourceAccount.AccountNumber,
+			"destinationAccount": destAccount.AccountNumber,
+			"amount":             req.Amount,
+			"charge":             chargeAmount,
+			"transferType":       transferType,
+			"reference":          reference,
+		})
 
 	s.publisher.PublishTransferCompleted(ctx, transfer.ID, sourceAccount.ID, destAccount.ID, req.Amount, tenantID)
 

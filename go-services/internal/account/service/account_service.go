@@ -18,6 +18,8 @@ import (
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/model"
 	"github.com/athena-lms/go-services/internal/account/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
+	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
 )
@@ -34,11 +36,17 @@ type AccountService struct {
 	repo      *repository.Repository
 	publisher *event.Publisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // NewAccountService creates a new AccountService.
 func NewAccountService(repo *repository.Repository, publisher *event.Publisher, logger *zap.Logger) *AccountService {
-	return &AccountService{repo: repo, publisher: publisher, logger: logger}
+	return &AccountService{
+		repo:      repo,
+		publisher: publisher,
+		logger:    logger,
+		auditor:   audit.New(repo, logger),
+	}
 }
 
 // CreateAccountRequest is the DTO for account creation.
@@ -245,6 +253,7 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		Description:     req.Description,
 		Channel:         channel,
 		IdempotencyKey:  req.IdempotencyKey,
+		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, txn); err != nil {
 		return nil, err
@@ -258,6 +267,11 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+
+	s.auditor.Record(ctx, "ACCOUNT_CREDIT", "ACCOUNT", accountID.String(),
+		map[string]any{"availableBalance": balance.AvailableBalance.Sub(req.Amount)},
+		map[string]any{"availableBalance": newBalance},
+		map[string]any{"amount": req.Amount, "channel": channel, "description": req.Description, "transactionId": txn.ID})
 
 	s.publisher.PublishCreditReceived(ctx, accountID, req.Amount, tenantID)
 	return txn, nil
@@ -335,6 +349,7 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		Description:     req.Description,
 		Channel:         channel,
 		IdempotencyKey:  req.IdempotencyKey,
+		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, txn); err != nil {
 		return nil, err
@@ -349,8 +364,21 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		return nil, err
 	}
 
+	s.auditor.Record(ctx, "ACCOUNT_DEBIT", "ACCOUNT", accountID.String(),
+		map[string]any{"availableBalance": balance.AvailableBalance.Add(req.Amount)},
+		map[string]any{"availableBalance": newBalance},
+		map[string]any{"amount": req.Amount, "channel": channel, "description": req.Description, "transactionId": txn.ID})
+
 	s.publisher.PublishDebitProcessed(ctx, accountID, req.Amount, tenantID)
 	return txn, nil
+}
+
+// actorPtr returns the acting user from context as a pointer, or nil if absent.
+func actorPtr(ctx context.Context) *string {
+	if uid := auth.UserIDFromContext(ctx); uid != "" {
+		return &uid
+	}
+	return nil
 }
 
 // GetTransactionHistory returns paginated transactions.
@@ -411,10 +439,25 @@ func (s *AccountService) UpdateStatus(ctx context.Context, accountID uuid.UUID, 
 		return nil, errors.BadRequest("Invalid account status: " + status)
 	}
 	newStatus := model.AccountStatus(upper)
+	prevStatus := account.Status
 	if err := s.repo.UpdateAccountStatus(ctx, accountID, newStatus); err != nil {
 		return nil, err
 	}
 	account.Status = newStatus
+
+	action := "ACCOUNT_STATUS_CHANGE"
+	switch newStatus {
+	case model.AccountStatusFrozen:
+		action = "ACCOUNT_FREEZE"
+	case model.AccountStatusClosed:
+		action = "ACCOUNT_CLOSE"
+	case model.AccountStatusActive:
+		action = "ACCOUNT_REACTIVATE"
+	}
+	s.auditor.Record(ctx, action, "ACCOUNT", accountID.String(),
+		map[string]any{"status": prevStatus},
+		map[string]any{"status": newStatus}, nil)
+
 	return account, nil
 }
 

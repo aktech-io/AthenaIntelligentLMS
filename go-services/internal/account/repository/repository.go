@@ -304,13 +304,13 @@ func (r *Repository) UpdateBalance(ctx context.Context, tx pgx.Tx, b *model.Acco
 // ─── AccountTransaction ──────────────────────────────────────────────────────
 
 const txnCols = `id, tenant_id, account_id, transaction_type, amount,
-	balance_after, reference, description, channel, idempotency_key, created_at`
+	balance_after, reference, description, channel, idempotency_key, created_by, created_at`
 
 func scanTransaction(row pgx.Row) (*model.AccountTransaction, error) {
 	t := &model.AccountTransaction{}
 	err := row.Scan(
 		&t.ID, &t.TenantID, &t.AccountID, &t.TransactionType, &t.Amount,
-		&t.BalanceAfter, &t.Reference, &t.Description, &t.Channel, &t.IdempotencyKey, &t.CreatedAt,
+		&t.BalanceAfter, &t.Reference, &t.Description, &t.Channel, &t.IdempotencyKey, &t.CreatedBy, &t.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -324,7 +324,7 @@ func scanTransactions(rows pgx.Rows) ([]*model.AccountTransaction, error) {
 		t := &model.AccountTransaction{}
 		if err := rows.Scan(
 			&t.ID, &t.TenantID, &t.AccountID, &t.TransactionType, &t.Amount,
-			&t.BalanceAfter, &t.Reference, &t.Description, &t.Channel, &t.IdempotencyKey, &t.CreatedAt,
+			&t.BalanceAfter, &t.Reference, &t.Description, &t.Channel, &t.IdempotencyKey, &t.CreatedBy, &t.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -340,10 +340,10 @@ func (r *Repository) CreateTransaction(ctx context.Context, tx pgx.Tx, t *model.
 	_, err := tx.Exec(ctx,
 		`INSERT INTO account_transactions
 		(id, tenant_id, account_id, transaction_type, amount, balance_after,
-		 reference, description, channel, idempotency_key, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		 reference, description, channel, idempotency_key, created_by, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 		t.ID, t.TenantID, t.AccountID, t.TransactionType, t.Amount,
-		t.BalanceAfter, t.Reference, t.Description, t.Channel, t.IdempotencyKey, t.CreatedAt,
+		t.BalanceAfter, t.Reference, t.Description, t.Channel, t.IdempotencyKey, t.CreatedBy, t.CreatedAt,
 	)
 	return err
 }

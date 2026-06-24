@@ -179,6 +179,7 @@ type AccountTransaction struct {
 	Description     *string          `json:"description,omitempty"`
 	Channel         string           `json:"channel"`
 	IdempotencyKey  *string          `json:"idempotencyKey,omitempty"`
+	CreatedBy       *string          `json:"createdBy,omitempty"`
 	CreatedAt       time.Time        `json:"createdAt"`
 }
 

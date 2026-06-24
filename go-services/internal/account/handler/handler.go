@@ -107,6 +107,22 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			r.Put("/{id}/status", h.UpdateUserStatus)
 		})
 	})
+	r.Get("/api/v1/audit-log", h.ListAuditLog)
+}
+
+// ListAuditLog returns the account-service audit trail, optionally filtered by
+// entityType and entityId query params.
+func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	entityType := r.URL.Query().Get("entityType")
+	entityID := r.URL.Query().Get("entityId")
+	page, size := parsePagination(r)
+	records, err := h.repo.ListAuditLog(r.Context(), tenantID, entityType, entityID, size, page*size)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, records)
 }
 
 // --- Account ---
