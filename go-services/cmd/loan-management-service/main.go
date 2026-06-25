@@ -97,7 +97,7 @@ func main() {
 	h := handler.New(svc, logger)
 
 	// Consumer for loan.disbursed events
-	cons := consumer.NewLoanDisbursedConsumer(rmqConn, svc, logger)
+	cons := consumer.NewLoanDisbursedConsumer(rmqConn, pool, svc, logger)
 	go func() {
 		if err := cons.Start(ctx); err != nil {
 			logger.Error("Loan management consumer stopped", zap.Error(err))
