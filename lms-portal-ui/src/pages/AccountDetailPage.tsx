@@ -189,7 +189,10 @@ const AccountDetailPage = () => {
   const freezeMutation = useMutation({
     mutationFn: () => accountService.updateStatus(accountId!, "FROZEN"),
     onSuccess: () => {
-      toast({ title: "Account Frozen" });
+      toast({
+        title: "Account Frozen",
+        description: "Debits, withdrawals and transfers are now blocked on this account.",
+      });
       queryClient.invalidateQueries({ queryKey: ["account", accountId] });
     },
     onError: (err: Error) => {
@@ -200,7 +203,10 @@ const AccountDetailPage = () => {
   const unfreezeMutation = useMutation({
     mutationFn: () => accountService.updateStatus(accountId!, "ACTIVE"),
     onSuccess: () => {
-      toast({ title: "Account Unfrozen" });
+      toast({
+        title: "Account Unfrozen",
+        description: "The account is active again — transactions are allowed.",
+      });
       queryClient.invalidateQueries({ queryKey: ["account", accountId] });
     },
     onError: (err: Error) => {
@@ -211,7 +217,10 @@ const AccountDetailPage = () => {
   const closeMutation = useMutation({
     mutationFn: () => accountService.closeAccount(accountId!, "Closed by operator"),
     onSuccess: () => {
-      toast({ title: "Account Closed" });
+      toast({
+        title: "Account Closed",
+        description: "The account has been closed and can no longer transact.",
+      });
       queryClient.invalidateQueries({ queryKey: ["account", accountId] });
     },
     onError: (err: Error) => {

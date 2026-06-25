@@ -141,9 +141,11 @@ const AccountOpeningPage = () => {
     onSuccess: (account) => {
       toast({
         title: "Account opened successfully",
-        description: `Account ${account.accountNumber} has been created.`,
+        description: `Account ${account.accountNumber} created — you can now fund it from the account page.`,
       });
-      navigate("/accounts");
+      // Land on the new account so the operator can immediately fund/manage it,
+      // rather than dumping them back on the list.
+      navigate(`/account/${account.id}`);
     },
     onError: (err: Error) => {
       toast({

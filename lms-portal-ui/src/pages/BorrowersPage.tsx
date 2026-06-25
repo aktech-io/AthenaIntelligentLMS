@@ -85,7 +85,10 @@ const BorrowersPage = () => {
   const verifyKycMutation = useMutation({
     mutationFn: (id: string) => customerService.updateKyc(id, "VERIFIED"),
     onSuccess: () => {
-      toast({ title: "KYC Verified" });
+      toast({
+        title: "KYC Verified",
+        description: "The customer's identity has been verified — KYC status is now VERIFIED.",
+      });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customers-search"] });
     },

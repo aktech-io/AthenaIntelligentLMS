@@ -436,7 +436,7 @@ function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         currency: "KES",
       }),
     onSuccess: (app) => {
-      toast({ title: "Application Created", description: `${app.id} created and ready for submission` });
+      toast({ title: "Application Created", description: `${formatKES(parseFloat(amount))} loan application created and ready for submission` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onOpenChange(false);
       resetForm();
@@ -561,11 +561,13 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
   const { toast } = useToast();
 
   const status = (app.backendStatus ?? "").toUpperCase();
+  // Human-friendly label for notifications — never show a raw UUID to the user.
+  const who = app.customerName || `application #${String(app.id).slice(0, 8)}`;
 
   const submitMutation = useMutation({
     mutationFn: () => loanOriginationService.submitApplication(app.id),
     onSuccess: () => {
-      toast({ title: "Application Submitted", description: `${app.id} submitted for review` });
+      toast({ title: "Application Submitted", description: `${who}'s application submitted for review` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onClose();
     },
@@ -577,7 +579,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
   const reviewMutation = useMutation({
     mutationFn: () => loanOriginationService.startReview(app.id),
     onSuccess: () => {
-      toast({ title: "Review Started", description: `${app.id} is now under review` });
+      toast({ title: "Review Started", description: `${who}'s application is now under review` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onClose();
     },
@@ -593,7 +595,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
         interestRate: parseFloat(approveRate),
       }),
     onSuccess: () => {
-      toast({ title: "Application Approved", description: `${app.id} approved for ${formatKES(parseFloat(approveAmount))}` });
+      toast({ title: "Application Approved", description: `${who}'s application approved for ${formatKES(parseFloat(approveAmount))}` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onClose();
     },
@@ -606,7 +608,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
     mutationFn: () =>
       loanOriginationService.rejectApplication(app.id, { reviewNotes: declineNotes }),
     onSuccess: () => {
-      toast({ title: "Application Declined", description: `${app.id} has been rejected` });
+      toast({ title: "Application Declined", description: `${who}'s application has been rejected` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onClose();
     },
@@ -916,7 +918,7 @@ function DisburseDialog({
         disbursementAccount: accountId,
       }),
     onSuccess: () => {
-      toast({ title: "Loan Disbursed", description: `${app.id} disbursed for ${formatKES(parseFloat(disbursedAmount))}` });
+      toast({ title: "Loan Disbursed", description: `${app.customerName || "Loan"} disbursed ${formatKES(parseFloat(disbursedAmount))} — funds credited to the borrower's account` });
       queryClient.invalidateQueries({ queryKey: ["loan-applications"] });
       onOpenChange(false);
       onDone();
