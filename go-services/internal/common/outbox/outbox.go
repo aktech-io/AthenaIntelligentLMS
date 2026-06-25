@@ -100,6 +100,38 @@ func NewRelay(pool *pgxpool.Pool, pub publisher, logger *zap.Logger, opts ...Opt
 	return r
 }
 
+// Stats is a point-in-time snapshot of the outbox backlog, suitable for gauge
+// metrics and alerting. Pending and Dead come straight off the partial indexes;
+// OldestPendingAgeSeconds is the age of the oldest undispatched row (0 when the
+// backlog is empty) and is the key signal that the relay is stuck or starved.
+type Stats struct {
+	Pending                 int64
+	Dead                    int64
+	OldestPendingAgeSeconds float64
+}
+
+// Stats returns a snapshot of the outbox backlog. The three values are computed
+// from the partial indexes (status = 0 / status = 2), so the query stays cheap
+// even with millions of retained dispatched rows.
+func (r *Relay) Stats(ctx context.Context) (Stats, error) {
+	var s Stats
+	err := r.pool.QueryRow(ctx, `
+		SELECT
+			(SELECT count(*) FROM event_outbox WHERE status = 0),
+			(SELECT count(*) FROM event_outbox WHERE status = 2),
+			COALESCE(EXTRACT(EPOCH FROM (now() - (
+				SELECT min(created_at) FROM event_outbox WHERE status = 0
+			))), 0)`).Scan(&s.Pending, &s.Dead, &s.OldestPendingAgeSeconds)
+	if err != nil {
+		return Stats{}, fmt.Errorf("query outbox stats: %w", err)
+	}
+	return s, nil
+}
+
+// staleThreshold is the oldest-pending age above which the gauge log escalates
+// to Warn — a healthy relay (1s poll) keeps the backlog age near zero.
+const staleThreshold = 300 * time.Second
+
 // Run starts the relay loop and a periodic retention purge. Blocks until ctx
 // is cancelled. Launch with `go relay.Run(ctx)`.
 func (r *Relay) Run(ctx context.Context) {
@@ -112,6 +144,9 @@ func (r *Relay) Run(ctx context.Context) {
 	defer poll.Stop()
 	purge := time.NewTicker(1 * time.Hour)
 	defer purge.Stop()
+	// Periodic backlog gauge for observability (log alerts / metrics scrape).
+	stats := time.NewTicker(30 * time.Second)
+	defer stats.Stop()
 
 	for {
 		select {
@@ -132,8 +167,31 @@ func (r *Relay) Run(ctx context.Context) {
 			}
 		case <-purge.C:
 			r.purge(ctx)
+		case <-stats.C:
+			r.logStats(ctx)
 		}
 	}
+}
+
+// logStats emits the backlog gauge. It logs at Warn when there are dead-lettered
+// events or the oldest pending row is suspiciously old (relay stuck / broker
+// down); otherwise Info. A failure to read stats is non-fatal.
+func (r *Relay) logStats(ctx context.Context) {
+	s, err := r.Stats(ctx)
+	if err != nil {
+		r.logger.Warn("Outbox stats query failed", zap.Error(err))
+		return
+	}
+	fields := []zap.Field{
+		zap.Int64("pending", s.Pending),
+		zap.Int64("dead", s.Dead),
+		zap.Float64("oldestPendingAgeSeconds", s.OldestPendingAgeSeconds),
+	}
+	if s.Dead > 0 || s.OldestPendingAgeSeconds > staleThreshold.Seconds() {
+		r.logger.Warn("outbox stats", fields...)
+		return
+	}
+	r.logger.Info("outbox stats", fields...)
 }
 
 // dispatchOnce locks and publishes one batch. Returns the number of rows it
