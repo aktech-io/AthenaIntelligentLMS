@@ -62,18 +62,19 @@ func main() {
 	rmqConn := rabbitmq.TryConnection(cfg.RabbitMQURL(), logger)
 	defer rmqConn.Close()
 
-	// Declare topology (only if connected)
-	if rmqConn.IsConnected() {
-		ch, err := rmqConn.Channel()
+	// Declare topology on every (re)connect so it survives a broker restart
+	// (re-creates the exchange/queues/bindings idempotently).
+	rmqConn.OnReady(func(c *rabbitmq.Connection) {
+		ch, err := c.Channel()
 		if err != nil {
-			logger.Warn("Failed to open RabbitMQ channel", zap.Error(err))
-		} else {
-			if err := rabbitmq.DeclareTopology(ch, logger); err != nil {
-				logger.Warn("Failed to declare RabbitMQ topology", zap.Error(err))
-			}
-			ch.Close()
+			logger.Warn("Failed to open RabbitMQ channel for topology", zap.Error(err))
+			return
 		}
-	}
+		defer ch.Close()
+		if err := rabbitmq.DeclareTopology(ch, logger); err != nil {
+			logger.Warn("Failed to declare RabbitMQ topology", zap.Error(err))
+		}
+	})
 
 	// Event publisher
 	pub, err := event.NewPublisher(rmqConn, logger)

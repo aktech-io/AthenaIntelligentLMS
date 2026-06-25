@@ -60,18 +60,19 @@ func main() {
 	rmqConn := rabbitmq.TryConnection(cfg.RabbitMQURL(), logger)
 	defer rmqConn.Close()
 
-	// Declare topology (only if connected)
-	if rmqConn.IsConnected() {
-		ch, err := rmqConn.Channel()
+	// Declare topology on every (re)connect so it survives a broker restart
+	// (re-creates the exchange/queues/bindings idempotently).
+	rmqConn.OnReady(func(c *rabbitmq.Connection) {
+		ch, err := c.Channel()
 		if err != nil {
-			logger.Warn("Failed to open RabbitMQ channel", zap.Error(err))
-		} else {
-			if err := rabbitmq.DeclareTopology(ch, logger); err != nil {
-				logger.Warn("Failed to declare RabbitMQ topology", zap.Error(err))
-			}
-			ch.Close()
+			logger.Warn("Failed to open RabbitMQ channel for topology", zap.Error(err))
+			return
 		}
-	}
+		defer ch.Close()
+		if err := rabbitmq.DeclareTopology(ch, logger); err != nil {
+			logger.Warn("Failed to declare RabbitMQ topology", zap.Error(err))
+		}
+	})
 
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)
@@ -90,16 +91,13 @@ func main() {
 	// Domain layers
 	repo := repository.New(pool)
 
-	var publisher *event.Publisher
-	if rmqConn.IsConnected() {
-		pub, err := event.NewPublisher(rmqConn, logger)
-		if err != nil {
-			logger.Warn("Failed to create event publisher", zap.Error(err))
-		} else {
-			publisher = pub
-			defer publisher.Close()
-		}
+	// Always create the publisher; it self-heals once the broker is reachable,
+	// so a startup before RabbitMQ no longer leaves it permanently nil.
+	publisher, err := event.NewPublisher(rmqConn, logger)
+	if err != nil {
+		logger.Warn("Failed to create event publisher", zap.Error(err))
 	}
+	defer publisher.Close()
 
 	svc := service.New(repo, publisher, logger)
 	h := handler.New(svc, logger)
