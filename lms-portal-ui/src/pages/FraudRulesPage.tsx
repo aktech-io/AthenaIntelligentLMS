@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { Settings2, ShieldCheck, Zap, BookOpen, AlertTriangle, Info } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fraudService, type FraudRule, type AlertSeverity } from "@/services/fraudService";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Rule Documentation ─────────────────────────────────────────────────────
 // Built-in reference for every fraud detection rule — what it detects,
@@ -246,6 +246,7 @@ const unitLabel = (type: ParamDoc["type"], unit?: string) => {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const FraudRulesPage = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editRule, setEditRule] = useState<FraudRule | null>(null);
   const [editSeverity, setEditSeverity] = useState("");
@@ -264,9 +265,9 @@ const FraudRulesPage = () => {
       fraudService.updateRule(params.id, { enabled: params.enabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fraud", "rules"] });
-      toast.success("Rule updated");
+      toast({ title: "Rule updated" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -290,9 +291,9 @@ const FraudRulesPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fraud", "rules"] });
       setEditRule(null);
-      toast.success("Rule configuration saved");
+      toast({ title: "Rule configuration saved" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const openEditDialog = (rule: FraudRule) => {

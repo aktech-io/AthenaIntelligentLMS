@@ -24,7 +24,7 @@ import {
   fraudService, type FraudCase, type CaseStatus, type AlertSeverity, type CaseTimeline,
 } from "@/services/fraudService";
 import { formatKES } from "@/lib/format";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 const severityColor: Record<AlertSeverity, string> = {
   CRITICAL: "bg-red-500/15 text-red-600 border-red-500/30",
@@ -44,6 +44,7 @@ const caseStatusColor: Record<string, string> = {
 };
 
 const FraudCasesPage = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,9 +95,9 @@ const FraudCasesPage = () => {
       setNewDescription("");
       setNewPriority("MEDIUM");
       setNewCustomerId("");
-      toast.success("Case created");
+      toast({ title: "Case created" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const addNoteMutation = useMutation({
@@ -109,9 +110,9 @@ const FraudCasesPage = () => {
         fraudService.getCase(detailCase.id).then(setDetailCase);
       }
       setNoteContent("");
-      toast.success("Note added");
+      toast({ title: "Note added" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const updateStatusMutation = useMutation({
@@ -122,9 +123,9 @@ const FraudCasesPage = () => {
       if (detailCase) {
         fraudService.getCase(detailCase.id).then(setDetailCase);
       }
-      toast.success("Case status updated");
+      toast({ title: "Case status updated" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   return (

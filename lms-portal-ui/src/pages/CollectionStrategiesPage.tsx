@@ -24,7 +24,7 @@ import {
   type CollectionStrategy,
   type CreateStrategyRequest,
 } from "@/services/collectionsService";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Action Type Labels ──────────────────────────────────────────────────────
 
@@ -79,6 +79,7 @@ const emptyForm: StrategyForm = {
 // ─── Main Page Component ─────────────────────────────────────────────────────
 
 export default function CollectionStrategiesPage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Dialog state
@@ -103,10 +104,10 @@ export default function CollectionStrategiesPage() {
     mutationFn: (req: CreateStrategyRequest) => collectionsService.createStrategy(req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection-strategies"] });
-      toast.success("Strategy created successfully");
+      toast({ title: "Strategy created successfully" });
       closeDialog();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -114,21 +115,21 @@ export default function CollectionStrategiesPage() {
       collectionsService.updateStrategy(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection-strategies"] });
-      toast.success("Strategy updated successfully");
+      toast({ title: "Strategy updated successfully" });
       closeDialog();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => collectionsService.deleteStrategy(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection-strategies"] });
-      toast.success("Strategy deleted");
+      toast({ title: "Strategy deleted" });
       setDeleteDialogOpen(false);
       setDeletingStrategy(null);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const toggleMutation = useMutation({
@@ -137,7 +138,7 @@ export default function CollectionStrategiesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collection-strategies"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -179,11 +180,11 @@ export default function CollectionStrategiesPage() {
       isActive: form.isActive,
     };
     if (!req.name) {
-      toast.error("Strategy name is required");
+      toast({ title: "Strategy name is required", variant: "destructive" });
       return;
     }
     if (req.dpdFrom > req.dpdTo) {
-      toast.error("DPD From must be less than or equal to DPD To");
+      toast({ title: "DPD From must be less than or equal to DPD To", variant: "destructive" });
       return;
     }
     if (editingId) {

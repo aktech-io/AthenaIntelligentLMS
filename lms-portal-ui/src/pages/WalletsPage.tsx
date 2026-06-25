@@ -8,7 +8,7 @@ import { PiggyBank, Wallet, ArrowUpRight, Search, CreditCard, Loader2 } from "lu
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { overdraftService, type CustomerWallet } from "@/services/overdraftService";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 const statusStyle: Record<string, string> = {
   ACTIVE: "bg-success/10 text-success border-success/20",
@@ -17,6 +17,7 @@ const statusStyle: Record<string, string> = {
 };
 
 const WalletsPage = () => {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
 
@@ -28,10 +29,10 @@ const WalletsPage = () => {
   const applyOverdraftMutation = useMutation({
     mutationFn: (walletId: string) => overdraftService.applyOverdraft(walletId),
     onSuccess: (facility) => {
-      toast.success(`Overdraft approved! Band ${facility.creditBand} — KES ${Number(facility.approvedLimit).toLocaleString()} limit`);
+      toast({ title: `Overdraft approved! Band ${facility.creditBand} — KES ${Number(facility.approvedLimit).toLocaleString()} limit` });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
     },
-    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+    onError: (err: Error) => toast({ title: `Failed: ${err.message}`, variant: "destructive" }),
   });
 
   const filtered = wallets.filter(

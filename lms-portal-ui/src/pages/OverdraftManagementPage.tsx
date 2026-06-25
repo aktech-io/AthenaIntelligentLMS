@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CreditCard, TrendingDown, Users, AlertCircle, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { overdraftService, type OverdraftFacility, type OverdraftSummary } from "@/services/overdraftService";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 const bandBadgeStyle: Record<string, string> = {
   A: "bg-success/10 text-success border-success/20",
@@ -28,6 +28,7 @@ const num = (v: unknown): number => {
 };
 
 const OverdraftManagementPage = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: summary, isLoading: summaryLoading } = useQuery<OverdraftSummary>({
@@ -57,11 +58,11 @@ const OverdraftManagementPage = () => {
   const suspendMutation = useMutation({
     mutationFn: (walletId: string) => overdraftService.suspendFacility(walletId),
     onSuccess: () => {
-      toast.success("Facility suspended");
+      toast({ title: "Facility suspended" });
       queryClient.invalidateQueries({ queryKey: ["overdraft-facilities"] });
       queryClient.invalidateQueries({ queryKey: ["overdraft-summary"] });
     },
-    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+    onError: (err: Error) => toast({ title: `Failed: ${err.message}`, variant: "destructive" }),
   });
 
   const facilities = facilitiesQuery.data ?? [];

@@ -22,7 +22,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fraudService, type FraudAlert, type AlertStatus, type AlertSeverity } from "@/services/fraudService";
 import { formatKES } from "@/lib/format";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 const severityColor: Record<AlertSeverity, string> = {
   CRITICAL: "bg-red-500/15 text-red-600 border-red-500/30",
@@ -41,6 +41,7 @@ const statusColor: Record<string, string> = {
 };
 
 const FraudAlertsPage = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,9 +91,9 @@ const FraudAlertsPage = () => {
       setResolveDialogOpen(false);
       setSelectedAlert(null);
       setResolveNotes("");
-      toast.success("Alert resolved successfully");
+      toast({ title: "Alert resolved successfully" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const assignMutation = useMutation({
@@ -100,9 +101,9 @@ const FraudAlertsPage = () => {
       fraudService.assignAlert(params.id, { assignee: params.assignee }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fraud"] });
-      toast.success("Alert assigned");
+      toast({ title: "Alert assigned" });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
   });
 
   const openResolveDialog = (alert: FraudAlert, asFraud: boolean) => {
