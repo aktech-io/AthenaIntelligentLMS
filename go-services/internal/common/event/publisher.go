@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -12,43 +13,77 @@ import (
 )
 
 // Publisher publishes domain events to the LMS exchange.
+//
+// It is self-healing: it holds a reference to the connection and lazily
+// (re)establishes the channel on each publish. This means a service that
+// started before RabbitMQ was reachable — or one whose connection later
+// dropped — recovers automatically instead of silently no-op'ing forever.
 type Publisher struct {
+	conn   *rabbitmq.Connection
 	ch     *amqp.Channel
 	logger *zap.Logger
+	mu     sync.Mutex
 }
 
-// NewPublisher creates a new event publisher.
-// Returns a no-op publisher if the connection is not available.
+// NewPublisher creates a new event publisher. It never fails on a missing
+// broker: if RabbitMQ is not yet reachable the publisher starts channel-less
+// and connects lazily on the first successful Publish.
 func NewPublisher(conn *rabbitmq.Connection, logger *zap.Logger) (*Publisher, error) {
-	if conn == nil || !conn.IsConnected() {
-		logger.Warn("Creating no-op publisher (RabbitMQ not connected)")
-		return &Publisher{ch: nil, logger: logger}, nil
+	p := &Publisher{conn: conn, logger: logger}
+	if conn == nil {
+		logger.Warn("Publisher created without a RabbitMQ connection")
+		return p, nil
 	}
+	if err := p.ensureChannel(); err != nil {
+		// Non-fatal: HTTP can serve immediately; the channel is opened lazily
+		// once the broker becomes reachable.
+		logger.Warn("Publisher starting without an open channel; will connect lazily",
+			zap.Error(err))
+	}
+	return p, nil
+}
 
-	ch, err := conn.Channel()
+// ensureChannel guarantees a live, confirm-enabled channel, reconnecting the
+// underlying connection if necessary. Caller must hold p.mu (or be NewPublisher).
+func (p *Publisher) ensureChannel() error {
+	if p.ch != nil && !p.ch.IsClosed() {
+		return nil
+	}
+	if p.conn == nil {
+		return fmt.Errorf("no RabbitMQ connection configured")
+	}
+	if !p.conn.IsConnected() {
+		if err := p.conn.Reconnect(); err != nil {
+			return fmt.Errorf("reconnect RabbitMQ: %w", err)
+		}
+	}
+	ch, err := p.conn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("open publisher channel: %w", err)
+		return fmt.Errorf("open publisher channel: %w", err)
 	}
-
-	// Enable publisher confirms for reliability
+	// Enable publisher confirms for reliability.
 	if err := ch.Confirm(false); err != nil {
-		return nil, fmt.Errorf("enable confirms: %w", err)
+		_ = ch.Close()
+		return fmt.Errorf("enable confirms: %w", err)
 	}
-
-	return &Publisher{ch: ch, logger: logger}, nil
+	p.ch = ch
+	return nil
 }
 
 // Publish publishes a DomainEvent to the LMS exchange with its type as routing key.
 func (p *Publisher) Publish(ctx context.Context, event *DomainEvent) error {
-	if p.ch == nil {
-		p.logger.Warn("Event not published (no RabbitMQ connection)",
-			zap.String("type", event.Type), zap.String("id", event.ID))
-		return nil
-	}
-
 	body, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("marshal event: %w", err)
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if err := p.ensureChannel(); err != nil {
+		p.logger.Warn("Event not published (RabbitMQ unavailable)",
+			zap.String("type", event.Type), zap.String("id", event.ID), zap.Error(err))
+		return fmt.Errorf("publish event %s: %w", event.Type, err)
 	}
 
 	err = p.ch.PublishWithContext(ctx,
@@ -63,6 +98,9 @@ func (p *Publisher) Publish(ctx context.Context, event *DomainEvent) error {
 		},
 	)
 	if err != nil {
+		// Drop the channel so the next publish reopens a fresh one.
+		_ = p.ch.Close()
+		p.ch = nil
 		return fmt.Errorf("publish event %s: %w", event.Type, err)
 	}
 
@@ -77,6 +115,8 @@ func (p *Publisher) Publish(ctx context.Context, event *DomainEvent) error {
 
 // Close closes the publisher channel.
 func (p *Publisher) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.ch != nil {
 		return p.ch.Close()
 	}
