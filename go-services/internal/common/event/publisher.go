@@ -52,10 +52,13 @@ func (p *Publisher) ensureChannel() error {
 	if p.conn == nil {
 		return fmt.Errorf("no RabbitMQ connection configured")
 	}
+	// Fail fast if the broker is down — do NOT block the caller reconnecting.
+	// The connection runs its own background reconnect loop, so the next publish
+	// (or the outbox relay's next tick) succeeds once the broker is back. Without
+	// this, a synchronous publish on an HTTP path would stall for the full
+	// reconnect backoff during an outage.
 	if !p.conn.IsConnected() {
-		if err := p.conn.Reconnect(); err != nil {
-			return fmt.Errorf("reconnect RabbitMQ: %w", err)
-		}
+		return fmt.Errorf("rabbitmq not connected")
 	}
 	ch, err := p.conn.Channel()
 	if err != nil {
