@@ -24,6 +24,7 @@ import (
 	origclient "github.com/athena-lms/go-services/internal/origination/client"
 	origevent "github.com/athena-lms/go-services/internal/origination/event"
 	"github.com/athena-lms/go-services/internal/origination/handler"
+	"github.com/athena-lms/go-services/internal/origination/reconcile"
 	"github.com/athena-lms/go-services/internal/origination/repository"
 	"github.com/athena-lms/go-services/internal/origination/service"
 )
@@ -89,6 +90,12 @@ func main() {
 	// broker outages and restarts (F27 root-cause fix).
 	relay := outbox.NewRelay(pool, pub, logger)
 	go relay.Run(ctx)
+
+	// Disbursement reconciler: a periodic safety net that flags any DISBURSED
+	// loan whose loan.disbursed outbox row is undelivered or missing (logs at
+	// ERROR for ops/alerting). Read-only, stays inside athena_loans.
+	recon := reconcile.New(pool, logger)
+	go recon.Run(ctx)
 
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)
