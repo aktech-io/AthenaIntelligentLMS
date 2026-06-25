@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
 	commonEvent "github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/idempotency"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 	"github.com/athena-lms/go-services/internal/management/service"
 )
@@ -34,12 +36,17 @@ type LoanDisbursedConsumer struct {
 }
 
 // NewLoanDisbursedConsumer creates a consumer for the loan management queue.
-func NewLoanDisbursedConsumer(conn *rabbitmq.Connection, svc *service.Service, logger *zap.Logger) *LoanDisbursedConsumer {
+//
+// The handler is wrapped with idempotency.Wrap so a redelivered loan.disbursed
+// event (delivery is at-least-once) is acked-and-skipped rather than activating
+// the same loan twice. pool backs the processed_events guard table.
+func NewLoanDisbursedConsumer(conn *rabbitmq.Connection, pool *pgxpool.Pool, svc *service.Service, logger *zap.Logger) *LoanDisbursedConsumer {
 	c := &LoanDisbursedConsumer{
 		svc:    svc,
 		logger: logger,
 	}
-	c.consumer = commonEvent.NewConsumer(conn, rabbitmq.LoanMgmtQueue, 3, 5, c.handle, logger)
+	handler := idempotency.Wrap(pool, logger, c.handle)
+	c.consumer = commonEvent.NewConsumer(conn, rabbitmq.LoanMgmtQueue, 3, 5, handler, logger)
 	return c
 }
 
