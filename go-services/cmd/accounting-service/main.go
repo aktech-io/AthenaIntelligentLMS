@@ -25,6 +25,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 )
 
@@ -83,6 +84,12 @@ func main() {
 		logger.Warn("Event publisher unavailable (RabbitMQ not connected)", zap.Error(err))
 	}
 	defer pub.Close()
+
+	// Outbox relay: drains events the service writes transactionally (atomic with
+	// the journal-entry posting) and publishes them at-least-once, surviving
+	// broker outages and restarts (F27 root-cause fix).
+	relay := outbox.NewRelay(pool, pub, logger)
+	go relay.Run(ctx)
 
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)

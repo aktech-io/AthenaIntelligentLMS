@@ -18,6 +18,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/db"
 	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 	"github.com/athena-lms/go-services/internal/payment/client"
 	"github.com/athena-lms/go-services/internal/payment/consumer"
@@ -90,6 +91,12 @@ func main() {
 		logger.Warn("Event publisher unavailable (RabbitMQ not connected)", zap.Error(err))
 	}
 	defer publisher.Close()
+
+	// Outbox relay: drains events the service writes transactionally (atomic with
+	// their state change) and publishes them at-least-once, surviving broker
+	// outages and restarts (F27 root-cause fix).
+	relay := outbox.NewRelay(pool, publisher.Underlying(), logger)
+	go relay.Run(ctx)
 
 	loanClient := client.NewLoanManagementClient(cfg.InternalServiceKey, logger)
 	svc := service.New(repo, publisher, loanClient, logger)
