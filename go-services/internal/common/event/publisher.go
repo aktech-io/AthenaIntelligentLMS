@@ -69,6 +69,21 @@ func (p *Publisher) ensureChannel() error {
 		_ = ch.Close()
 		return fmt.Errorf("enable confirms: %w", err)
 	}
+	// Surface unroutable messages instead of silently dropping them. With
+	// mandatory=true, a publish that matches no bound queue (e.g. topology not
+	// yet declared, or a misconfigured binding) is RETURNED here rather than
+	// black-holed. We log it loudly so it is alertable; see EDA_HARDENING.md for
+	// the planned follow-up that feeds returns back to the outbox for retry.
+	returns := ch.NotifyReturn(make(chan amqp.Return, 16))
+	go func() {
+		for ret := range returns {
+			p.logger.Error("Event returned UNROUTABLE (no queue bound) — not delivered",
+				zap.String("messageId", ret.MessageId),
+				zap.String("routingKey", ret.RoutingKey),
+				zap.Uint16("replyCode", ret.ReplyCode),
+				zap.String("reason", ret.ReplyText))
+		}
+	}()
 	p.ch = ch
 	return nil
 }
@@ -92,11 +107,12 @@ func (p *Publisher) Publish(ctx context.Context, event *DomainEvent) error {
 	err = p.ch.PublishWithContext(ctx,
 		rabbitmq.LMSExchange, // exchange
 		event.Type,           // routing key = event type
-		false,                // mandatory
+		true,                 // mandatory — return (don't drop) unroutable messages
 		false,                // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
+			MessageId:    event.ID,
 			Body:         body,
 		},
 	)

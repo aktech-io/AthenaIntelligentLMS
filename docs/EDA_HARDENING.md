@@ -162,6 +162,24 @@ successful publish — at-least-once, not exactly-once).
 Code: `internal/common/outbox` (`Write`, `Relay`); reference integration in
 loan-origination's disburse path; table migration `migrations/loans/9`.
 
+### 2.2.1 Verified end-to-end (2026-06-25)
+
+The full failure scenario was reproduced against the live cluster:
+
+1. **RabbitMQ scaled to 0** (total broker outage).
+2. A loan was **disbursed during the outage** → `HTTP 200`, borrower credited,
+   `loan.disbursed` written to the outbox (`status=0 pending`, relay retrying with
+   backoff). Request latency stayed flat (publisher fails fast, doesn't block).
+   loan-management correctly had **no loan yet** — nothing lost, nothing premature.
+3. **RabbitMQ scaled back to 1.** With **no pod restarts**, the connection
+   reconnected, `OnReady` re-declared topology, the consumer re-subscribed, and
+   the relay published the parked event → the loan **activated (~48 s)** and every
+   outbox row flipped to `dispatched`.
+
+Steady-state disburse→active latency is ~2 s; the ~48 s is the capped
+reconnect/resubscribe/relay backoff stack after a *total* outage, which is fine
+for a recovery path.
+
 ### 2.3 Resilient connection & readiness (defense in depth)
 
 - **Retry forever** with capped backoff + auto-reconnect on drop
@@ -254,7 +272,8 @@ engineered to stay small-and-fast regardless of history.
 | 1 | **Dual write loses an event** (F27) | Transactional outbox — atomic state+event (**shipped**, origination; rollout below) |
 | 2 | **Broker outage / cold-start race** | Retry-forever + auto-reconnect; outbox buffers in PG meanwhile (**shipped**) |
 | 3 | **Duplicate delivery** (at-least-once) | Consumers idempotent on `event.id`; add a per-consumer `processed_events(event_id)` guard (**rollout**) |
-| 4 | **Poison message** can't be processed | Outbox dead-letters after capped retries; consumer side needs a DLQ/parking queue (**rollout**) |
+| 4 | **Poison / unroutable message** | Producer-side: outbox dead-letters after capped retries; publish is now `mandatory=true` so unroutable messages are returned and logged at ERROR (not black-holed). Consumer-side DLQ/parking queue (**rollout**). Final follow-up: feed broker *returns* back to the outbox so an unroutable publish retries instead of being marked dispatched. |
+| 4b | **Broker restart loses topology** | Every service re-declares the exchange/queues/bindings on each (re)connect via `OnReady`; consumers self-resubscribe (**shipped**) |
 | 5 | **Silent consumer failure / lag** | Readiness on DB; export consumer lag + `outbox_pending`; alert (**partial — metrics pending**) |
 | 6 | **Schema drift** breaks a consumer | Additive-only versioning + parallel-publish for breaking changes (**policy**) |
 | 7 | **Projection drift undetected** | Reconciliation job: `DISBURSED` apps with no loan → re-emit/flag (**planned**) |
