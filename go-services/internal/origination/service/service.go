@@ -311,7 +311,19 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		return nil, err
 	}
 
-	app, err = s.repo.UpdateApplication(ctx, app)
+	// Build the loan.disbursed event and persist it to the transactional outbox
+	// in the SAME transaction as the DISBURSED state change. This closes the
+	// dual-write that previously dropped the event when the broker was down
+	// (F27): loan-management can no longer miss a disbursement. The outbox relay
+	// publishes it asynchronously and at-least-once.
+	scheduleConfig := s.productClient.GetProductScheduleConfig(ctx, app.ProductID)
+	evt, berr := s.publisher.BuildDisbursed(app, scheduleConfig.ScheduleType, scheduleConfig.RepaymentFrequency)
+	if berr != nil {
+		s.logger.Error("Failed to build loan.disbursed event", zap.Error(berr))
+		evt = nil // fall back to a plain state update; reconciliation will catch it
+	}
+
+	app, err = s.repo.UpdateApplicationWithEvent(ctx, app, evt)
 	if err != nil {
 		return nil, fmt.Errorf("disburse application: %w", err)
 	}
@@ -320,10 +332,6 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		map[string]any{"status": model.StatusApproved},
 		map[string]any{"status": model.StatusDisbursed},
 		map[string]any{"disbursedAmount": req.DisbursedAmount, "disbursementAccount": req.DisbursementAccount})
-
-	// Fetch schedule config and publish
-	scheduleConfig := s.productClient.GetProductScheduleConfig(ctx, app.ProductID)
-	s.publisher.PublishDisbursed(ctx, app, scheduleConfig.ScheduleType, scheduleConfig.RepaymentFrequency)
 
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil

@@ -89,7 +89,18 @@ func (p *Publisher) PublishDisbursed(ctx context.Context, app *model.LoanApplica
 	p.publish(ctx, commonEvent.LoanDisbursed, app, extra)
 }
 
-func (p *Publisher) publish(ctx context.Context, eventType string, app *model.LoanApplication, extra interface{}) {
+// BuildDisbursed constructs the loan.disbursed DomainEvent WITHOUT publishing it.
+// Used by the transactional-outbox path so the event is persisted atomically
+// with the disbursement state change and delivered at-least-once by the relay.
+func (p *Publisher) BuildDisbursed(app *model.LoanApplication, scheduleType, repaymentFrequency *string) (*commonEvent.DomainEvent, error) {
+	return p.build(commonEvent.LoanDisbursed, app, map[string]*string{
+		"scheduleType":       scheduleType,
+		"repaymentFrequency": repaymentFrequency,
+	})
+}
+
+// build constructs a DomainEvent from an application and optional extra fields.
+func (p *Publisher) build(eventType string, app *model.LoanApplication, extra interface{}) (*commonEvent.DomainEvent, error) {
 	payload := buildPayload(app)
 
 	// Merge extra fields
@@ -106,8 +117,11 @@ func (p *Publisher) publish(ctx context.Context, eventType string, app *model.Lo
 			payload.RepaymentFrequency = v
 		}
 	}
+	return commonEvent.NewDomainEvent(eventType, serviceName, app.TenantID, app.ID.String(), payload)
+}
 
-	event, err := commonEvent.NewDomainEvent(eventType, serviceName, app.TenantID, app.ID.String(), payload)
+func (p *Publisher) publish(ctx context.Context, eventType string, app *model.LoanApplication, extra interface{}) {
+	event, err := p.build(eventType, app, extra)
 	if err != nil {
 		p.logger.Error("Failed to create event",
 			zap.String("type", eventType),

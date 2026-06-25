@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
+	commonEvent "github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/origination/model"
 )
 
@@ -100,8 +102,14 @@ func (r *Repository) CreateApplication(ctx context.Context, app *model.LoanAppli
 }
 
 // UpdateApplication updates an existing loan application.
-func (r *Repository) UpdateApplication(ctx context.Context, app *model.LoanApplication) (*model.LoanApplication, error) {
-	err := r.pool.QueryRow(ctx, `
+// queryRower is satisfied by both *pgxpool.Pool and pgx.Tx, letting the UPDATE
+// run either standalone or inside a caller's transaction.
+type queryRower interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func (r *Repository) updateApplication(ctx context.Context, q queryRower, app *model.LoanApplication) error {
+	return q.QueryRow(ctx, `
 		UPDATE loan_applications SET
 			requested_amount=$1, approved_amount=$2, tenor_months=$3, purpose=$4,
 			status=$5, risk_grade=$6, credit_score=$7, interest_rate=$8,
@@ -117,8 +125,38 @@ func (r *Repository) UpdateApplication(ctx context.Context, app *model.LoanAppli
 		app.ReviewNotes, app.UpdatedBy,
 		app.ID, app.TenantID,
 	).Scan(&app.UpdatedAt)
-	if err != nil {
+}
+
+func (r *Repository) UpdateApplication(ctx context.Context, app *model.LoanApplication) (*model.LoanApplication, error) {
+	if err := r.updateApplication(ctx, r.pool, app); err != nil {
 		return nil, fmt.Errorf("update application: %w", err)
+	}
+	return app, nil
+}
+
+// UpdateApplicationWithEvent atomically applies the state change AND appends a
+// domain event to the transactional outbox in the SAME transaction, so the
+// event can never be lost relative to the committed state change (the fix for
+// the dual-write that dropped loan.disbursed — F27). The outbox relay publishes
+// the event asynchronously and at-least-once. A nil event behaves like
+// UpdateApplication.
+func (r *Repository) UpdateApplicationWithEvent(ctx context.Context, app *model.LoanApplication, evt *commonEvent.DomainEvent) (*model.LoanApplication, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := r.updateApplication(ctx, tx, app); err != nil {
+		return nil, fmt.Errorf("update application: %w", err)
+	}
+	if evt != nil {
+		if err := outbox.Write(ctx, tx, evt, app.ID.String()); err != nil {
+			return nil, fmt.Errorf("write outbox event: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit disburse tx: %w", err)
 	}
 	return app, nil
 }
