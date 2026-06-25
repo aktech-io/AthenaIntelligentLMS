@@ -19,6 +19,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 )
 
 // TransferService provides fund transfer business logic.
@@ -58,21 +59,21 @@ type TransferRequest struct {
 
 // TransferResponse is the response DTO for transfers.
 type TransferResponse struct {
-	ID                       uuid.UUID        `json:"id"`
-	SourceAccountID          uuid.UUID        `json:"sourceAccountId"`
-	SourceAccountNumber      *string          `json:"sourceAccountNumber,omitempty"`
-	DestinationAccountID     uuid.UUID        `json:"destinationAccountId"`
-	DestinationAccountNumber *string          `json:"destinationAccountNumber,omitempty"`
-	Amount                   decimal.Decimal  `json:"amount"`
-	Currency                 string           `json:"currency"`
-	TransferType             string           `json:"transferType"`
-	Status                   string           `json:"status"`
-	Reference                string           `json:"reference"`
-	Narration                *string          `json:"narration,omitempty"`
-	ChargeAmount             decimal.Decimal  `json:"chargeAmount"`
-	InitiatedAt              time.Time        `json:"initiatedAt"`
-	CompletedAt              *time.Time       `json:"completedAt,omitempty"`
-	FailedReason             *string          `json:"failedReason,omitempty"`
+	ID                       uuid.UUID       `json:"id"`
+	SourceAccountID          uuid.UUID       `json:"sourceAccountId"`
+	SourceAccountNumber      *string         `json:"sourceAccountNumber,omitempty"`
+	DestinationAccountID     uuid.UUID       `json:"destinationAccountId"`
+	DestinationAccountNumber *string         `json:"destinationAccountNumber,omitempty"`
+	Amount                   decimal.Decimal `json:"amount"`
+	Currency                 string          `json:"currency"`
+	TransferType             string          `json:"transferType"`
+	Status                   string          `json:"status"`
+	Reference                string          `json:"reference"`
+	Narration                *string         `json:"narration,omitempty"`
+	ChargeAmount             decimal.Decimal `json:"chargeAmount"`
+	InitiatedAt              time.Time       `json:"initiatedAt"`
+	CompletedAt              *time.Time      `json:"completedAt,omitempty"`
+	FailedReason             *string         `json:"failedReason,omitempty"`
 }
 
 func transferResponseFrom(t *model.FundTransfer, srcNum, destNum *string) TransferResponse {
@@ -305,6 +306,17 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		return nil, err
 	}
 
+	// Emit transfer.completed atomically with the balance moves via the
+	// transactional outbox so the money-path event can never be lost relative to
+	// the committed state change (F27). The relay publishes it at-least-once.
+	evt, err := s.publisher.BuildTransferCompleted(transfer.ID, sourceAccount.ID, destAccount.ID, req.Amount, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if err := outbox.Write(ctx, tx, evt, transfer.ID.String()); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -318,8 +330,6 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 			"transferType":       transferType,
 			"reference":          reference,
 		})
-
-	s.publisher.PublishTransferCompleted(ctx, transfer.ID, sourceAccount.ID, destAccount.ID, req.Amount, tenantID)
 
 	s.logger.Info("Transfer completed",
 		zap.String("reference", reference),

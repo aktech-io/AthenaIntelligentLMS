@@ -6,8 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	commonEvent "github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/payment/model"
 )
 
@@ -80,9 +83,14 @@ func (r *Repository) Insert(ctx context.Context, p *model.Payment) error {
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 }
 
-// Update saves changes to an existing payment.
-func (r *Repository) Update(ctx context.Context, p *model.Payment) error {
-	_, err := r.pool.Exec(ctx, `
+// execer is satisfied by both *pgxpool.Pool and pgx.Tx, letting the UPDATE run
+// either standalone or inside a caller's transaction.
+type execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+func (r *Repository) updatePayment(ctx context.Context, q execer, p *model.Payment) error {
+	_, err := q.Exec(ctx, `
 		UPDATE payments SET
 			status = $1, external_reference = $2, failure_reason = $3,
 			reversal_reason = $4, processed_at = $5, completed_at = $6,
@@ -93,6 +101,37 @@ func (r *Repository) Update(ctx context.Context, p *model.Payment) error {
 		p.ReversedAt, p.ID, p.TenantID,
 	)
 	return err
+}
+
+// Update saves changes to an existing payment.
+func (r *Repository) Update(ctx context.Context, p *model.Payment) error {
+	return r.updatePayment(ctx, r.pool, p)
+}
+
+// UpdateWithEvent atomically applies the state change AND appends a domain event
+// to the transactional outbox in the SAME transaction, so the event can never be
+// lost relative to the committed state change (the dual-write fix — F27). The
+// outbox relay publishes the event asynchronously and at-least-once. A nil event
+// behaves like Update.
+func (r *Repository) UpdateWithEvent(ctx context.Context, p *model.Payment, evt *commonEvent.DomainEvent) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := r.updatePayment(ctx, tx, p); err != nil {
+		return fmt.Errorf("update payment: %w", err)
+	}
+	if evt != nil {
+		if err := outbox.Write(ctx, tx, evt, p.ID.String()); err != nil {
+			return fmt.Errorf("write outbox event: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit payment update tx: %w", err)
+	}
+	return nil
 }
 
 // FindByIDAndTenantID finds a payment by ID and tenant.

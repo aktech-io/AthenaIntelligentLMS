@@ -382,10 +382,9 @@ func (s *AccountingService) PostLoanDisbursement(ctx context.Context, tenantID, 
 		"loan.disbursed", applicationID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted disbursement journal", zap.String("applicationId", applicationID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -484,10 +483,9 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 		})
 	}
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted repayment journal",
 		zap.String("paymentId", paymentID), zap.String("amount", amount.String()),
 		zap.String("principal", principal.String()), zap.String("interest", interest.String()),
@@ -512,10 +510,9 @@ func (s *AccountingService) PostPaymentReversal(ctx context.Context, tenantID, p
 		"payment.reversed", paymentID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	return nil
 }
 
@@ -535,10 +532,9 @@ func (s *AccountingService) PostOverdraftDrawn(ctx context.Context, tenantID, so
 		"Overdraft drawn "+sourceID, "overdraft.drawn", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted overdraft drawn journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -559,10 +555,9 @@ func (s *AccountingService) PostOverdraftRepaid(ctx context.Context, tenantID, s
 		"Overdraft repayment "+sourceID, "overdraft.repaid", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted overdraft repayment journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -583,10 +578,9 @@ func (s *AccountingService) PostOverdraftInterestCharged(ctx context.Context, te
 		"Overdraft interest charged "+sourceID, "overdraft.interest.charged", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted overdraft interest journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -607,10 +601,9 @@ func (s *AccountingService) PostOverdraftFeeCharged(ctx context.Context, tenantI
 		"Overdraft fee charged "+sourceID, "overdraft.fee.charged", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted overdraft fee journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -631,10 +624,9 @@ func (s *AccountingService) PostFloatDrawn(ctx context.Context, tenantID, source
 		"Float drawn for loan disbursement "+sourceID, "float.drawn", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted float drawn journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }
@@ -655,10 +647,9 @@ func (s *AccountingService) PostFloatRepaid(ctx context.Context, tenantID, sourc
 		"Float repayment from collections "+sourceID, "float.repaid", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntry(ctx, entry); err != nil {
+	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
 		return err
 	}
-	s.publisher.PublishJournalPosted(ctx, entry)
 	s.logger.Info("Posted float repayment journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
 	return nil
 }

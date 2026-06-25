@@ -23,6 +23,7 @@ import (
 	commonevent "github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 )
 
@@ -82,6 +83,12 @@ func main() {
 	}
 	defer pub.Close()
 	acctPub := event.NewPublisher(pub, logger)
+
+	// Outbox relay: drains events the service writes transactionally (atomic with
+	// the balance change) and publishes them at-least-once, surviving broker
+	// outages and restarts (F27 root-cause fix).
+	relay := outbox.NewRelay(pool, pub, logger)
+	go relay.Run(ctx)
 
 	// Service wiring
 	repo := repository.New(pool)

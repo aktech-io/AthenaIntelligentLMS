@@ -27,6 +27,12 @@ func NewPublisher(conn *rabbitmq.Connection, logger *zap.Logger) (*Publisher, er
 	return &Publisher{pub: pub, logger: logger}, nil
 }
 
+// Underlying returns the shared common publisher, used to wire the outbox relay
+// (which publishes events the service writes transactionally).
+func (p *Publisher) Underlying() *event.Publisher {
+	return p.pub
+}
+
 // PublishInitiated publishes a payment.initiated event.
 func (p *Publisher) PublishInitiated(ctx context.Context, payment *model.Payment) {
 	p.publish(ctx, event.PaymentInitiated, payment, nil)
@@ -59,7 +65,16 @@ func (p *Publisher) PublishReversed(ctx context.Context, payment *model.Payment)
 	p.publish(ctx, event.PaymentReversed, payment, extra)
 }
 
-func (p *Publisher) publish(ctx context.Context, eventType string, payment *model.Payment, extra map[string]any) {
+// BuildCompleted constructs the payment.completed DomainEvent WITHOUT publishing
+// it. Used by the transactional-outbox path so the event is persisted atomically
+// with the completion state change and delivered at-least-once by the relay.
+func (p *Publisher) BuildCompleted(payment *model.Payment) (*event.DomainEvent, error) {
+	return p.build(event.PaymentCompleted, payment, nil)
+}
+
+// build constructs a DomainEvent from a payment and optional extra fields,
+// without publishing it.
+func (p *Publisher) build(eventType string, payment *model.Payment, extra map[string]any) (*event.DomainEvent, error) {
 	payload := map[string]any{
 		"paymentId":         payment.ID,
 		"customerId":        payment.CustomerID,
@@ -75,8 +90,11 @@ func (p *Publisher) publish(ctx context.Context, eventType string, payment *mode
 	for k, v := range extra {
 		payload[k] = v
 	}
+	return event.NewDomainEvent(eventType, serviceName, payment.TenantID, "", payload)
+}
 
-	evt, err := event.NewDomainEvent(eventType, serviceName, payment.TenantID, "", payload)
+func (p *Publisher) publish(ctx context.Context, eventType string, payment *model.Payment, extra map[string]any) {
+	evt, err := p.build(eventType, payment, extra)
 	if err != nil {
 		p.logger.Error("Failed to create domain event",
 			zap.String("type", eventType),

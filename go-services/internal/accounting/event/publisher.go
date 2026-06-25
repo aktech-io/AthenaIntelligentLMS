@@ -20,8 +20,11 @@ func NewPublisher(pub *event.Publisher, logger *zap.Logger) *Publisher {
 	return &Publisher{pub: pub, logger: logger}
 }
 
-// PublishJournalPosted publishes an "accounting.posted" event after a journal entry is committed.
-func (p *Publisher) PublishJournalPosted(ctx context.Context, entry *model.JournalEntry) {
+// BuildJournalPosted constructs the "accounting.posted" DomainEvent WITHOUT
+// publishing it. Used by the transactional-outbox path so the event is persisted
+// atomically with the journal-entry insert and delivered at-least-once by the
+// relay. Safe to use as a builder callback after the entry's ID is assigned.
+func (p *Publisher) BuildJournalPosted(entry *model.JournalEntry) (*event.DomainEvent, error) {
 	sourceEvent := ""
 	if entry.SourceEvent != nil {
 		sourceEvent = *entry.SourceEvent
@@ -41,7 +44,12 @@ func (p *Publisher) PublishJournalPosted(ctx context.Context, entry *model.Journ
 		"totalCredit": entry.TotalCredit.String(),
 	}
 
-	evt, err := event.NewDomainEvent("accounting.posted", "accounting-service", entry.TenantID, "", payload)
+	return event.NewDomainEvent("accounting.posted", "accounting-service", entry.TenantID, "", payload)
+}
+
+// PublishJournalPosted publishes an "accounting.posted" event after a journal entry is committed.
+func (p *Publisher) PublishJournalPosted(ctx context.Context, entry *model.JournalEntry) {
+	evt, err := p.BuildJournalPosted(entry)
 	if err != nil {
 		p.logger.Error("Failed to create accounting.posted event", zap.Error(err))
 		return

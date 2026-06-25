@@ -163,11 +163,16 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, req *model.Complet
 	payment.Status = model.PaymentStatusCompleted
 	payment.CompletedAt = &now
 
-	if err := s.repo.Update(ctx, payment); err != nil {
+	// Persist the completion and the payment.completed event atomically via the
+	// transactional outbox so the money-path event can never be lost relative to
+	// the committed state change (F27). The relay publishes it at-least-once.
+	evt, err := s.publisher.BuildCompleted(payment)
+	if err != nil {
 		return nil, err
 	}
-
-	s.publisher.PublishCompleted(ctx, payment)
+	if err := s.repo.UpdateWithEvent(ctx, payment, evt); err != nil {
+		return nil, err
+	}
 	return payment, nil
 }
 

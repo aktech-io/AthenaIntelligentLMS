@@ -11,6 +11,8 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/athena-lms/go-services/internal/accounting/model"
+	commonEvent "github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 )
 
 // Repository provides database access for the accounting service.
@@ -84,12 +86,52 @@ func (r *Repository) CreateJournalEntry(ctx context.Context, entry *model.Journa
 	}
 	defer tx.Rollback(ctx)
 
+	if err := r.createJournalEntryTx(ctx, tx, entry); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// CreateJournalEntryWithEvent inserts a journal entry and, in the SAME
+// transaction, appends a domain event to the transactional outbox so the
+// accounting.posted event can never be lost relative to the committed posting
+// (the dual-write fix — F27). The relay publishes it asynchronously and
+// at-least-once. buildEvent is invoked AFTER the entry's ID/entry_number are
+// assigned so the event payload reflects the persisted row; a nil buildEvent (or
+// one returning a nil event) behaves like CreateJournalEntry.
+func (r *Repository) CreateJournalEntryWithEvent(ctx context.Context, entry *model.JournalEntry, buildEvent func(*model.JournalEntry) (*commonEvent.DomainEvent, error)) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := r.createJournalEntryTx(ctx, tx, entry); err != nil {
+		return err
+	}
+	if buildEvent != nil {
+		evt, err := buildEvent(entry)
+		if err != nil {
+			return fmt.Errorf("build outbox event: %w", err)
+		}
+		if evt != nil {
+			if err := outbox.Write(ctx, tx, evt, entry.ID.String()); err != nil {
+				return fmt.Errorf("write outbox event: %w", err)
+			}
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// createJournalEntryTx inserts a journal entry, its lines, and (for POSTED
+// entries) the balance updates using the caller's transaction.
+func (r *Repository) createJournalEntryTx(ctx context.Context, tx pgx.Tx, entry *model.JournalEntry) error {
 	entry.ID = uuid.New()
 	now := time.Now()
 	entry.CreatedAt = now
 	entry.UpdatedAt = now
 
-	err = tx.QueryRow(ctx,
+	err := tx.QueryRow(ctx,
 		`INSERT INTO journal_entries (id, tenant_id, reference, description, entry_date, status, source_event, source_id, total_debit, total_credit, posted_by, created_by, is_system_generated, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		 RETURNING entry_number`,
@@ -141,7 +183,7 @@ func (r *Repository) CreateJournalEntry(ctx context.Context, entry *model.Journa
 		}
 	}
 
-	return tx.Commit(ctx)
+	return nil
 }
 
 // EntryExistsBySourceEventAndID checks if a journal entry already exists for idempotency.

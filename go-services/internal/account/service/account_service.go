@@ -22,6 +22,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 )
 
 // KYC tier limits in KES
@@ -287,6 +288,17 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		return nil, err
 	}
 
+	// Emit account.credit.received atomically with the balance change via the
+	// transactional outbox so the money-path event can never be lost relative to
+	// the committed state change (F27). The relay publishes it at-least-once.
+	evt, err := s.publisher.BuildCreditReceived(accountID, req.Amount, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if err := outbox.Write(ctx, tx, evt, accountID.String()); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -296,7 +308,6 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		map[string]any{"availableBalance": newBalance},
 		map[string]any{"amount": req.Amount, "channel": channel, "description": req.Description, "transactionId": txn.ID})
 
-	s.publisher.PublishCreditReceived(ctx, accountID, req.Amount, tenantID)
 	return txn, nil
 }
 
@@ -392,6 +403,17 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		return nil, err
 	}
 
+	// Emit account.debit.processed atomically with the balance change via the
+	// transactional outbox so the money-path event can never be lost relative to
+	// the committed state change (F27). The relay publishes it at-least-once.
+	evt, err := s.publisher.BuildDebitProcessed(accountID, req.Amount, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if err := outbox.Write(ctx, tx, evt, accountID.String()); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -401,7 +423,6 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		map[string]any{"availableBalance": newBalance},
 		map[string]any{"amount": req.Amount, "channel": channel, "description": req.Description, "transactionId": txn.ID})
 
-	s.publisher.PublishDebitProcessed(ctx, accountID, req.Amount, tenantID)
 	return txn, nil
 }
 
