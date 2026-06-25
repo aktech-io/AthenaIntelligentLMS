@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/handler"
@@ -21,6 +21,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/config"
 	"github.com/athena-lms/go-services/internal/common/db"
 	commonevent "github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 )
@@ -115,10 +116,7 @@ func main() {
 	r.Use(commonmw.Logging(logger, cfg.ServiceName))
 
 	// Health endpoint (unauthenticated)
-	r.Get("/actuator/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"UP"}`))
-	})
+	r.Get("/actuator/health", health.Handler(pool, rmqConn))
 
 	// Auth endpoints (unauthenticated)
 	r.Post("/api/auth/login", authHandler.Login)

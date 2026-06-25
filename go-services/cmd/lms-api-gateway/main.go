@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/config"
@@ -165,15 +165,15 @@ const (
 type CircuitBreaker struct {
 	mu sync.Mutex
 
-	state    CircuitState
-	failures int
+	state     CircuitState
+	failures  int
 	successes int // successes in half-open state
 
 	// Config — mirrors Resilience4j defaults from Java gateway
-	failureThreshold          int           // consecutive failures to open
-	halfOpenPermittedCalls    int           // successful calls required in half-open to close
-	openStateDuration         time.Duration // how long to stay open before half-open
-	openStateStart            time.Time
+	failureThreshold       int           // consecutive failures to open
+	halfOpenPermittedCalls int           // successful calls required in half-open to close
+	openStateDuration      time.Duration // how long to stay open before half-open
+	openStateStart         time.Time
 }
 
 // NewCircuitBreaker creates a circuit breaker with the same defaults as the Java gateway's

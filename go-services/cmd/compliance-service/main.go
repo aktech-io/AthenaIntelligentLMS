@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/config"
 	"github.com/athena-lms/go-services/internal/common/db"
 	"github.com/athena-lms/go-services/internal/common/event"
+	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 	"github.com/athena-lms/go-services/internal/compliance/consumer"
@@ -100,10 +101,7 @@ func main() {
 	r.Use(commonmw.Logging(logger, cfg.ServiceName))
 
 	// Health endpoint (unauthenticated -- used by Docker healthcheck)
-	r.Get("/actuator/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"UP"}`))
-	})
+	r.Get("/actuator/health", health.Handler(pool, rmqConn))
 
 	// Protected routes
 	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)

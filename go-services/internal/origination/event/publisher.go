@@ -26,17 +26,17 @@ func NewPublisher(pub *commonEvent.Publisher, logger *zap.Logger) *Publisher {
 
 // applicationPayload is the standard event payload for loan application events.
 type applicationPayload struct {
-	ApplicationID      string           `json:"applicationId"`
-	TenantID           string           `json:"tenantId"`
-	CustomerID         string           `json:"customerId"`
-	ProductID          string           `json:"productId"`
-	Status             string           `json:"status"`
-	Amount             decimal.Decimal  `json:"amount"`
-	Currency           string           `json:"currency"`
-	TenorMonths        int              `json:"tenorMonths"`
-	InterestRate       *decimal.Decimal `json:"interestRate,omitempty"`
-	DisbursementAccount *string         `json:"disbursementAccount,omitempty"`
-	DepositAmount      decimal.Decimal  `json:"depositAmount,omitempty"`
+	ApplicationID       string           `json:"applicationId"`
+	TenantID            string           `json:"tenantId"`
+	CustomerID          string           `json:"customerId"`
+	ProductID           string           `json:"productId"`
+	Status              string           `json:"status"`
+	Amount              decimal.Decimal  `json:"amount"`
+	Currency            string           `json:"currency"`
+	TenorMonths         int              `json:"tenorMonths"`
+	InterestRate        *decimal.Decimal `json:"interestRate,omitempty"`
+	DisbursementAccount *string          `json:"disbursementAccount,omitempty"`
+	DepositAmount       decimal.Decimal  `json:"depositAmount,omitempty"`
 
 	// Extra fields for specific events
 	Reason             string  `json:"reason,omitempty"`

@@ -59,13 +59,13 @@ var ValidRiskGrades = map[RiskGrade]bool{
 type CollateralType string
 
 const (
-	CollateralRealEstate       CollateralType = "REAL_ESTATE"
-	CollateralVehicle          CollateralType = "VEHICLE"
-	CollateralEquipment        CollateralType = "EQUIPMENT"
-	CollateralCashDeposit      CollateralType = "CASH_DEPOSIT"
-	CollateralShares           CollateralType = "SHARES"
-	CollateralInsurancePolicy  CollateralType = "INSURANCE_POLICY"
-	CollateralOther            CollateralType = "OTHER"
+	CollateralRealEstate      CollateralType = "REAL_ESTATE"
+	CollateralVehicle         CollateralType = "VEHICLE"
+	CollateralEquipment       CollateralType = "EQUIPMENT"
+	CollateralCashDeposit     CollateralType = "CASH_DEPOSIT"
+	CollateralShares          CollateralType = "SHARES"
+	CollateralInsurancePolicy CollateralType = "INSURANCE_POLICY"
+	CollateralOther           CollateralType = "OTHER"
 )
 
 // ValidCollateralTypes lists all valid collateral types.
@@ -81,30 +81,30 @@ var ValidCollateralTypes = map[CollateralType]bool{
 
 // LoanApplication represents a loan application entity.
 type LoanApplication struct {
-	ID                  uuid.UUID          `json:"id"`
-	TenantID            string             `json:"tenantId"`
-	CustomerID          string             `json:"customerId"`
-	ProductID           uuid.UUID          `json:"productId"`
-	RequestedAmount     decimal.Decimal    `json:"requestedAmount"`
-	ApprovedAmount      *decimal.Decimal   `json:"approvedAmount"`
-	Currency            string             `json:"currency"`
-	TenorMonths         int                `json:"tenorMonths"`
-	Purpose             *string            `json:"purpose"`
-	Status              ApplicationStatus  `json:"status"`
-	RiskGrade           *RiskGrade         `json:"riskGrade"`
-	CreditScore         *int               `json:"creditScore"`
-	InterestRate        *decimal.Decimal   `json:"interestRate"`
-	DepositAmount       decimal.Decimal    `json:"depositAmount"`
-	DisbursedAmount     *decimal.Decimal   `json:"disbursedAmount"`
-	DisbursedAt         *time.Time         `json:"disbursedAt"`
-	DisbursementAccount *string            `json:"disbursementAccount"`
-	ReviewerID          *string            `json:"reviewerId,omitempty"`
-	ReviewedAt          *time.Time         `json:"reviewedAt,omitempty"`
-	ReviewNotes         *string            `json:"reviewNotes"`
-	CreatedAt           *time.Time         `json:"createdAt"`
-	UpdatedAt           *time.Time         `json:"updatedAt"`
-	CreatedBy           *string            `json:"createdBy,omitempty"`
-	UpdatedBy           *string            `json:"updatedBy,omitempty"`
+	ID                  uuid.UUID         `json:"id"`
+	TenantID            string            `json:"tenantId"`
+	CustomerID          string            `json:"customerId"`
+	ProductID           uuid.UUID         `json:"productId"`
+	RequestedAmount     decimal.Decimal   `json:"requestedAmount"`
+	ApprovedAmount      *decimal.Decimal  `json:"approvedAmount"`
+	Currency            string            `json:"currency"`
+	TenorMonths         int               `json:"tenorMonths"`
+	Purpose             *string           `json:"purpose"`
+	Status              ApplicationStatus `json:"status"`
+	RiskGrade           *RiskGrade        `json:"riskGrade"`
+	CreditScore         *int              `json:"creditScore"`
+	InterestRate        *decimal.Decimal  `json:"interestRate"`
+	DepositAmount       decimal.Decimal   `json:"depositAmount"`
+	DisbursedAmount     *decimal.Decimal  `json:"disbursedAmount"`
+	DisbursedAt         *time.Time        `json:"disbursedAt"`
+	DisbursementAccount *string           `json:"disbursementAccount"`
+	ReviewerID          *string           `json:"reviewerId,omitempty"`
+	ReviewedAt          *time.Time        `json:"reviewedAt,omitempty"`
+	ReviewNotes         *string           `json:"reviewNotes"`
+	CreatedAt           *time.Time        `json:"createdAt"`
+	UpdatedAt           *time.Time        `json:"updatedAt"`
+	CreatedBy           *string           `json:"createdBy,omitempty"`
+	UpdatedBy           *string           `json:"updatedBy,omitempty"`
 }
 
 // ApplicationCollateral represents collateral attached to a loan application.
@@ -122,24 +122,24 @@ type ApplicationCollateral struct {
 
 // ApplicationNote represents a note attached to a loan application.
 type ApplicationNote struct {
-	ID            uuid.UUID `json:"id"`
-	ApplicationID uuid.UUID `json:"applicationId"`
-	TenantID      string    `json:"tenantId"`
-	NoteType      string    `json:"noteType"`
-	Content       string    `json:"content"`
-	AuthorID      *string   `json:"authorId"`
+	ID            uuid.UUID  `json:"id"`
+	ApplicationID uuid.UUID  `json:"applicationId"`
+	TenantID      string     `json:"tenantId"`
+	NoteType      string     `json:"noteType"`
+	Content       string     `json:"content"`
+	AuthorID      *string    `json:"authorId"`
 	CreatedAt     *time.Time `json:"createdAt"`
 }
 
 // ApplicationStatusHistory represents a status change record.
 type ApplicationStatusHistory struct {
-	ID            uuid.UUID `json:"id"`
-	ApplicationID uuid.UUID `json:"applicationId"`
-	TenantID      string    `json:"tenantId"`
-	FromStatus    *string   `json:"fromStatus"`
-	ToStatus      string    `json:"toStatus"`
-	Reason        *string   `json:"reason"`
-	ChangedBy     *string   `json:"changedBy"`
+	ID            uuid.UUID  `json:"id"`
+	ApplicationID uuid.UUID  `json:"applicationId"`
+	TenantID      string     `json:"tenantId"`
+	FromStatus    *string    `json:"fromStatus"`
+	ToStatus      string     `json:"toStatus"`
+	Reason        *string    `json:"reason"`
+	ChangedBy     *string    `json:"changedBy"`
 	ChangedAt     *time.Time `json:"changedAt"`
 }
 
@@ -196,29 +196,29 @@ type AddNoteRequest struct {
 
 // ApplicationResponse is the response DTO for a loan application.
 type ApplicationResponse struct {
-	ID                  uuid.UUID                  `json:"id"`
-	TenantID            string                     `json:"tenantId"`
-	CustomerID          string                     `json:"customerId"`
-	ProductID           uuid.UUID                  `json:"productId"`
-	RequestedAmount     decimal.Decimal            `json:"requestedAmount"`
-	ApprovedAmount      *decimal.Decimal           `json:"approvedAmount"`
-	Currency            string                     `json:"currency"`
-	TenorMonths         int                        `json:"tenorMonths"`
-	Purpose             *string                    `json:"purpose"`
-	Status              ApplicationStatus          `json:"status"`
-	RiskGrade           *RiskGrade                 `json:"riskGrade"`
-	CreditScore         *int                       `json:"creditScore"`
-	InterestRate        *decimal.Decimal           `json:"interestRate"`
-	DepositAmount       decimal.Decimal            `json:"depositAmount"`
-	DisbursedAmount     *decimal.Decimal           `json:"disbursedAmount"`
-	DisbursedAt         *time.Time                 `json:"disbursedAt"`
-	DisbursementAccount *string                    `json:"disbursementAccount"`
-	ReviewNotes         *string                    `json:"reviewNotes"`
-	CreatedAt           *time.Time                 `json:"createdAt"`
-	UpdatedAt           *time.Time                 `json:"updatedAt"`
-	Collaterals         []CollateralResponse       `json:"collaterals"`
-	Notes               []NoteResponse             `json:"notes"`
-	StatusHistory       []StatusHistoryResponse    `json:"statusHistory"`
+	ID                  uuid.UUID               `json:"id"`
+	TenantID            string                  `json:"tenantId"`
+	CustomerID          string                  `json:"customerId"`
+	ProductID           uuid.UUID               `json:"productId"`
+	RequestedAmount     decimal.Decimal         `json:"requestedAmount"`
+	ApprovedAmount      *decimal.Decimal        `json:"approvedAmount"`
+	Currency            string                  `json:"currency"`
+	TenorMonths         int                     `json:"tenorMonths"`
+	Purpose             *string                 `json:"purpose"`
+	Status              ApplicationStatus       `json:"status"`
+	RiskGrade           *RiskGrade              `json:"riskGrade"`
+	CreditScore         *int                    `json:"creditScore"`
+	InterestRate        *decimal.Decimal        `json:"interestRate"`
+	DepositAmount       decimal.Decimal         `json:"depositAmount"`
+	DisbursedAmount     *decimal.Decimal        `json:"disbursedAmount"`
+	DisbursedAt         *time.Time              `json:"disbursedAt"`
+	DisbursementAccount *string                 `json:"disbursementAccount"`
+	ReviewNotes         *string                 `json:"reviewNotes"`
+	CreatedAt           *time.Time              `json:"createdAt"`
+	UpdatedAt           *time.Time              `json:"updatedAt"`
+	Collaterals         []CollateralResponse    `json:"collaterals"`
+	Notes               []NoteResponse          `json:"notes"`
+	StatusHistory       []StatusHistoryResponse `json:"statusHistory"`
 }
 
 // CollateralResponse is the response DTO for application collateral.
@@ -234,20 +234,20 @@ type CollateralResponse struct {
 
 // NoteResponse is the response DTO for an application note.
 type NoteResponse struct {
-	ID        uuid.UUID `json:"id"`
-	NoteType  string    `json:"noteType"`
-	Content   string    `json:"content"`
-	AuthorID  *string   `json:"authorId"`
+	ID        uuid.UUID  `json:"id"`
+	NoteType  string     `json:"noteType"`
+	Content   string     `json:"content"`
+	AuthorID  *string    `json:"authorId"`
 	CreatedAt *time.Time `json:"createdAt"`
 }
 
 // StatusHistoryResponse is the response DTO for a status change record.
 type StatusHistoryResponse struct {
-	ID         uuid.UUID `json:"id"`
-	FromStatus *string   `json:"fromStatus"`
-	ToStatus   string    `json:"toStatus"`
-	Reason     *string   `json:"reason"`
-	ChangedBy  *string   `json:"changedBy"`
+	ID         uuid.UUID  `json:"id"`
+	FromStatus *string    `json:"fromStatus"`
+	ToStatus   string     `json:"toStatus"`
+	Reason     *string    `json:"reason"`
+	ChangedBy  *string    `json:"changedBy"`
 	ChangedAt  *time.Time `json:"changedAt"`
 }
 

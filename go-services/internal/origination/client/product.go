@@ -13,7 +13,7 @@ import (
 
 // ProductClient calls product-service to validate products and fetch schedule config.
 type ProductClient struct {
-	client *httputil.ServiceClient
+	client  *httputil.ServiceClient
 	baseURL string
 	logger  *zap.Logger
 }

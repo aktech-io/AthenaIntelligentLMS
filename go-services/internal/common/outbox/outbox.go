@@ -77,10 +77,10 @@ type Relay struct {
 // Option configures a Relay.
 type Option func(*Relay)
 
-func WithBatchSize(n int) Option       { return func(r *Relay) { r.batchSize = n } }
+func WithBatchSize(n int) Option              { return func(r *Relay) { r.batchSize = n } }
 func WithPollInterval(d time.Duration) Option { return func(r *Relay) { r.pollInterval = d } }
-func WithMaxAttempts(n int) Option     { return func(r *Relay) { r.maxAttempts = n } }
-func WithRetention(d time.Duration) Option { return func(r *Relay) { r.retention = d } }
+func WithMaxAttempts(n int) Option            { return func(r *Relay) { r.maxAttempts = n } }
+func WithRetention(d time.Duration) Option    { return func(r *Relay) { r.retention = d } }
 
 // NewRelay builds a relay with sensible defaults for a busy table.
 func NewRelay(pool *pgxpool.Pool, pub publisher, logger *zap.Logger, opts ...Option) *Relay {
