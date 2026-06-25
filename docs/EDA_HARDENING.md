@@ -287,17 +287,29 @@ engineered to stay small-and-fast regardless of history.
 1. **Done:** outbox infra + connection/publisher/readiness hardening; reference
    integration on `loan.disbursed`; full-fleet rebuild for the connection &
    readiness fixes.
-2. **Next (money path):** route the remaining origination events
-   (`submitted/approved/rejected`) and **payment**, **accounting.posted**, and
-   **account credit/debit/transfer** emissions through their service's outbox,
-   using the same `UpdateXWithEvent(tx, evt)` pattern. Each service already has a
-   pgx pool; add an `event_outbox` migration + `outbox.NewRelay(pool, pub)` in
-   `main.go`.
-3. **Then (consumer idempotency):** add `processed_events(event_id PK)` insert-guard
-   at the top of each consumer handler; on duplicate, ack and skip.
-4. **Then (observability):** export the outbox + consumer-lag metrics; wire alerts.
-5. **Then (reconciliation):** nightly sweep that compares producer state to
-   consumer projections (e.g. disbursed apps ↔ active loans) and re-emits gaps.
+2. **Done (money paths):** outbox rolled out to **payment** (`payment.completed`),
+   **accounting** (`accounting.posted`, all 9 system postings), and **account**
+   (`account.credit.received` / `account.debit.processed` / `transfer.completed`)
+   via the same in-tx `outbox.Write` pattern + a relay in each `main.go`.
+   Migrations: `payment/2`, `accounting/7`, `account/000012`. Verified live: each
+   table receives and dispatches its events. (Account maker-checker preserved —
+   approved ops re-run through the outbox path; manual accounting approve/reverse
+   left fire-and-forget by design.)
+3. **Done (consumer idempotency):** `common/idempotency.Wrap` guards handlers via
+   a `processed_events(event_id PK)` insert (ack+skip on duplicate; marker deleted
+   on handler error so retries still work; fail-open if the DB is unreachable).
+   Live on loan-management's `loan.disbursed` consumer (`loans/10` migration).
+4. **Done (observability):** `Relay.Stats()` + a 30 s gauge log (pending/dead/
+   oldest-pending-age, Warn when dead>0 or age>300 s) in every relay; a
+   reconciliation job in origination flags `DISBURSED` apps whose `loan.disbursed`
+   outbox row is missing/stuck. *Caveat:* the reconciler currently flags
+   pre-outbox historical disbursements (no row) as gaps — noise that ages out of
+   its 7-day window; going forward every disburse writes its row in-tx so genuine
+   MISSING can't occur. Tightening (go-live cutoff, or only flag PENDING/DEAD) is
+   a follow-up. Metrics are logs today; export to Prometheus is the next step.
+5. **Remaining:** route origination's `submitted/approved/rejected` through the
+   outbox; feed broker *returns* back to the outbox for retry; Prometheus export
+   + alert rules; reconciler tuning.
 6. **Defer:** Kafka/managed-bus migration; event sourcing; partitioning the
    outbox (only when volume demands it).
 
