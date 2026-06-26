@@ -40,6 +40,12 @@ func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entity
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
+// VerifyAuditChain reports whether the tamper-evident audit trail is intact, or
+// the seq of the first altered/missing entry.
+func (s *Service) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
+}
+
 // CreateAccount creates a new float account.
 func (s *Service) CreateAccount(ctx context.Context, req *model.CreateFloatAccountRequest, tenantID string) (*model.FloatAccountResponse, error) {
 	if msg := req.Validate(); msg != "" {

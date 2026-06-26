@@ -42,6 +42,12 @@ func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entity
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
+// VerifyAuditChain reports whether the tamper-evident audit trail is intact, or
+// the seq of the first altered/missing entry.
+func (s *Service) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
+}
+
 // Initiate creates a new payment in PENDING status.
 func (s *Service) Initiate(ctx context.Context, req *model.InitiatePaymentRequest, tenantID, userID string) (*model.Payment, error) {
 	// Validate required fields

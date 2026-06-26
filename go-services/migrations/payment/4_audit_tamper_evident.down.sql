@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS trg_audit_no_delete ON audit_log;
+DROP TRIGGER IF EXISTS trg_audit_no_update ON audit_log;
+DROP TRIGGER IF EXISTS trg_audit_hash ON audit_log;
+DROP FUNCTION IF EXISTS audit_verify(TEXT);
+DROP FUNCTION IF EXISTS audit_hash_chain();
+DROP FUNCTION IF EXISTS audit_block_modify();
+DROP FUNCTION IF EXISTS audit_canonical(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ);
+ALTER TABLE audit_log DROP COLUMN IF EXISTS entry_hash;
+ALTER TABLE audit_log DROP COLUMN IF EXISTS prev_hash;
+ALTER TABLE audit_log DROP COLUMN IF EXISTS seq;

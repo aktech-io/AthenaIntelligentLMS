@@ -60,6 +60,12 @@ func (s *CollectionsService) ListAuditLog(ctx context.Context, tenantID, entityT
 	return s.auditRepo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
+// VerifyAuditChain reports whether the tamper-evident audit trail is intact, or
+// the seq of the first altered/missing entry.
+func (s *CollectionsService) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.auditRepo.VerifyAuditChain(ctx, tenantID)
+}
+
 // -----------------------------------------------------------------------
 // Case lifecycle
 // -----------------------------------------------------------------------
