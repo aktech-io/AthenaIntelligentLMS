@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,7 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { accountingService, type JournalEntry } from "@/services/accountingService";
-import { Info } from "lucide-react";
+import { auditService, type AuditChainResult } from "@/services/auditService";
+import { useToast } from "@/hooks/use-toast";
+import { Info, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2 } from "lucide-react";
 
 const deriveEventLabel = (entry: JournalEntry): string => {
   const desc = entry.description ?? "";
@@ -39,13 +43,75 @@ const fmt = (n: number) =>
     ? "—"
     : new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 
+type DomainKey = "account" | "loans";
+
+interface DomainState {
+  label: string;
+  result?: AuditChainResult;
+  error?: string;
+}
+
 const AuditLogsPage = () => {
+  const { toast } = useToast();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["audit-journal-entries"],
     queryFn: () => accountingService.listJournalEntries(0, 100),
   });
 
+  const [verifying, setVerifying] = useState(false);
+  const [chains, setChains] = useState<Record<DomainKey, DomainState>>({
+    account: { label: "account-service" },
+    loans: { label: "loan-management" },
+  });
+
   const entries = data?.content ?? [];
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    const next: Record<DomainKey, DomainState> = {
+      account: { label: "account-service" },
+      loans: { label: "loan-management" },
+    };
+    const settled = await Promise.allSettled([
+      auditService.verifyAccountChain(),
+      auditService.verifyLoanChain(),
+    ]);
+    (["account", "loans"] as DomainKey[]).forEach((key, i) => {
+      const outcome = settled[i];
+      if (outcome.status === "fulfilled") {
+        next[key].result = outcome.value;
+      } else {
+        next[key].error =
+          outcome.reason instanceof Error ? outcome.reason.message : "Verification failed";
+      }
+    });
+    setChains(next);
+    setVerifying(false);
+
+    const results = (["account", "loans"] as DomainKey[]).map((k) => next[k]);
+    const tampered = results.find((r) => r.result && !r.result.intact);
+    const failed = results.find((r) => r.error);
+
+    if (tampered?.result) {
+      toast({
+        title: "Audit chain tampered",
+        description: `${tampered.label}: chain broken at entry #${tampered.result.brokenSeq}.`,
+        variant: "destructive",
+      });
+    } else if (failed) {
+      toast({
+        title: "Could not verify audit chain",
+        description: `${failed.label}: ${failed.error}`,
+        variant: "destructive",
+      });
+    } else {
+      const totalEntries = results.reduce((sum, r) => sum + (r.result?.total ?? 0), 0);
+      toast({
+        title: "Audit chain intact",
+        description: `Verified ${totalEntries} tamper-evident entries across account & loan logs.`,
+      });
+    }
+  };
 
   return (
     <DashboardLayout
@@ -62,6 +128,81 @@ const AuditLogsPage = () => {
             Each entry represents a posted GL transaction event.
           </p>
         </div>
+
+        {/* Tamper-evident integrity verification */}
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Tamper-evident audit chain</p>
+              <p className="text-xs text-muted-foreground">
+                Verify the hash-linked audit logs of{" "}
+                <span className="font-mono">account-service</span> and{" "}
+                <span className="font-mono">loan-management</span> have not been altered.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(["account", "loans"] as DomainKey[]).map((key) => {
+                  const { label, result, error } = chains[key];
+                  if (error) {
+                    return (
+                      <Badge
+                        key={key}
+                        variant="outline"
+                        className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
+                      >
+                        <ShieldAlert className="h-3 w-3" />
+                        {label}: unavailable
+                      </Badge>
+                    );
+                  }
+                  if (!result) {
+                    return (
+                      <Badge
+                        key={key}
+                        variant="outline"
+                        className="gap-1 text-[10px] text-muted-foreground"
+                      >
+                        <ShieldQuestion className="h-3 w-3" />
+                        {label}: not verified
+                      </Badge>
+                    );
+                  }
+                  return result.intact ? (
+                    <Badge
+                      key={key}
+                      variant="outline"
+                      className="gap-1 text-[10px] bg-success/10 text-success border-success/20"
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      {label}: chain intact ({result.total} entries)
+                    </Badge>
+                  ) : (
+                    <Badge
+                      key={key}
+                      variant="outline"
+                      className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
+                    >
+                      <ShieldAlert className="h-3 w-3" />
+                      {label}: tampered — broken at #{result.brokenSeq}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+            <Button onClick={handleVerify} disabled={verifying} className="shrink-0">
+              {verifying ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Verifying…
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-4 w-4" />
+                  Verify integrity
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
