@@ -31,6 +31,12 @@ r.With(fin).Post("/journal-entries", h.postEntry)
 | accounting | post / submit / approve / reject / reverse journal entry; create GL account; close / reopen fiscal period | ADMIN, MANAGER, ACCOUNTANT |
 | account | change dual-control (maker-checker) config (`PUT /control-config`) | ADMIN |
 | account | approve / reject a pending approval | ADMIN, MANAGER |
+| loan-origination | approve / reject / disburse a loan application | ADMIN, MANAGER |
+| loan-origination | change loan dual-control config | ADMIN |
+
+Changes to the account dual-control config are also **audited** (a
+`CONTROL_CONFIG_UPDATE` entry with before/after in the tamper-evident trail), so
+who changed a financial control — and to what — is provable.
 
 Reads (trial balance, ledger, periods, audit log, config/pending lists) stay open
 to any authenticated user. Verified: `admin` passes; `manager` passes where
