@@ -243,6 +243,10 @@ func (h *Handler) getLedger(w http.ResponseWriter, r *http.Request) {
 		h.handleError(w, r, err)
 		return
 	}
+	if wantsCSV(r) {
+		writeLedgerCSV(w, id, resp)
+		return
+	}
 	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
@@ -255,6 +259,10 @@ func (h *Handler) getTrialBalance(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.svc.GetTrialBalance(r.Context(), tenantID, year, month)
 	if err != nil {
 		h.handleError(w, r, err)
+		return
+	}
+	if wantsCSV(r) {
+		writeTrialBalanceCSV(w, resp)
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, resp)
@@ -496,6 +504,10 @@ func (h *Handler) getCashFlow(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.svc.GetCashFlow(r.Context(), tenantID, year, month)
 	if err != nil {
 		h.handleError(w, r, err)
+		return
+	}
+	if wantsCSV(r) {
+		writeCashFlowCSV(w, resp)
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, resp)
