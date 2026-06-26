@@ -59,6 +59,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		// Audit Log
 		r.Get("/audit-log", h.listAuditLogs)
+		r.Get("/audit-log/verify", h.verifyAuditChain)
 		r.Get("/audit-log/{entityType}/{entityId}", h.getEntityAuditTrail)
 
 		// Cash Flow
@@ -472,6 +473,19 @@ func (h *Handler) getEntityAuditTrail(w http.ResponseWriter, r *http.Request) {
 		logs = []model.FinancialAuditLog{}
 	}
 	httputil.WriteJSON(w, http.StatusOK, logs)
+}
+
+// verifyAuditChain reports whether the tamper-evident financial_audit_log chain
+// is intact, or the seq of the first altered/missing entry. Lets an auditor
+// prove the log was not edited or back-dated.
+func (h *Handler) verifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := tenantFromRequest(r)
+	result, err := h.svc.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) getCashFlow(w http.ResponseWriter, r *http.Request) {
