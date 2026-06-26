@@ -39,6 +39,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/{id}/dpd", h.GetDpd)
 		r.Get("/customer/{customerId}", h.ListByCustomer)
 		r.Get("/portfolio-stats", h.GetPortfolioStats)
+		r.Get("/par-report", h.GetPARReport)
 		r.Post("/{id}/restructure", h.Restructure)
 	})
 	r.Route("/api/v1/repayments", func(r chi.Router) {
@@ -57,6 +58,18 @@ func (h *Handler) GetPortfolioStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, stats)
+}
+
+// GetPARReport handles GET /api/v1/loans/par-report — Portfolio-at-Risk / ageing
+// analysis of the active loan book (delinquency buckets + PAR ratios).
+func (h *Handler) GetPARReport(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	report, err := h.svc.GetPARReport(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to compute PAR report", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, report)
 }
 
 // ListAuditLog handles GET /api/v1/audit-log for the loans domain.

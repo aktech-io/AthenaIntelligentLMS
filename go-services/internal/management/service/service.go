@@ -399,6 +399,11 @@ func (s *Service) GetPortfolioStats(ctx context.Context, tenantID string) (*repo
 	return s.repo.GetPortfolioStats(ctx, tenantID)
 }
 
+// GetPARReport returns the Portfolio-at-Risk / ageing report for the tenant.
+func (s *Service) GetPARReport(ctx context.Context, tenantID string) (*repository.PARReport, error) {
+	return s.repo.GetPARReport(ctx, tenantID)
+}
+
 // ListAuditLog returns audit-trail entries for the loans domain.
 func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
