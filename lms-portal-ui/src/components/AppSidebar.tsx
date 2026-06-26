@@ -130,6 +130,7 @@ const complianceNav = [
 
 const reportsNav = [
   { title: "Portfolio Analytics", url: "/reports", icon: BarChart3 },
+  { title: "Portfolio at Risk", url: "/par-report", icon: AlertTriangle },
   { title: "AI Model Performance", url: "/ai", icon: Bot },
 ];
 

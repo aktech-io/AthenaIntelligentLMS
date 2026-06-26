@@ -6,15 +6,35 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import { formatKES } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { accountingService, type TrialBalanceAccount } from "@/services/accountingService";
 import { PeriodSelector } from "@/components/PeriodSelector";
+import { downloadFile } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const TrialBalancePage = () => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const { toast } = useToast();
+
+  const handleDownloadCsv = async () => {
+    try {
+      await downloadFile(
+        accountingService.csvUrl("trial-balance", year, month),
+        `trial-balance-${year}-${String(month).padStart(2, "0")}.csv`
+      );
+    } catch (err) {
+      toast({
+        title: "Download failed",
+        description: err instanceof Error ? err.message : "Could not export CSV.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["accounting", "trial-balance", year, month],
@@ -37,7 +57,13 @@ const TrialBalancePage = () => {
       <div className="space-y-4 max-w-4xl">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Period:</span>
-          <PeriodSelector year={year} month={month} onYearChange={setYear} onMonthChange={setMonth} />
+          <div className="flex items-center gap-2">
+            <PeriodSelector year={year} month={month} onYearChange={setYear} onMonthChange={setMonth} />
+            <Button variant="outline" size="sm" onClick={handleDownloadCsv} className="gap-1.5">
+              <Download className="h-4 w-4" />
+              Download CSV
+            </Button>
+          </div>
         </div>
         <Card>
           <CardContent className="p-0">

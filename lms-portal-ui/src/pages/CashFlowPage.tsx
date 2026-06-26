@@ -5,9 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Loader2, ArrowUpCircle, ArrowDownCircle, Landmark } from "lucide-react";
+import { Loader2, ArrowUpCircle, ArrowDownCircle, Landmark, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import { accountingService, type CashFlowItem } from "@/services/accountingService";
+import { downloadFile } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const fmt = (n: number) => `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
 
@@ -66,10 +69,27 @@ const CashFlowPage = () => {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
+  const { toast } = useToast();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["accounting", "cash-flow", year, month],
     queryFn: () => accountingService.getCashFlow(year, month),
   });
+
+  const handleDownloadCsv = async () => {
+    try {
+      await downloadFile(
+        accountingService.csvUrl("cash-flow", year, month),
+        `cash-flow-${year}-${String(month).padStart(2, "0")}.csv`
+      );
+    } catch (err) {
+      toast({
+        title: "Download failed",
+        description: err instanceof Error ? err.message : "Could not export CSV.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DashboardLayout
@@ -79,7 +99,13 @@ const CashFlowPage = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Period:</span>
-          <PeriodSelector year={year} month={month} onYearChange={setYear} onMonthChange={setMonth} />
+          <div className="flex items-center gap-2">
+            <PeriodSelector year={year} month={month} onYearChange={setYear} onMonthChange={setMonth} />
+            <Button variant="outline" size="sm" onClick={handleDownloadCsv} className="gap-1.5">
+              <Download className="h-4 w-4" />
+              Download CSV
+            </Button>
+          </div>
         </div>
 
         {isLoading && (

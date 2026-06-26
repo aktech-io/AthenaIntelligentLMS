@@ -202,4 +202,13 @@ export const accountingService = {
     if (result.error || !result.data) throw new Error(result.error ?? "Failed to fetch cash flow");
     return result.data;
   },
+
+  /** Builds the CSV export URL for a report by appending format=csv. */
+  csvUrl(report: "trial-balance" | "cash-flow", year?: number, month?: number): string {
+    const params = new URLSearchParams();
+    if (year) params.set("year", String(year));
+    if (month) params.set("month", String(month));
+    params.set("format", "csv");
+    return `${BASE}/${report}?${params.toString()}`;
+  },
 };

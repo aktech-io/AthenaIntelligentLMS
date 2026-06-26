@@ -73,6 +73,30 @@ export async function apiGet<T>(url: string): Promise<ApiResult<T>> {
   return request<T>(url, { method: "GET" });
 }
 
+/**
+ * Fetches a file (e.g. CSV export) with JWT auth and triggers a browser
+ * download. The response is read as a blob and saved via a temporary anchor,
+ * which keeps the Authorization header attached (unlike a plain link click).
+ */
+export async function downloadFile(url: string, filename: string): Promise<void> {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: buildHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Download failed with status ${response.status}`);
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(objectUrl);
+}
+
 export async function apiPost<T>(url: string, body?: unknown): Promise<ApiResult<T>> {
   return request<T>(url, {
     method: "POST",

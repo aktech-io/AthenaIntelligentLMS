@@ -59,6 +59,23 @@ export interface DpdInfo {
   nextDueDate?: string;
 }
 
+export interface ParBucket {
+  bucket: string;
+  loans: number;
+  outstanding: number;
+}
+
+export interface ParReport {
+  asOf: string;
+  activeLoans: number;
+  totalOutstanding: number;
+  buckets: ParBucket[];
+  par1: number;
+  par30: number;
+  par60: number;
+  par90: number;
+}
+
 const BASE = "/proxy/loans/api/v1/loans";
 const REPAYMENTS_BASE = "/proxy/loans/api/v1/repayments";
 
@@ -127,6 +144,14 @@ export const loanManagementService = {
     const result = await apiGet<DpdInfo>(`${BASE}/${id}/dpd`);
     if (result.error || !result.data) {
       throw new Error(result.error ?? "Failed to fetch DPD info");
+    }
+    return result.data;
+  },
+
+  async getParReport(): Promise<ParReport> {
+    const result = await apiGet<ParReport>(`${BASE}/par-report`);
+    if (result.error || !result.data) {
+      throw new Error(result.error ?? "Failed to fetch PAR report");
     }
     return result.data;
   },
