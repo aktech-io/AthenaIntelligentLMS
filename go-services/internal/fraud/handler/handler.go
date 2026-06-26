@@ -31,6 +31,11 @@ func New(svc *service.Service, eng *engine.Engine, logger *zap.Logger) *Handler 
 
 // registerFraudRoutes registers all fraud routes on the given sub-router.
 func (h *Handler) registerFraudRoutes(r chi.Router) {
+	// Administrative fraud mutations (rule config, watchlist, bulk alert actions)
+	// are restricted to ADMIN and MANAGER. Reads and the SERVICE-authenticated
+	// ingestion/scoring endpoints (evaluate, screening) stay open.
+	admin := auth.RequireRole("ADMIN", "MANAGER")
+
 	r.Get("/summary", h.GetSummary)
 	r.Get("/analytics", h.GetAnalytics)
 
@@ -40,14 +45,16 @@ func (h *Handler) registerFraudRoutes(r chi.Router) {
 	r.Put("/alerts/{id}/resolve", h.ResolveAlert)
 	r.Post("/alerts/{id}/assign", h.AssignAlert)
 	r.Put("/alerts/{id}/assign", h.AssignAlert)
-	r.Post("/alerts/bulk/assign", h.BulkAssignAlerts)
-	r.Put("/alerts/bulk/assign", h.BulkAssignAlerts)
-	r.Post("/alerts/bulk/resolve", h.BulkResolveAlerts)
-	r.Put("/alerts/bulk/resolve", h.BulkResolveAlerts)
+	// Bulk alert actions — ADMIN/MANAGER only.
+	r.With(admin).Post("/alerts/bulk/assign", h.BulkAssignAlerts)
+	r.With(admin).Put("/alerts/bulk/assign", h.BulkAssignAlerts)
+	r.With(admin).Post("/alerts/bulk/resolve", h.BulkResolveAlerts)
+	r.With(admin).Put("/alerts/bulk/resolve", h.BulkResolveAlerts)
 
 	r.Get("/rules", h.ListRules)
 	r.Get("/rules/{id}", h.GetRule)
-	r.Put("/rules/{id}", h.UpdateRule)
+	// Rule-config change — ADMIN/MANAGER only.
+	r.With(admin).Put("/rules/{id}", h.UpdateRule)
 
 	r.Get("/cases", h.ListCases)
 	r.Post("/cases", h.CreateCase)
@@ -58,10 +65,12 @@ func (h *Handler) registerFraudRoutes(r chi.Router) {
 	r.Get("/cases/{id}/timeline", h.GetCaseTimeline)
 
 	r.Get("/watchlist", h.ListWatchlistEntries)
-	r.Post("/watchlist", h.CreateWatchlistEntry)
 	r.Get("/watchlist/{id}", h.GetWatchlistEntry)
-	r.Put("/watchlist/{id}/deactivate", h.DeactivateWatchlistEntry)
-	r.Delete("/watchlist/{id}", h.DeactivateWatchlistEntry)
+	// Watchlist add/remove — ADMIN/MANAGER only.
+	r.With(admin).Post("/watchlist", h.CreateWatchlistEntry)
+	r.With(admin).Put("/watchlist/{id}/deactivate", h.DeactivateWatchlistEntry)
+	r.With(admin).Delete("/watchlist/{id}", h.DeactivateWatchlistEntry)
+	// Screening is a scoring endpoint — left open for service callers.
 	r.Post("/watchlist/screen", h.ScreenCustomer)
 
 	r.Get("/events/recent", h.ListRecentEvents)

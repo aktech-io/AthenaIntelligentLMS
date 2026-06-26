@@ -32,28 +32,35 @@ func New(svc *service.Service, logger *zap.Logger) *Handler {
 // RegisterRoutes registers all product-service routes on the given chi.Router.
 // All routes are under /api/v1/products and /api/v1/charges and /api/v1/product-templates.
 func (h *Handler) RegisterRoutes(r chi.Router) {
+	// Product/charge mutations are restricted to ADMIN and MANAGER; reads stay open.
+	admin := auth.RequireRole("ADMIN", "MANAGER")
+
 	// Product routes
 	r.Route("/api/v1/products", func(r chi.Router) {
-		r.Post("/", h.createProduct)
+		// Mutations: create/update/activate/deactivate/pause — ADMIN/MANAGER only.
+		r.With(admin).Post("/", h.createProduct)
+		r.With(admin).Post("/from-template/{code}", h.createFromTemplate)
+		r.With(admin).Put("/{id}", h.updateProduct)
+		r.With(admin).Post("/{id}/activate", h.activateProduct)
+		r.With(admin).Post("/{id}/deactivate", h.deactivateProduct)
+		r.With(admin).Post("/{id}/pause", h.pauseProduct)
+		// Reads / simulations stay open.
 		r.Get("/", h.listProducts)
-		r.Post("/from-template/{code}", h.createFromTemplate)
 		r.Get("/{id}", h.getProduct)
-		r.Put("/{id}", h.updateProduct)
-		r.Post("/{id}/activate", h.activateProduct)
-		r.Post("/{id}/deactivate", h.deactivateProduct)
-		r.Post("/{id}/pause", h.pauseProduct)
 		r.Post("/{id}/simulate", h.simulateSchedule)
 		r.Get("/{id}/versions", h.getProductVersions)
 	})
 
-	// Charge routes
+	// Charge routes (product pricing config)
 	r.Route("/api/v1/charges", func(r chi.Router) {
-		r.Post("/", h.createCharge)
+		// Mutations: create/update/delete charges — ADMIN/MANAGER only.
+		r.With(admin).Post("/", h.createCharge)
+		r.With(admin).Put("/{id}", h.updateCharge)
+		r.With(admin).Delete("/{id}", h.deleteCharge)
+		// Reads stay open.
 		r.Get("/", h.listCharges)
 		r.Get("/calculate", h.calculateCharge)
 		r.Get("/{id}", h.getCharge)
-		r.Put("/{id}", h.updateCharge)
-		r.Delete("/{id}", h.deleteCharge)
 	})
 
 	// Template routes
