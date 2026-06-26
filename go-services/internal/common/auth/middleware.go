@@ -95,3 +95,30 @@ func (m *Middleware) Handler(next http.Handler) http.Handler {
 			"Authentication required. Provide a valid Bearer token or service key.", r.URL.Path)
 	})
 }
+
+// RequireRole returns a chi middleware that authorises the request only if the
+// caller holds at least one of the allowed roles (case-insensitive). It must be
+// chained AFTER Handler (which populates roles in context).
+//
+// Internal service-to-service calls (which carry the SERVICE role) always pass,
+// so system flows — e.g. a loan disbursement crediting an account — are never
+// blocked. A caller lacking an allowed role gets HTTP 403.
+func RequireRole(allowed ...string) func(http.Handler) http.Handler {
+	allow := make(map[string]bool, len(allowed))
+	for _, r := range allowed {
+		allow[strings.ToUpper(strings.TrimSpace(r))] = true
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for _, role := range RolesFromContext(r.Context()) {
+				ru := strings.ToUpper(strings.TrimSpace(role))
+				if ru == "SERVICE" || allow[ru] {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			httputil.WriteErrorJSON(w, http.StatusForbidden, "Forbidden",
+				"You do not have permission to perform this operation.", r.URL.Path)
+		})
+	}
+}

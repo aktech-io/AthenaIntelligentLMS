@@ -31,31 +31,36 @@ func New(svc *service.AccountingService, logger *zap.Logger) *Handler {
 
 // RegisterRoutes mounts all accounting routes on the given router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
+	// fin guards financial mutations: only finance roles may post/approve/close.
+	// Internal SERVICE calls always pass (see auth.RequireRole), so system
+	// postings (e.g. loan.disbursed -> accounting.posted) are unaffected.
+	fin := auth.RequireRole("ADMIN", "MANAGER", "ACCOUNTANT")
+
 	r.Route("/api/v1/accounting", func(r chi.Router) {
 		// Chart of Accounts
-		r.Post("/accounts", h.createAccount)
+		r.With(fin).Post("/accounts", h.createAccount)
 		r.Get("/accounts", h.listAccounts)
 		r.Get("/accounts/{id}", h.getAccount)
 		r.Get("/accounts/code/{code}", h.getAccountByCode)
 		r.Get("/accounts/{id}/balance", h.getBalance)
 		r.Get("/accounts/{id}/ledger", h.getLedger)
 
-		// Journal Entries
-		r.Post("/journal-entries", h.postEntry)
+		// Journal Entries (writes are finance-role gated; reads stay open)
+		r.With(fin).Post("/journal-entries", h.postEntry)
 		r.Get("/journal-entries", h.listEntries)
 		r.Get("/journal-entries/{id}", h.getEntry)
-		r.Post("/journal-entries/{id}/submit", h.submitEntry)
-		r.Post("/journal-entries/{id}/approve", h.approveEntry)
-		r.Post("/journal-entries/{id}/reject", h.rejectEntry)
-		r.Post("/journal-entries/{id}/reverse", h.reverseEntry)
+		r.With(fin).Post("/journal-entries/{id}/submit", h.submitEntry)
+		r.With(fin).Post("/journal-entries/{id}/approve", h.approveEntry)
+		r.With(fin).Post("/journal-entries/{id}/reject", h.rejectEntry)
+		r.With(fin).Post("/journal-entries/{id}/reverse", h.reverseEntry)
 
 		// Trial Balance
 		r.Get("/trial-balance", h.getTrialBalance)
 
-		// Fiscal Periods
+		// Fiscal Periods (close/reopen are finance-role gated)
 		r.Get("/periods", h.listPeriods)
-		r.Post("/periods/{year}/{month}/close", h.closePeriod)
-		r.Post("/periods/{year}/{month}/reopen", h.reopenPeriod)
+		r.With(fin).Post("/periods/{year}/{month}/close", h.closePeriod)
+		r.With(fin).Post("/periods/{year}/{month}/reopen", h.reopenPeriod)
 
 		// Audit Log
 		r.Get("/audit-log", h.listAuditLogs)
