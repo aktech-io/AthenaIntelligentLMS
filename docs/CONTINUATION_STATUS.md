@@ -40,9 +40,10 @@ this to resume if a session ends.
 
 ### Reports / UI
 - **PAR / ageing** report `GET /api/v1/loans/par-report`.
-- **IFRS 9 ECL provisioning** `GET /api/v1/loans/ecl-provision` (simplified flat
-  stage rates 1%/10%/50% — proper PD/LGD/EAD is a follow-up; consts in
-  `internal/management/repository/portfolio_repo.go`).
+- **IFRS 9 ECL provisioning** `GET /api/v1/loans/ecl-provision` — ECL = EAD×PD×LGD
+  per stage (PD 2/20/100%, LGD 45%), components exposed in the report. Params are
+  consts in `internal/management/repository/portfolio_repo.go`; remaining follow-up
+  is calibrating PD/LGD from historical default/recovery data.
 - **Bank reconciliation** (accounting): `POST /api/v1/accounting/bank-reconciliation/import`
   (role-gated) + `GET /api/v1/accounting/bank-reconciliation` (auto-match vs Cash
   GL 1000). Migration `accounting/9`.
@@ -62,7 +63,8 @@ this to resume if a session ends.
    (basic.return) publish fail so the outbox retries instead of marking dispatched.
    Needs confirm+return correlation; fail-safe design (never worse than today).
    Requires rebuilding ALL services (shared lib).
-3. **Proper IFRS 9 PD/LGD/EAD** modelling to replace flat ECL rates.
+3. ~~**Proper IFRS 9 PD/LGD/EAD**~~ ✅ DONE — ECL now EAD×PD×LGD with components
+   exposed; remaining: calibrate PD/LGD from historical data.
 4. RBAC rollout to KYC / SAR / remaining surfaces; central role→permission matrix.
 
 ## 🛠️ Operational runbook (local k3s)

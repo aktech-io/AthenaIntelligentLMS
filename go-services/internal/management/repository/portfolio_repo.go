@@ -150,31 +150,39 @@ func (r *Repository) GetPARReport(ctx context.Context, tenantID string) (*PARRep
 	return rep, nil
 }
 
-// IFRS 9 stage-based Expected Credit Loss (ECL) provision rates.
+// IFRS 9 stage-based Expected Credit Loss (ECL) parameters.
 //
-// This is a SIMPLIFIED ECL model: a single flat provision (loss) rate per
-// IFRS 9 stage applied to gross outstanding principal. It is NOT a full
-// probability-of-default (PD) × loss-given-default (LGD) × exposure-at-default
-// (EAD) lifetime/12-month ECL computation — that proper PD/LGD/EAD modelling is
-// a follow-up. These rates are intentionally package-level consts so they are
-// easy to find and tune.
+// ECL = EAD × PD × LGD, per IFRS 9 stage:
+//   - EAD (exposure at default) = gross outstanding principal of the stage.
+//   - PD  (probability of default): 12-month for Stage 1, lifetime for 2 & 3.
+//   - LGD (loss given default): the share of exposure not recovered on default.
+//
+// The parameters below are point-estimates (not yet calibrated from historical
+// default/recovery data — that calibration is the remaining follow-up). They are
+// package-level consts so they are easy to find and tune, and the report exposes
+// PD/LGD/EAD per stage so the provision is fully transparent/auditable.
 const (
-	// ECLRateStage1 — Stage 1 (performing, dpd 0-30): 12-month ECL.
-	ECLRateStage1 = 0.01 // 1%
-	// ECLRateStage2 — Stage 2 (significant increase in credit risk, dpd 31-90): lifetime ECL.
-	ECLRateStage2 = 0.10 // 10%
-	// ECLRateStage3 — Stage 3 (credit-impaired / non-performing, dpd 90+): lifetime ECL.
-	ECLRateStage3 = 0.50 // 50%
+	// Probability of default per stage.
+	PDStage1 = 0.02 // 2%  — performing (12-month PD)
+	PDStage2 = 0.20 // 20% — significant increase in credit risk (lifetime PD)
+	PDStage3 = 1.00 // 100% — credit-impaired / in default (lifetime PD)
+
+	// Loss given default — unsecured baseline (Basel foundation-IRB ~45%).
+	LGD = 0.45
 )
 
-// ECLStageProvision is the loan-loss provision for one IFRS 9 stage.
+// ECLStageProvision is the loan-loss provision for one IFRS 9 stage,
+// decomposed into its EAD × PD × LGD components.
 type ECLStageProvision struct {
 	Stage            string          `json:"stage"`            // Stage 1, Stage 2, Stage 3
 	Description      string          `json:"description"`      // human-readable stage meaning + DPD band
 	Loans            int             `json:"loans"`            // number of loans in the stage
 	GrossOutstanding decimal.Decimal `json:"grossOutstanding"` // gross outstanding principal
-	ProvisionRate    decimal.Decimal `json:"provisionRate"`    // ECL rate applied (fraction, e.g. 0.10)
-	Provision        decimal.Decimal `json:"provision"`        // provision amount = gross * rate
+	EAD              decimal.Decimal `json:"ead"`              // exposure at default (= gross outstanding)
+	PD               decimal.Decimal `json:"pd"`               // probability of default (fraction)
+	LGD              decimal.Decimal `json:"lgd"`              // loss given default (fraction)
+	ProvisionRate    decimal.Decimal `json:"provisionRate"`    // effective ECL rate = PD × LGD
+	Provision        decimal.Decimal `json:"provision"`        // ECL = EAD × PD × LGD
 }
 
 // ECLProvisionReport is a simplified IFRS 9 stage-based loan-loss provisioning
@@ -230,13 +238,14 @@ func (r *Repository) GetECLProvisionReport(ctx context.Context, tenantID string)
 	stageDefs := []struct {
 		name string
 		desc string
-		rate float64
+		pd   float64
 	}{
-		{"Stage 1", "Performing (dpd 0-30) — 12-month ECL", ECLRateStage1},
-		{"Stage 2", "Significant increase in credit risk (dpd 31-90) — lifetime ECL", ECLRateStage2},
-		{"Stage 3", "Credit-impaired / non-performing (dpd 90+) — lifetime ECL", ECLRateStage3},
+		{"Stage 1", "Performing (dpd 0-30) — 12-month ECL", PDStage1},
+		{"Stage 2", "Significant increase in credit risk (dpd 31-90) — lifetime ECL", PDStage2},
+		{"Stage 3", "Credit-impaired / non-performing (dpd 90+) — lifetime ECL", PDStage3},
 	}
 
+	lgd := decimal.NewFromFloat(LGD)
 	rep := &ECLProvisionReport{
 		AsOf:             time.Now().UTC().Format("2006-01-02"),
 		Stages:           make([]ECLStageProvision, 0, len(stageDefs)),
@@ -245,18 +254,22 @@ func (r *Repository) GetECLProvisionReport(ctx context.Context, tenantID string)
 	}
 	for _, def := range stageDefs {
 		agg := byStage[def.name] // zero value (0 loans, zero outstanding) if stage absent
-		gross := agg.outstanding.Round(2)
-		rate := decimal.NewFromFloat(def.rate)
-		provision := gross.Mul(rate).Round(2)
+		ead := agg.outstanding.Round(2)
+		pd := decimal.NewFromFloat(def.pd)
+		effRate := pd.Mul(lgd)                 // effective ECL rate = PD × LGD
+		provision := ead.Mul(effRate).Round(2) // ECL = EAD × PD × LGD
 		rep.Stages = append(rep.Stages, ECLStageProvision{
 			Stage:            def.name,
 			Description:      def.desc,
 			Loans:            agg.loans,
-			GrossOutstanding: gross,
-			ProvisionRate:    rate,
+			GrossOutstanding: ead,
+			EAD:              ead,
+			PD:               pd,
+			LGD:              lgd,
+			ProvisionRate:    effRate,
 			Provision:        provision,
 		})
-		rep.TotalOutstanding = rep.TotalOutstanding.Add(gross)
+		rep.TotalOutstanding = rep.TotalOutstanding.Add(ead)
 		rep.TotalProvision = rep.TotalProvision.Add(provision)
 	}
 	rep.TotalOutstanding = rep.TotalOutstanding.Round(2)
