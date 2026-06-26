@@ -79,3 +79,23 @@ func (r *Repository) InsertAuditLog(ctx context.Context, e *audit.Entry) error {
 	)
 	return err
 }
+
+// ChainVerification reports the integrity of the tamper-evident audit chain.
+type ChainVerification struct {
+	Intact    bool   `json:"intact"`
+	BrokenSeq *int64 `json:"brokenSeq,omitempty"`
+	Total     int64  `json:"total"`
+}
+
+// VerifyAuditChain walks the hash chain for the tenant and reports whether the
+// loans audit_log is intact or the seq of the first tampered/missing entry.
+func (r *Repository) VerifyAuditChain(ctx context.Context, tenantID string) (*ChainVerification, error) {
+	v := &ChainVerification{}
+	err := r.pool.QueryRow(ctx,
+		`SELECT intact, broken_seq, total FROM audit_verify($1)`, tenantID,
+	).Scan(&v.Intact, &v.BrokenSeq, &v.Total)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}

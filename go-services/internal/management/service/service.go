@@ -404,6 +404,11 @@ func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entity
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
+// VerifyAuditChain reports the integrity of the tamper-evident loans audit trail.
+func (s *Service) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
+}
+
 // ---------------------------------------------------------------------------
 // Restructure
 // ---------------------------------------------------------------------------

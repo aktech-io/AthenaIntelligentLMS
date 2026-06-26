@@ -45,6 +45,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.ApplyRepayment)
 	})
 	r.Get("/api/v1/audit-log", h.ListAuditLog)
+	r.Get("/api/v1/audit-log/verify", h.VerifyAuditChain)
 }
 
 // GetPortfolioStats handles GET /api/v1/loans/portfolio-stats — live loan-book totals.
@@ -77,6 +78,19 @@ func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, records)
+}
+
+// VerifyAuditChain handles GET /api/v1/audit-log/verify for the loans domain —
+// confirms the tamper-evident audit chain is intact or reports the first
+// tampered/missing seq.
+func (h *Handler) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	result, err := h.svc.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to verify audit chain", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 // List handles GET /api/v1/loans
