@@ -51,6 +51,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 	r.Route("/api/v1/overdraft", func(r chi.Router) {
 		r.Get("/audit", h.GetAuditLog)
+		r.Get("/audit/verify", h.VerifyAuditChain)
 		r.Get("/summary", h.GetOverdraftSummary)
 		r.Post("/eod/run", h.RunEOD)
 		r.Get("/eod/status", h.GetEODStatus)
@@ -283,6 +284,19 @@ func (h *Handler) GetAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
+}
+
+// VerifyAuditChain handles GET /api/v1/overdraft/audit/verify — reports whether
+// the tamper-evident audit trail is intact, or the seq of the first altered or
+// missing entry, so an auditor can prove the log was not edited or back-dated.
+func (h *Handler) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	result, err := h.auditSvc.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 // RunEOD handles POST /api/v1/overdraft/eod/run — triggers EOD batch processing.

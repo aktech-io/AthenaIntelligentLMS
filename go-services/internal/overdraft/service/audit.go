@@ -78,3 +78,8 @@ func (s *AuditService) GetAuditLog(ctx context.Context, tenantID string, entityT
 
 	return dto.NewPageResponse(responses, page, size, total), nil
 }
+
+// VerifyAuditChain reports whether the tamper-evident audit chain is intact.
+func (s *AuditService) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
+}
