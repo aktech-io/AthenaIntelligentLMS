@@ -118,12 +118,14 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 	r.Route("/api/v1/control-config", func(r chi.Router) {
 		r.Get("/", h.ListControlConfig)
-		r.Put("/", h.UpdateControlConfig)
+		// Changing maker-checker config is an administrative control.
+		r.With(auth.RequireRole("ADMIN")).Put("/", h.UpdateControlConfig)
 	})
 	r.Route("/api/v1/pending-approvals", func(r chi.Router) {
 		r.Get("/", h.ListPendingApprovals)
-		r.Post("/{id}/approve", h.ApprovePending)
-		r.Post("/{id}/reject", h.RejectPending)
+		// Only authorising roles may approve/reject queued operations.
+		r.With(auth.RequireRole("ADMIN", "MANAGER")).Post("/{id}/approve", h.ApprovePending)
+		r.With(auth.RequireRole("ADMIN", "MANAGER")).Post("/{id}/reject", h.RejectPending)
 	})
 }
 
