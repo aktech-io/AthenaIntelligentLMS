@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +15,7 @@ import (
 	"github.com/athena-lms/go-services/internal/account/model"
 	"github.com/athena-lms/go-services/internal/account/repository"
 	"github.com/athena-lms/go-services/internal/account/service"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/common/httputil"
@@ -147,10 +148,24 @@ func (h *Handler) UpdateControlConfig(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteBadRequest(w, "Invalid request body", r.URL.Path)
 		return
 	}
+	// Capture prior config for the audit trail (changing a financial control is
+	// itself an auditable, tamper-evident event).
+	var before any
+	for _, c := range h.approvalSvc.EffectiveConfig(r.Context(), tenantID) {
+		if strings.EqualFold(c.Operation, req.Operation) {
+			before = map[string]any{"operation": c.Operation, "enabled": c.Enabled, "threshold": c.ThresholdAmount}
+			break
+		}
+	}
 	if err := h.approvalSvc.UpsertConfig(r.Context(), tenantID, req.Operation, req.Enabled, req.Threshold); err != nil {
 		h.handleError(w, r, err)
 		return
 	}
+	audit.New(h.repo, h.logger).Record(r.Context(),
+		"CONTROL_CONFIG_UPDATE", "CONTROL_CONFIG", req.Operation,
+		before,
+		map[string]any{"operation": req.Operation, "enabled": req.Enabled, "threshold": req.Threshold},
+		nil)
 	httputil.WriteJSON(w, http.StatusOK, h.approvalSvc.EffectiveConfig(r.Context(), tenantID))
 }
 
