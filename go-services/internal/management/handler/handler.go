@@ -40,6 +40,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/customer/{customerId}", h.ListByCustomer)
 		r.Get("/portfolio-stats", h.GetPortfolioStats)
 		r.Get("/par-report", h.GetPARReport)
+		r.Get("/ecl-provision", h.GetECLProvisionReport)
 		r.Post("/{id}/restructure", h.Restructure)
 	})
 	r.Route("/api/v1/repayments", func(r chi.Router) {
@@ -67,6 +68,19 @@ func (h *Handler) GetPARReport(w http.ResponseWriter, r *http.Request) {
 	report, err := h.svc.GetPARReport(r.Context(), tenantID)
 	if err != nil {
 		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to compute PAR report", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, report)
+}
+
+// GetECLProvisionReport handles GET /api/v1/loans/ecl-provision — simplified
+// IFRS 9 stage-based loan-loss provisioning (Expected Credit Loss) over the
+// active loan book. READ-ONLY: no GL posting.
+func (h *Handler) GetECLProvisionReport(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	report, err := h.svc.GetECLProvisionReport(r.Context(), tenantID)
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusInternalServerError, "INTERNAL", "Failed to compute ECL provision report", r.URL.Path)
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, report)
