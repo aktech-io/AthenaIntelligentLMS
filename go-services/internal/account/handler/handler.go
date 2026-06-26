@@ -114,6 +114,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		})
 	})
 	r.Get("/api/v1/audit-log", h.ListAuditLog)
+	r.Get("/api/v1/audit-log/verify", h.VerifyAuditChain)
 
 	r.Route("/api/v1/control-config", func(r chi.Router) {
 		r.Get("/", h.ListControlConfig)
@@ -204,6 +205,19 @@ func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, records)
+}
+
+// VerifyAuditChain reports whether the tamper-evident audit trail is intact, or
+// the seq of the first altered/missing entry. Lets an auditor prove the log was
+// not edited or back-dated.
+func (h *Handler) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	result, err := h.repo.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 // --- Account ---
