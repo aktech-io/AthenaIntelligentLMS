@@ -911,6 +911,12 @@ func (s *AccountingService) GetEntityAuditTrail(ctx context.Context, tenantID, e
 	return s.repo.FindAuditLogsByEntity(ctx, tenantID, entityType, entityID)
 }
 
+// VerifyAuditChain reports whether the tamper-evident audit chain for the tenant
+// is intact, or the seq of the first altered/missing entry.
+func (s *AccountingService) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
+}
+
 // --- Cash Flow ---
 
 // GetCashFlow generates a cash flow statement for a period.

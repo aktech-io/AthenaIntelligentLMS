@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS trg_fin_audit_no_delete ON financial_audit_log;
+DROP TRIGGER IF EXISTS trg_fin_audit_no_update ON financial_audit_log;
+DROP TRIGGER IF EXISTS trg_fin_audit_hash ON financial_audit_log;
+DROP FUNCTION IF EXISTS audit_verify(TEXT);
+DROP FUNCTION IF EXISTS fin_audit_hash_chain();
+DROP FUNCTION IF EXISTS fin_audit_block_modify();
+DROP FUNCTION IF EXISTS fin_audit_canonical(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TIMESTAMPTZ);
+ALTER TABLE financial_audit_log DROP COLUMN IF EXISTS entry_hash;
+ALTER TABLE financial_audit_log DROP COLUMN IF EXISTS prev_hash;
+ALTER TABLE financial_audit_log DROP COLUMN IF EXISTS seq;
