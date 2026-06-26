@@ -13,7 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { accountingService, type JournalEntry } from "@/services/accountingService";
-import { auditService, type AuditChainResult } from "@/services/auditService";
+import {
+  auditService,
+  AUDIT_DOMAINS,
+  type AuditChainResult,
+  type AuditDomainKey,
+} from "@/services/auditService";
 import { useToast } from "@/hooks/use-toast";
 import { Info, ShieldCheck, ShieldAlert, ShieldQuestion, Loader2 } from "lucide-react";
 
@@ -43,10 +48,7 @@ const fmt = (n: number) =>
     ? "—"
     : new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 
-type DomainKey = "account" | "loans";
-
 interface DomainState {
-  label: string;
   result?: AuditChainResult;
   error?: string;
 }
@@ -59,56 +61,57 @@ const AuditLogsPage = () => {
   });
 
   const [verifying, setVerifying] = useState(false);
-  const [chains, setChains] = useState<Record<DomainKey, DomainState>>({
-    account: { label: "account-service" },
-    loans: { label: "loan-management" },
-  });
+  const [chains, setChains] = useState<Partial<Record<AuditDomainKey, DomainState>>>({});
 
   const entries = data?.content ?? [];
 
   const handleVerify = async () => {
     setVerifying(true);
-    const next: Record<DomainKey, DomainState> = {
-      account: { label: "account-service" },
-      loans: { label: "loan-management" },
-    };
-    const settled = await Promise.allSettled([
-      auditService.verifyAccountChain(),
-      auditService.verifyLoanChain(),
-    ]);
-    (["account", "loans"] as DomainKey[]).forEach((key, i) => {
+    const settled = await Promise.allSettled(
+      AUDIT_DOMAINS.map((d) => auditService.verifyChain(d)),
+    );
+
+    const next: Partial<Record<AuditDomainKey, DomainState>> = {};
+    AUDIT_DOMAINS.forEach((domain, i) => {
       const outcome = settled[i];
       if (outcome.status === "fulfilled") {
-        next[key].result = outcome.value;
+        next[domain.key] = { result: outcome.value };
       } else {
-        next[key].error =
-          outcome.reason instanceof Error ? outcome.reason.message : "Verification failed";
+        next[domain.key] = {
+          error:
+            outcome.reason instanceof Error ? outcome.reason.message : "Verification failed",
+        };
       }
     });
     setChains(next);
     setVerifying(false);
 
-    const results = (["account", "loans"] as DomainKey[]).map((k) => next[k]);
-    const tampered = results.find((r) => r.result && !r.result.intact);
-    const failed = results.find((r) => r.error);
+    const tampered = AUDIT_DOMAINS.find((d) => {
+      const r = next[d.key]?.result;
+      return r && !r.intact;
+    });
+    const failed = AUDIT_DOMAINS.find((d) => next[d.key]?.error);
 
-    if (tampered?.result) {
+    if (tampered) {
       toast({
         title: "Audit chain tampered",
-        description: `${tampered.label}: chain broken at entry #${tampered.result.brokenSeq}.`,
+        description: `${tampered.label}: chain broken at entry #${next[tampered.key]?.result?.brokenSeq}.`,
         variant: "destructive",
       });
     } else if (failed) {
       toast({
         title: "Could not verify audit chain",
-        description: `${failed.label}: ${failed.error}`,
+        description: `${failed.label}: ${next[failed.key]?.error}`,
         variant: "destructive",
       });
     } else {
-      const totalEntries = results.reduce((sum, r) => sum + (r.result?.total ?? 0), 0);
+      const totalEntries = AUDIT_DOMAINS.reduce(
+        (sum, d) => sum + (next[d.key]?.result?.total ?? 0),
+        0,
+      );
       toast({
         title: "Audit chain intact",
-        description: `Verified ${totalEntries} tamper-evident entries across account & loan logs.`,
+        description: `Verified ${totalEntries} tamper-evident entries across all ${AUDIT_DOMAINS.length} audit domains.`,
       });
     }
   };
@@ -131,76 +134,91 @@ const AuditLogsPage = () => {
 
         {/* Tamper-evident integrity verification */}
         <Card>
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Tamper-evident audit chain</p>
-              <p className="text-xs text-muted-foreground">
-                Verify the hash-linked audit logs of{" "}
-                <span className="font-mono">account-service</span> and{" "}
-                <span className="font-mono">loan-management</span> have not been altered.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {(["account", "loans"] as DomainKey[]).map((key) => {
-                  const { label, result, error } = chains[key];
-                  if (error) {
-                    return (
-                      <Badge
-                        key={key}
-                        variant="outline"
-                        className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
-                      >
-                        <ShieldAlert className="h-3 w-3" />
-                        {label}: unavailable
-                      </Badge>
-                    );
-                  }
-                  if (!result) {
-                    return (
-                      <Badge
-                        key={key}
-                        variant="outline"
-                        className="gap-1 text-[10px] text-muted-foreground"
-                      >
-                        <ShieldQuestion className="h-3 w-3" />
-                        {label}: not verified
-                      </Badge>
-                    );
-                  }
-                  return result.intact ? (
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Tamper-evident audit chain</p>
+                <p className="text-xs text-muted-foreground">
+                  Verify the hash-linked audit logs across all{" "}
+                  <span className="font-medium">{AUDIT_DOMAINS.length}</span> tamper-evident
+                  domains have not been altered.
+                </p>
+              </div>
+              <Button onClick={handleVerify} disabled={verifying} className="shrink-0">
+                {verifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verifying…
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    Verify integrity
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Per-domain status rows */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {AUDIT_DOMAINS.map((domain) => {
+                const state = chains[domain.key];
+                const result = state?.result;
+                const error = state?.error;
+
+                let badge: JSX.Element;
+                if (error) {
+                  badge = (
                     <Badge
-                      key={key}
-                      variant="outline"
-                      className="gap-1 text-[10px] bg-success/10 text-success border-success/20"
-                    >
-                      <ShieldCheck className="h-3 w-3" />
-                      {label}: chain intact ({result.total} entries)
-                    </Badge>
-                  ) : (
-                    <Badge
-                      key={key}
                       variant="outline"
                       className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
                     >
                       <ShieldAlert className="h-3 w-3" />
-                      {label}: tampered — broken at #{result.brokenSeq}
+                      unavailable
                     </Badge>
                   );
-                })}
-              </div>
+                } else if (!result) {
+                  badge = (
+                    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                      <ShieldQuestion className="h-3 w-3" />
+                      not verified
+                    </Badge>
+                  );
+                } else if (result.intact) {
+                  badge = (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 text-[10px] bg-success/10 text-success border-success/20"
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      chain intact ({result.total} entries)
+                    </Badge>
+                  );
+                } else {
+                  badge = (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
+                    >
+                      <ShieldAlert className="h-3 w-3" />
+                      tampered — broken at #{result.brokenSeq}
+                    </Badge>
+                  );
+                }
+
+                return (
+                  <div
+                    key={domain.key}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground truncate">
+                      {domain.label}
+                    </span>
+                    {badge}
+                  </div>
+                );
+              })}
             </div>
-            <Button onClick={handleVerify} disabled={verifying} className="shrink-0">
-              {verifying ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Verifying…
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify integrity
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
 
