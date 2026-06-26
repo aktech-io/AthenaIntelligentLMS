@@ -51,14 +51,13 @@ this to resume if a session ends.
   CSV download buttons. Docs: `docs/UI_REVIEW.md`.
 
 ## 🚧 In progress / next (priority order)
-1. **Year-end close** (accounting) — roll net P&L (REVENUE − EXPENSE for the year)
-   into **Retained Earnings** via a balanced system closing journal entry, then
-   lock the year's periods. Key refs: `service.go` `ClosePeriod` (~L840),
-   `repository.go` `createJournalEntryTx` (~L128), `GetNetBalance` (~L291),
-   `is_system_generated` entries bypass maker-checker. Retained Earnings + P&L
-   accounts are in `migrations/accounting/1_initial` + `3_complete_chart_of_accounts`.
-   Add `POST /periods/{year}/year-end-close` (role-gated). **Get the double-entry
-   exactly balanced** (DR revenue / CR expense / net to Retained Earnings).
+1. ~~**Year-end close** (accounting)~~ ✅ **DONE** — `POST /api/v1/accounting/periods/{year}/year-end-close`
+   (`internal/accounting/service/yearend.go`): reverses each P&L (INCOME+EXPENSE)
+   net into a balanced system closing entry, rolls net income to Retained Earnings
+   (3000), locks the 12 periods. Balance-asserted before posting (can't corrupt
+   GL). RBAC-gated. Verified: officer→403, no-activity handled, trial balance stays
+   balanced. NOTE: demo has ~0 P&L balances so a non-zero close path wasn't
+   exercised on live data — exercise it with a seeded P&L entry in a test env.
 2. **return→outbox-retry** (`common/event/publisher.go`) — make an unroutable
    (basic.return) publish fail so the outbox retries instead of marking dispatched.
    Needs confirm+return correlation; fail-safe design (never worse than today).
