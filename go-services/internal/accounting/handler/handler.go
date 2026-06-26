@@ -69,6 +69,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		// Cash Flow
 		r.Get("/cash-flow", h.getCashFlow)
+
+		// Bank Reconciliation (import is finance-role gated; report read stays open)
+		r.With(fin).Post("/bank-reconciliation/import", h.importBankStatement)
+		r.Get("/bank-reconciliation", h.getBankReconciliation)
 	})
 }
 
