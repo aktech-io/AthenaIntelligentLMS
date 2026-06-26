@@ -65,6 +65,7 @@ import DocumentsPage from "./pages/DocumentsPage";
 import CashFlowPage from "./pages/CashFlowPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import ControlSettingsPage from "./pages/ControlSettingsPage";
+import ParReportPage from "./pages/ParReportPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -112,6 +113,7 @@ const AppRoutes = () => (
       <Route path="/borrowers" element={<P><BorrowersPage /></P>} />
       <Route path="/collections" element={<P><CollectionsPage /></P>} />
       <Route path="/reports" element={<P><ReportsPage /></P>} />
+      <Route path="/par-report" element={<P><ParReportPage /></P>} />
       <Route path="/settings" element={<P><SettingsPage /></P>} />
       <Route path="/accounts" element={<P><AccountsPage /></P>} />
       <Route path="/account/:accountId" element={<P><AccountDetailPage /></P>} />
