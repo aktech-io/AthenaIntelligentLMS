@@ -31,6 +31,11 @@ func New(svc *service.Service, logger *zap.Logger) *Handler {
 
 // RegisterRoutes registers all loan origination routes on the given router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
+	// Loan approval/disbursement authority is restricted to ADMIN/MANAGER.
+	// Internal SERVICE calls bypass (see auth.RequireRole). SoD (approver !=
+	// creator) is enforced separately in the service layer.
+	decide := auth.RequireRole("ADMIN", "MANAGER")
+
 	r.Route("/api/v1/loan-applications", func(r chi.Router) {
 		r.Post("/", h.Create)
 		r.Get("/", h.List)
@@ -38,9 +43,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/{id}", h.Update)
 		r.Post("/{id}/submit", h.Submit)
 		r.Post("/{id}/review/start", h.StartReview)
-		r.Post("/{id}/review/approve", h.Approve)
-		r.Post("/{id}/review/reject", h.Reject)
-		r.Post("/{id}/disburse", h.Disburse)
+		r.With(decide).Post("/{id}/review/approve", h.Approve)
+		r.With(decide).Post("/{id}/review/reject", h.Reject)
+		r.With(decide).Post("/{id}/disburse", h.Disburse)
 		r.Post("/{id}/cancel", h.Cancel)
 		r.Post("/{id}/collaterals", h.AddCollateral)
 		r.Post("/{id}/notes", h.AddNote)
@@ -48,7 +53,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	})
 	r.Route("/api/v1/control-config", func(r chi.Router) {
 		r.Get("/", h.ListControlConfig)
-		r.Put("/", h.UpdateControlConfig)
+		r.With(auth.RequireRole("ADMIN")).Put("/", h.UpdateControlConfig)
 	})
 }
 
