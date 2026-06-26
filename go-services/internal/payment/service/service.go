@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/payment/client"
 	"github.com/athena-lms/go-services/internal/payment/event"
@@ -21,6 +22,7 @@ type Service struct {
 	publisher  *event.Publisher
 	loanClient *client.LoanManagementClient
 	logger     *zap.Logger
+	auditor    *audit.Logger
 }
 
 // New creates a new payment Service.
@@ -30,7 +32,14 @@ func New(repo *repository.Repository, publisher *event.Publisher, loanClient *cl
 		publisher:  publisher,
 		loanClient: loanClient,
 		logger:     logger,
+		auditor:    audit.New(repo, logger),
 	}
+}
+
+// ListAuditLog returns the payment-service audit trail, optionally filtered by
+// entityType and entityId.
+func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
+	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
 // Initiate creates a new payment in PENDING status.
@@ -159,6 +168,7 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, req *model.Complet
 		payment.ExternalReference = req.ExternalReference
 	}
 
+	before := *payment
 	now := time.Now()
 	payment.Status = model.PaymentStatusCompleted
 	payment.CompletedAt = &now
@@ -173,6 +183,9 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, req *model.Complet
 	if err := s.repo.UpdateWithEvent(ctx, payment, evt); err != nil {
 		return nil, err
 	}
+
+	s.auditor.Record(ctx, "PAYMENT_COMPLETE", "PAYMENT", payment.ID.String(),
+		before, payment, map[string]any{"amount": payment.Amount, "currency": payment.Currency})
 	return payment, nil
 }
 
@@ -191,6 +204,7 @@ func (s *Service) Fail(ctx context.Context, id uuid.UUID, req *model.FailPayment
 		return nil, errors.NewBusinessError("Cannot fail a payment in status: " + string(payment.Status))
 	}
 
+	before := *payment
 	payment.Status = model.PaymentStatusFailed
 	payment.FailureReason = &req.Reason
 
@@ -198,6 +212,8 @@ func (s *Service) Fail(ctx context.Context, id uuid.UUID, req *model.FailPayment
 		return nil, err
 	}
 
+	s.auditor.Record(ctx, "PAYMENT_FAIL", "PAYMENT", payment.ID.String(),
+		before, payment, map[string]any{"reason": req.Reason})
 	s.publisher.PublishFailed(ctx, payment)
 	return payment, nil
 }
@@ -213,6 +229,7 @@ func (s *Service) Reverse(ctx context.Context, id uuid.UUID, req *model.ReverseP
 		return nil, err
 	}
 
+	before := *payment
 	now := time.Now()
 	payment.Status = model.PaymentStatusReversed
 	payment.ReversalReason = &req.Reason
@@ -222,6 +239,8 @@ func (s *Service) Reverse(ctx context.Context, id uuid.UUID, req *model.ReverseP
 		return nil, err
 	}
 
+	s.auditor.Record(ctx, "PAYMENT_REVERSE", "PAYMENT", payment.ID.String(),
+		before, payment, map[string]any{"reason": req.Reason})
 	s.publisher.PublishReversed(ctx, payment)
 	return payment, nil
 }

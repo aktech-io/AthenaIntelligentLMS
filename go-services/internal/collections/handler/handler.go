@@ -74,6 +74,29 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Put("/strategies/{id}", h.UpdateStrategy)
 		r.Delete("/strategies/{id}", h.DeleteStrategy)
 	})
+
+	// Audit trail
+	r.Get("/api/v1/audit-log", h.ListAuditLog)
+}
+
+// ListAuditLog returns the collections-service audit trail, optionally filtered
+// by entityType and entityId query params.
+func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	entityType := r.URL.Query().Get("entityType")
+	entityID := r.URL.Query().Get("entityId")
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
+	if size <= 0 {
+		size = 50
+	}
+	records, err := h.svc.ListAuditLog(r.Context(), tenantID, entityType, entityID, size, page*size)
+	if err != nil {
+		h.logger.Error("Failed to list audit log", zap.Error(err))
+		httputil.WriteInternalError(w, "Failed to list audit log", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, records)
 }
 
 // GetSummary returns collection summary for the tenant.
@@ -648,7 +671,7 @@ func (h *Handler) GetAgeingReport(w http.ResponseWriter, r *http.Request) {
 // parseDateRange extracts from/to query params (YYYY-MM-DD), defaulting to last 30 days.
 func parseDateRange(r *http.Request) (from, to time.Time) {
 	now := time.Now().UTC()
-	to = now.Truncate(24*time.Hour).Add(24 * time.Hour) // end of today
+	to = now.Truncate(24 * time.Hour).Add(24 * time.Hour) // end of today
 	from = to.AddDate(0, 0, -30)
 
 	if f := r.URL.Query().Get("from"); f != "" {
