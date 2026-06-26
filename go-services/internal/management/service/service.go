@@ -404,6 +404,12 @@ func (s *Service) GetPARReport(ctx context.Context, tenantID string) (*repositor
 	return s.repo.GetPARReport(ctx, tenantID)
 }
 
+// GetECLProvisionReport returns the simplified IFRS 9 stage-based ECL
+// (loan-loss provision) report for the tenant.
+func (s *Service) GetECLProvisionReport(ctx context.Context, tenantID string) (*repository.ECLProvisionReport, error) {
+	return s.repo.GetECLProvisionReport(ctx, tenantID)
+}
+
 // ListAuditLog returns audit-trail entries for the loans domain.
 func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
 	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
