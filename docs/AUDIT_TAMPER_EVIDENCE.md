@@ -49,15 +49,23 @@ append-only triggers are installed), so history is verifiable too.
 The migration `migrations/account/000013_audit_tamper_evident.up.sql` is the
 template. For each target, copy it and adjust the table/column names:
 
-| DB | Table | Notes |
-|----|-------|-------|
-| `athena_loans` | `audit_log` | **Same schema as account** — the template applies almost verbatim (just confirm column names). Covers loan-origination + loan-management. |
-| `athena_accounting` | `financial_audit_log` | Different columns (entry/action/etc.) — adapt `audit_canonical(...)` to that table's columns. |
-| `athena_overdraft` | overdraft audit table | Adapt canonical to its columns. |
-| `athena_fraud` | fraud audit/`audit_log` | Adapt as needed. |
+| DB | Table | Status |
+|----|-------|--------|
+| `athena_accounts` | `audit_log` | ✅ done — reference (migration account/000013), `GET /api/v1/audit-log/verify` |
+| `athena_loans` | `audit_log` | ✅ done (loans/11) — covers origination + management, `GET /api/v1/audit-log/verify` |
+| `athena_accounting` | `financial_audit_log` | ✅ done (accounting/8) — `fin_*` funcs (no before/after cols), `GET /api/v1/accounting/audit-log/verify` |
+| `athena_overdraft` | `overdraft_audit_log` | ✅ done (overdraft/000003) — `GET /api/v1/overdraft/audit/verify` |
+| `athena_fraud` | `fraud_audit_log` | ✅ done (fraud-detection/000007) — `GET /api/v1/fraud/audit/verify` |
 
-Per target, also add a `VerifyAuditChain` repo method + `GET …/audit-log/verify`
-route (mirroring `internal/account`).
+**All five rolled out and verified live (2026-06-26):** every chain returns
+`intact=true` via its endpoint (account 697 / loans 272 / accounting 99 /
+overdraft 1743 / fraud 0 entries). Each target got a `VerifyAuditChain` repo
+method + verify route mirroring `internal/account`.
+
+Newly **audited** services (previously no trail) via `internal/common/audit`:
+payment, collections, float, product — each now has an `audit_log` table,
+instrumented mutations, and `GET /api/v1/audit-log`. Tamper-evidence can be
+extended to these the same way when needed.
 
 **Migration note:** the live cluster's auto-migration paths are unreliable (see
 the k3s deploy notes), so each migration is also applied directly to its DB
