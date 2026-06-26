@@ -58,7 +58,7 @@ this to resume if a session ends.
    GL). RBAC-gated. Verified: officer→403, no-activity handled, trial balance stays
    balanced. NOTE: demo has ~0 P&L balances so a non-zero close path wasn't
    exercised on live data — exercise it with a seeded P&L entry in a test env.
-2. **return→outbox-retry** (`common/event/publisher.go`) — make an unroutable
+2. **return→outbox-retry** — DEFERRED (see `docs/TODO_return_to_outbox_retry.md` for the full spec). make an unroutable
    (basic.return) publish fail so the outbox retries instead of marking dispatched.
    Needs confirm+return correlation; fail-safe design (never worse than today).
    Requires rebuilding ALL services (shared lib).
