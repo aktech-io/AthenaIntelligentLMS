@@ -61,6 +61,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/periods", h.listPeriods)
 		r.With(fin).Post("/periods/{year}/{month}/close", h.closePeriod)
 		r.With(fin).Post("/periods/{year}/{month}/reopen", h.reopenPeriod)
+		r.With(fin).Post("/periods/{year}/year-end-close", h.yearEndClose)
 
 		// Audit Log
 		r.Get("/audit-log", h.listAuditLogs)
@@ -407,6 +408,19 @@ func (h *Handler) closePeriod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, period)
+}
+
+// yearEndClose rolls the year's net P&L into Retained Earnings and locks the
+// year's periods.
+func (h *Handler) yearEndClose(w http.ResponseWriter, r *http.Request) {
+	tenantID := tenantFromRequest(r)
+	userID := auth.UserIDFromContext(r.Context())
+	resp, err := h.svc.YearEndClose(r.Context(), tenantID, chi.URLParam(r, "year"), userID)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) reopenPeriod(w http.ResponseWriter, r *http.Request) {
