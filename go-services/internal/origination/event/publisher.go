@@ -89,6 +89,27 @@ func (p *Publisher) PublishDisbursed(ctx context.Context, app *model.LoanApplica
 	p.publish(ctx, commonEvent.LoanDisbursed, app, extra)
 }
 
+// BuildSubmitted constructs the loan.application.submitted DomainEvent WITHOUT
+// publishing it. Used by the transactional-outbox path so the event is persisted
+// atomically with the SUBMITTED state change and delivered at-least-once by the relay.
+func (p *Publisher) BuildSubmitted(app *model.LoanApplication) (*commonEvent.DomainEvent, error) {
+	return p.build(commonEvent.LoanApplicationSubmitted, app, nil)
+}
+
+// BuildApproved constructs the loan.application.approved DomainEvent WITHOUT
+// publishing it. Used by the transactional-outbox path so the event is persisted
+// atomically with the APPROVED state change and delivered at-least-once by the relay.
+func (p *Publisher) BuildApproved(app *model.LoanApplication) (*commonEvent.DomainEvent, error) {
+	return p.build(commonEvent.LoanApplicationApproved, app, nil)
+}
+
+// BuildRejected constructs the loan.application.rejected DomainEvent WITHOUT
+// publishing it. Used by the transactional-outbox path so the event is persisted
+// atomically with the REJECTED state change and delivered at-least-once by the relay.
+func (p *Publisher) BuildRejected(app *model.LoanApplication, reason string) (*commonEvent.DomainEvent, error) {
+	return p.build(commonEvent.LoanApplicationRejected, app, map[string]string{"reason": reason})
+}
+
 // BuildDisbursed constructs the loan.disbursed DomainEvent WITHOUT publishing it.
 // Used by the transactional-outbox path so the event is persisted atomically
 // with the disbursement state change and delivered at-least-once by the relay.

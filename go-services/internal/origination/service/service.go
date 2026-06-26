@@ -144,7 +144,17 @@ func (s *Service) Submit(ctx context.Context, id uuid.UUID, tenantID, userID str
 		return nil, err
 	}
 
-	app, err = s.repo.UpdateApplication(ctx, app)
+	// Persist the SUBMITTED state change and the loan.application.submitted event
+	// to the transactional outbox in the SAME transaction so the event can't be
+	// lost relative to the committed state change; the relay delivers it
+	// asynchronously and at-least-once.
+	evt, berr := s.publisher.BuildSubmitted(app)
+	if berr != nil {
+		s.logger.Error("Failed to build loan.application.submitted event", zap.Error(berr))
+		evt = nil // fall back to a plain state update; reconciliation will catch it
+	}
+
+	app, err = s.repo.UpdateApplicationWithEvent(ctx, app, evt)
 	if err != nil {
 		return nil, fmt.Errorf("submit application: %w", err)
 	}
@@ -152,7 +162,6 @@ func (s *Service) Submit(ctx context.Context, id uuid.UUID, tenantID, userID str
 	s.auditor.Record(ctx, "LOAN_APP_SUBMIT", "LOAN_APPLICATION", app.ID.String(),
 		map[string]any{"status": model.StatusDraft},
 		map[string]any{"status": model.StatusSubmitted}, nil)
-	s.publisher.PublishSubmitted(ctx, app)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
 }
@@ -213,7 +222,17 @@ func (s *Service) Approve(ctx context.Context, id uuid.UUID, req model.ApproveAp
 		return nil, err
 	}
 
-	app, err = s.repo.UpdateApplication(ctx, app)
+	// Persist the APPROVED state change and the loan.application.approved event
+	// to the transactional outbox in the SAME transaction so the event can't be
+	// lost relative to the committed state change; the relay delivers it
+	// asynchronously and at-least-once.
+	evt, berr := s.publisher.BuildApproved(app)
+	if berr != nil {
+		s.logger.Error("Failed to build loan.application.approved event", zap.Error(berr))
+		evt = nil // fall back to a plain state update; reconciliation will catch it
+	}
+
+	app, err = s.repo.UpdateApplicationWithEvent(ctx, app, evt)
 	if err != nil {
 		return nil, fmt.Errorf("approve application: %w", err)
 	}
@@ -222,7 +241,6 @@ func (s *Service) Approve(ctx context.Context, id uuid.UUID, req model.ApproveAp
 		map[string]any{"status": model.StatusUnderReview},
 		map[string]any{"status": model.StatusApproved},
 		map[string]any{"approvedAmount": req.ApprovedAmount, "interestRate": req.InterestRate, "reviewNotes": req.ReviewNotes})
-	s.publisher.PublishApproved(ctx, app)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
 }
@@ -246,7 +264,17 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, req model.RejectAppl
 		return nil, err
 	}
 
-	app, err = s.repo.UpdateApplication(ctx, app)
+	// Persist the REJECTED state change and the loan.application.rejected event
+	// to the transactional outbox in the SAME transaction so the event can't be
+	// lost relative to the committed state change; the relay delivers it
+	// asynchronously and at-least-once.
+	evt, berr := s.publisher.BuildRejected(app, req.Reason)
+	if berr != nil {
+		s.logger.Error("Failed to build loan.application.rejected event", zap.Error(berr))
+		evt = nil // fall back to a plain state update; reconciliation will catch it
+	}
+
+	app, err = s.repo.UpdateApplicationWithEvent(ctx, app, evt)
 	if err != nil {
 		return nil, fmt.Errorf("reject application: %w", err)
 	}
@@ -255,7 +283,6 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, req model.RejectAppl
 		map[string]any{"status": model.StatusUnderReview},
 		map[string]any{"status": model.StatusRejected},
 		map[string]any{"reason": req.Reason})
-	s.publisher.PublishRejected(ctx, app, req.Reason)
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
 }
