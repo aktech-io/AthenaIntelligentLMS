@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
 	floatEvent "github.com/athena-lms/go-services/internal/float/event"
@@ -25,11 +26,18 @@ type Service struct {
 	repo      *repository.Repository
 	publisher *floatEvent.Publisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // New creates a new float Service.
 func New(repo *repository.Repository, publisher *floatEvent.Publisher, logger *zap.Logger) *Service {
-	return &Service{repo: repo, publisher: publisher, logger: logger}
+	return &Service{repo: repo, publisher: publisher, logger: logger, auditor: audit.New(repo, logger)}
+}
+
+// ListAuditLog returns the float-service audit trail, optionally filtered by
+// entityType and entityId.
+func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
+	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
 // CreateAccount creates a new float account.
@@ -67,6 +75,8 @@ func (s *Service) CreateAccount(ctx context.Context, req *model.CreateFloatAccou
 		return nil, fmt.Errorf("insert account: %w", err)
 	}
 
+	s.auditor.Record(ctx, "FLOAT_ACCOUNT_CREATE", "FLOAT_ACCOUNT", saved.ID.String(),
+		nil, saved, map[string]any{"accountCode": saved.AccountCode, "floatLimit": saved.FloatLimit})
 	s.logger.Info("Created float account",
 		zap.String("id", saved.ID.String()),
 		zap.String("tenantId", tenantID))
@@ -147,6 +157,9 @@ func (s *Service) Draw(ctx context.Context, accountID uuid.UUID, req *model.Floa
 
 	s.publisher.PublishFloatDrawn(ctx, accountID, req.Amount, nil, tenantID)
 
+	s.auditor.Record(ctx, "FLOAT_DRAW", "FLOAT_ACCOUNT", accountID.String(),
+		map[string]any{"drawnAmount": balanceBefore}, map[string]any{"drawnAmount": newDrawn},
+		map[string]any{"amount": req.Amount, "referenceId": req.ReferenceID, "referenceType": req.ReferenceType})
 	resp := model.ToTransactionResponse(saved)
 	return &resp, nil
 }
@@ -196,6 +209,9 @@ func (s *Service) Repay(ctx context.Context, accountID uuid.UUID, req *model.Flo
 
 	s.publisher.PublishFloatRepaid(ctx, accountID, req.Amount, nil, tenantID)
 
+	s.auditor.Record(ctx, "FLOAT_REPAYMENT", "FLOAT_ACCOUNT", accountID.String(),
+		map[string]any{"drawnAmount": balanceBefore}, map[string]any{"drawnAmount": newDrawn},
+		map[string]any{"amount": req.Amount, "referenceId": req.ReferenceID})
 	resp := model.ToTransactionResponse(saved)
 	return &resp, nil
 }
@@ -297,11 +313,14 @@ func (s *Service) ProcessDraw(ctx context.Context, loanID uuid.UUID, amount deci
 		Status:          model.FloatAllocationStatusActive,
 		DisbursedAt:     time.Now(),
 	}
-	if _, err := s.repo.InsertAllocation(ctx, alloc); err != nil {
+	savedAlloc, err := s.repo.InsertAllocation(ctx, alloc)
+	if err != nil {
 		s.logger.Error("Failed to insert float allocation", zap.Error(err))
 		return
 	}
 
+	s.auditor.Record(ctx, "FLOAT_ALLOCATION", "FLOAT_ALLOCATION", savedAlloc.ID.String(),
+		nil, savedAlloc, map[string]any{"loanId": loanID.String(), "amount": amount, "accountId": account.ID.String()})
 	s.publisher.PublishFloatDrawn(ctx, account.ID, amount, &loanID, tenantID)
 	s.logger.Info("Float drawn for loan",
 		zap.String("amount", amount.String()),
@@ -363,6 +382,9 @@ func (s *Service) ProcessTopUp(ctx context.Context, referenceAccountID string, a
 		return
 	}
 
+	s.auditor.Record(ctx, "FLOAT_ADJUSTMENT", "FLOAT_ACCOUNT", account.ID.String(),
+		map[string]any{"drawnAmount": balanceBefore}, map[string]any{"drawnAmount": newDrawn},
+		map[string]any{"amount": amount, "referenceId": referenceAccountID, "referenceType": "ACCOUNT_CREDIT"})
 	s.publisher.PublishFloatRepaid(ctx, account.ID, amount, nil, tenantID)
 	s.logger.Info("Float top-up processed",
 		zap.String("amount", amount.String()),

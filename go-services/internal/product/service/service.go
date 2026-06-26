@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/product/event"
 	"github.com/athena-lms/go-services/internal/product/model"
 	"github.com/athena-lms/go-services/internal/product/repository"
@@ -21,11 +22,18 @@ type Service struct {
 	repo      *repository.Repository
 	publisher *event.Publisher
 	logger    *zap.Logger
+	auditor   *audit.Logger
 }
 
 // New creates a new Service.
 func New(repo *repository.Repository, publisher *event.Publisher, logger *zap.Logger) *Service {
-	return &Service{repo: repo, publisher: publisher, logger: logger}
+	return &Service{repo: repo, publisher: publisher, logger: logger, auditor: audit.New(repo, logger)}
+}
+
+// ListAuditLog returns the product-service audit trail, optionally filtered by
+// entityType and entityId.
+func (s *Service) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
+	return s.repo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
 // ─── Product Operations ─────────────────────────────────────────────────────
@@ -80,6 +88,9 @@ func (s *Service) CreateProduct(ctx context.Context, req model.CreateProductRequ
 
 	resp := model.ProductToResponse(product)
 
+	s.auditor.Record(ctx, "PRODUCT_CREATE", "PRODUCT", product.ID.String(),
+		nil, resp, map[string]any{"productCode": product.ProductCode, "name": product.Name})
+
 	if s.publisher != nil {
 		s.publisher.PublishProductCreated(ctx, tenantID, resp)
 	}
@@ -118,6 +129,7 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, req model.Cre
 	}
 
 	// Save snapshot before changes
+	before := model.ProductToResponse(product)
 	s.saveVersionSnapshot(ctx, product, changedBy, changeReason)
 
 	// Apply changes
@@ -175,6 +187,9 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, req model.Cre
 
 	resp := model.ProductToResponse(product)
 
+	s.auditor.Record(ctx, "PRODUCT_UPDATE", "PRODUCT", product.ID.String(),
+		before, resp, map[string]any{"version": product.Version, "changeReason": changeReason})
+
 	if s.publisher != nil {
 		s.publisher.PublishProductUpdated(ctx, tenantID, resp)
 	}
@@ -188,6 +203,7 @@ func (s *Service) ActivateProduct(ctx context.Context, id uuid.UUID, tenantID, a
 	if err != nil {
 		return nil, err
 	}
+	before := model.ProductToResponse(product)
 	product.Status = model.ProductStatusActive
 	product.PendingAuthorization = false
 	s.logger.Info("Product activated", zap.String("code", product.ProductCode), zap.String("by", approvedBy))
@@ -196,6 +212,9 @@ func (s *Service) ActivateProduct(ctx context.Context, id uuid.UUID, tenantID, a
 		return nil, fmt.Errorf("activate product: %w", err)
 	}
 	resp := model.ProductToResponse(product)
+
+	s.auditor.Record(ctx, "PRODUCT_ACTIVATE", "PRODUCT", product.ID.String(),
+		before, resp, map[string]any{"approvedBy": approvedBy})
 
 	if s.publisher != nil {
 		s.publisher.PublishProductActivated(ctx, tenantID, resp)
@@ -210,11 +229,13 @@ func (s *Service) DeactivateProduct(ctx context.Context, id uuid.UUID, tenantID 
 	if err != nil {
 		return nil, err
 	}
+	before := model.ProductToResponse(product)
 	product.Status = model.ProductStatusInactive
 	if err := s.repo.UpdateProduct(ctx, product); err != nil {
 		return nil, fmt.Errorf("deactivate product: %w", err)
 	}
 	resp := model.ProductToResponse(product)
+	s.auditor.Record(ctx, "PRODUCT_DEACTIVATE", "PRODUCT", product.ID.String(), before, resp, nil)
 	return &resp, nil
 }
 

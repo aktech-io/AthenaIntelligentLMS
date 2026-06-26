@@ -13,6 +13,7 @@ import (
 	"github.com/athena-lms/go-services/internal/collections/event"
 	"github.com/athena-lms/go-services/internal/collections/model"
 	"github.com/athena-lms/go-services/internal/collections/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/errors"
 )
 
@@ -23,8 +24,10 @@ type CollectionsService struct {
 	ptpRepo      *repository.PtpRepository
 	strategyRepo *repository.StrategyRepository
 	officerRepo  *repository.OfficerRepository
+	auditRepo    *repository.AuditRepository
 	publisher    *event.Publisher
 	logger       *zap.Logger
+	auditor      *audit.Logger
 }
 
 // NewCollectionsService creates a new CollectionsService.
@@ -34,6 +37,7 @@ func NewCollectionsService(
 	ptpRepo *repository.PtpRepository,
 	strategyRepo *repository.StrategyRepository,
 	officerRepo *repository.OfficerRepository,
+	auditRepo *repository.AuditRepository,
 	publisher *event.Publisher,
 	logger *zap.Logger,
 ) *CollectionsService {
@@ -43,9 +47,17 @@ func NewCollectionsService(
 		ptpRepo:      ptpRepo,
 		strategyRepo: strategyRepo,
 		officerRepo:  officerRepo,
+		auditRepo:    auditRepo,
 		publisher:    publisher,
 		logger:       logger,
+		auditor:      audit.New(auditRepo, logger),
 	}
+}
+
+// ListAuditLog returns the collections-service audit trail, optionally filtered
+// by entityType and entityId.
+func (s *CollectionsService) ListAuditLog(ctx context.Context, tenantID, entityType, entityID string, limit, offset int) ([]*repository.AuditRecord, error) {
+	return s.auditRepo.ListAuditLog(ctx, tenantID, entityType, entityID, limit, offset)
 }
 
 // -----------------------------------------------------------------------
@@ -91,6 +103,8 @@ func (s *CollectionsService) OpenOrUpdateCase(ctx context.Context, loanID uuid.U
 			s.AutoAssign(ctx, saved.ID, tenantID)
 		}
 		s.publisher.PublishCaseCreated(ctx, saved.ID, loanID, tenantID)
+		s.auditor.Record(ctx, "COLLECTION_CASE_CREATE", "COLLECTION_CASE", saved.ID.String(),
+			nil, saved, map[string]any{"caseNumber": saved.CaseNumber, "loanId": loanID.String(), "dpd": dpd})
 		s.logger.Info("Opened new collection case", zap.String("caseNumber", saved.CaseNumber), zap.String("loanId", loanID.String()))
 		return nil
 	}
@@ -316,6 +330,8 @@ func (s *CollectionsService) UpdateCase(ctx context.Context, id uuid.UUID, req m
 	if c == nil {
 		return nil, errors.NotFoundResource("Collection case", id)
 	}
+	before := *c
+	assignChanged := req.AssignedTo != nil
 	if req.AssignedTo != nil {
 		c.AssignedTo = req.AssignedTo
 	}
@@ -329,6 +345,11 @@ func (s *CollectionsService) UpdateCase(ctx context.Context, id uuid.UUID, req m
 	if err != nil {
 		return nil, err
 	}
+	action := "COLLECTION_CASE_UPDATE"
+	if assignChanged {
+		action = "COLLECTION_CASE_ASSIGN"
+	}
+	s.auditor.Record(ctx, action, "COLLECTION_CASE", saved.ID.String(), before, saved, nil)
 	resp := model.ToCaseResponse(saved)
 	return &resp, nil
 }
@@ -342,6 +363,7 @@ func (s *CollectionsService) CloseCase(ctx context.Context, caseID uuid.UUID, te
 	if c == nil {
 		return nil, errors.NotFoundResource("Collection case", caseID)
 	}
+	before := *c
 	now := time.Now().UTC()
 	c.Status = model.CaseStatusClosed
 	c.ClosedAt = &now
@@ -350,6 +372,8 @@ func (s *CollectionsService) CloseCase(ctx context.Context, caseID uuid.UUID, te
 		return nil, err
 	}
 	s.publisher.PublishCaseClosed(ctx, saved.ID, saved.LoanID, tenantID)
+	s.auditor.Record(ctx, "COLLECTION_CASE_CLOSE", "COLLECTION_CASE", saved.ID.String(),
+		before, saved, nil)
 	resp := model.ToCaseResponse(saved)
 	return &resp, nil
 }
@@ -405,6 +429,8 @@ func (s *CollectionsService) AddAction(ctx context.Context, caseID uuid.UUID, re
 	}
 
 	s.publisher.PublishActionTaken(ctx, caseID, req.ActionType, tenantID)
+	s.auditor.Record(ctx, "COLLECTION_ACTION_LOGGED", "COLLECTION_CASE", caseID.String(),
+		nil, saved, map[string]any{"actionType": req.ActionType, "outcome": req.Outcome})
 	resp := model.ToActionResponse(saved)
 	return &resp, nil
 }

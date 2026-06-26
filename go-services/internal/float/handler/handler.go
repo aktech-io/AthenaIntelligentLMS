@@ -10,8 +10,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/auth"
-	"github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/common/httputil"
+	"github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/float/model"
 	"github.com/athena-lms/go-services/internal/float/service"
 )
@@ -38,6 +38,27 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/accounts/{id}/transactions", h.GetTransactions)
 		r.Get("/summary", h.GetSummary)
 	})
+	r.Get("/api/v1/audit-log", h.ListAuditLog)
+}
+
+// ListAuditLog returns the float-service audit trail, optionally filtered by
+// entityType and entityId query params.
+func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	entityType := r.URL.Query().Get("entityType")
+	entityID := r.URL.Query().Get("entityId")
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
+	if size <= 0 {
+		size = 50
+	}
+	records, err := h.svc.ListAuditLog(r.Context(), tenantID, entityType, entityID, size, page*size)
+	if err != nil {
+		h.logger.Error("Failed to list audit log", zap.Error(err))
+		httputil.WriteInternalError(w, "Failed to list audit log", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, records)
 }
 
 // CreateAccount handles POST /api/v1/float/accounts
