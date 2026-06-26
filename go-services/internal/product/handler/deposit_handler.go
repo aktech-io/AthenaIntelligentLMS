@@ -27,13 +27,18 @@ func NewDepositHandler(svc *service.DepositService, logger *zap.Logger) *Deposit
 
 // RegisterRoutes registers all deposit product routes.
 func (h *DepositHandler) RegisterRoutes(r chi.Router) {
+	// Deposit-product mutations are restricted to ADMIN and MANAGER; reads stay open.
+	admin := auth.RequireRole("ADMIN", "MANAGER")
+
 	r.Route("/api/v1/deposit-products", func(r chi.Router) {
-		r.Post("/", h.createDepositProduct)
+		// Mutations: create/update/activate/deactivate — ADMIN/MANAGER only.
+		r.With(admin).Post("/", h.createDepositProduct)
+		r.With(admin).Put("/{id}", h.updateDepositProduct)
+		r.With(admin).Post("/{id}/activate", h.activateDepositProduct)
+		r.With(admin).Post("/{id}/deactivate", h.deactivateDepositProduct)
+		// Reads stay open.
 		r.Get("/", h.listDepositProducts)
 		r.Get("/{id}", h.getDepositProduct)
-		r.Put("/{id}", h.updateDepositProduct)
-		r.Post("/{id}/activate", h.activateDepositProduct)
-		r.Post("/{id}/deactivate", h.deactivateDepositProduct)
 	})
 }
 
