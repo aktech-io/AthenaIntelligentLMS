@@ -88,6 +88,8 @@ func (h *Handler) registerFraudRoutes(r chi.Router) {
 	// Audit log — serve on both /audit and /audit-log
 	r.Get("/audit", h.ListAuditLog)
 	r.Get("/audit-log", h.ListAuditLog)
+	r.Get("/audit/verify", h.VerifyAuditChain)
+	r.Get("/audit-log/verify", h.VerifyAuditChain)
 
 	// Screening — alias for watchlist screen
 	r.Post("/screening/customer", h.ScreenCustomer)
@@ -917,4 +919,18 @@ func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, resp)
+}
+
+// VerifyAuditChain handles GET /api/v1/fraud/audit/verify — reports whether the
+// tamper-evident audit trail is intact, or the seq of the first altered or
+// missing entry, so an auditor can prove the log was not edited or back-dated.
+func (h *Handler) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	result, err := h.svc.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		h.logger.Error("Failed to verify audit chain", zap.Error(err))
+		httputil.WriteInternalError(w, "Failed to verify audit chain", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }

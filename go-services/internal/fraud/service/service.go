@@ -220,16 +220,16 @@ func (s *Service) GetWatchlistEntry(ctx context.Context, id uuid.UUID) (*model.W
 // CreateWatchlistEntry creates a new watchlist entry.
 func (s *Service) CreateWatchlistEntry(ctx context.Context, req model.CreateWatchlistEntryRequest, tenantID string) (*model.WatchlistEntry, error) {
 	entry := &model.WatchlistEntry{
-		TenantID:  tenantID,
-		ListType:  model.WatchlistType(req.ListType),
-		EntryType: req.EntryType,
-		Name:      strPtr(req.Name),
+		TenantID:   tenantID,
+		ListType:   model.WatchlistType(req.ListType),
+		EntryType:  req.EntryType,
+		Name:       strPtr(req.Name),
 		NationalID: strPtr(req.NationalID),
-		Phone:     strPtr(req.Phone),
-		Reason:    strPtr(req.Reason),
-		Source:    strPtr(req.Source),
-		Active:    true,
-		ExpiresAt: req.ExpiresAt,
+		Phone:      strPtr(req.Phone),
+		Reason:     strPtr(req.Reason),
+		Source:     strPtr(req.Source),
+		Active:     true,
+		ExpiresAt:  req.ExpiresAt,
 	}
 
 	if err := s.repo.CreateWatchlistEntry(ctx, entry); err != nil {
@@ -348,6 +348,11 @@ func (s *Service) ListAuditLog(ctx context.Context, tenantID string, entityType 
 		return dto.PageResponse{}, err
 	}
 	return dto.NewPageResponse(logs, page, size, total), nil
+}
+
+// VerifyAuditChain reports whether the tamper-evident audit chain is intact.
+func (s *Service) VerifyAuditChain(ctx context.Context, tenantID string) (*repository.ChainVerification, error) {
+	return s.repo.VerifyAuditChain(ctx, tenantID)
 }
 
 // ListNetworkLinks returns network links for a customer.
