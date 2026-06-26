@@ -77,6 +77,7 @@ func (h *Handler) Routes(r chi.Router) {
 
 	// Audit trail
 	r.Get("/api/v1/audit-log", h.ListAuditLog)
+	r.Get("/api/v1/audit-log/verify", h.VerifyAuditChain)
 }
 
 // ListAuditLog returns the collections-service audit trail, optionally filtered
@@ -97,6 +98,20 @@ func (h *Handler) ListAuditLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, records)
+}
+
+// VerifyAuditChain reports whether the tamper-evident audit trail is intact, or
+// the seq of the first altered/missing entry. Lets an auditor prove the log was
+// not edited or back-dated.
+func (h *Handler) VerifyAuditChain(w http.ResponseWriter, r *http.Request) {
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	result, err := h.svc.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		h.logger.Error("Failed to verify audit chain", zap.Error(err))
+		httputil.WriteInternalError(w, "Failed to verify audit chain", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 // GetSummary returns collection summary for the tenant.
