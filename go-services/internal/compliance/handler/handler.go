@@ -29,20 +29,26 @@ func New(svc *service.Service, logger *zap.Logger) *Handler {
 
 // RegisterRoutes registers all compliance routes on the given chi router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
+	// Regulated compliance decisions (SAR filing, AML alert resolution, KYC
+	// pass/fail) are gated to ADMIN/MANAGER. Internal SERVICE calls always pass
+	// (see auth.RequireRole), so system-generated alerts/events are unaffected.
+	// Data entry (KYC create/update) and all reads stay open to staff.
+	decide := auth.RequireRole("ADMIN", "MANAGER")
+
 	r.Route("/api/v1/compliance", func(r chi.Router) {
 		// AML Alerts
 		r.Post("/alerts", h.CreateAlert)
 		r.Get("/alerts", h.ListAlerts)
 		r.Get("/alerts/{id}", h.GetAlert)
-		r.Post("/alerts/{id}/resolve", h.ResolveAlert)
-		r.Post("/alerts/{id}/sar", h.FileSar)
+		r.With(decide).Post("/alerts/{id}/resolve", h.ResolveAlert)
+		r.With(decide).Post("/alerts/{id}/sar", h.FileSar)
 		r.Get("/alerts/{id}/sar", h.GetSarForAlert)
 
 		// KYC
 		r.Post("/kyc", h.CreateOrUpdateKyc)
 		r.Get("/kyc/{customerId}", h.GetKyc)
-		r.Post("/kyc/{customerId}/pass", h.PassKyc)
-		r.Post("/kyc/{customerId}/fail", h.FailKyc)
+		r.With(decide).Post("/kyc/{customerId}/pass", h.PassKyc)
+		r.With(decide).Post("/kyc/{customerId}/fail", h.FailKyc)
 
 		// Events
 		r.Get("/events", h.ListEvents)
