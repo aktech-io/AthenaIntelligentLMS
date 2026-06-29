@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,6 +18,12 @@ import (
 	"github.com/athena-lms/go-services/internal/common/httputil"
 )
 
+// PermissionResolver resolves the effective RBAC permissions for a set of roles
+// and the current matrix version. Implemented by the account rbac.Store.
+type PermissionResolver interface {
+	PermissionsForRoles(ctx context.Context, roles []string) (perms []string, version int64, err error)
+}
+
 // LmsUser represents an in-memory user for portal authentication.
 type LmsUser struct {
 	Username string   `json:"username"`
@@ -31,11 +38,14 @@ type LmsUser struct {
 type AuthHandler struct {
 	users     map[string]*LmsUser
 	jwtSecret []byte
+	perms     PermissionResolver // optional; nil = don't stamp permissions
 	logger    *zap.Logger
 }
 
-// NewAuthHandler creates an auth handler with default users.
-func NewAuthHandler(base64Secret string, logger *zap.Logger) (*AuthHandler, error) {
+// NewAuthHandler creates an auth handler with default users. perms may be nil,
+// in which case tokens carry no permission claims (enforcement falls back to
+// role checks).
+func NewAuthHandler(base64Secret string, perms PermissionResolver, logger *zap.Logger) (*AuthHandler, error) {
 	key, err := base64.StdEncoding.DecodeString(base64Secret)
 	if err != nil {
 		return nil, fmt.Errorf("decode jwt secret: %w", err)
@@ -84,7 +94,7 @@ func NewAuthHandler(base64Secret string, logger *zap.Logger) (*AuthHandler, erro
 		},
 	}
 
-	return &AuthHandler{users: users, jwtSecret: key, logger: logger}, nil
+	return &AuthHandler{users: users, jwtSecret: key, perms: perms, logger: logger}, nil
 }
 
 type loginRequest struct {
@@ -122,7 +132,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.generateToken(user)
+	token, err := h.generateToken(r.Context(), user)
 	if err != nil {
 		h.logger.Error("Failed to generate token", zap.Error(err))
 		httputil.WriteInternalError(w, "Token generation failed", r.URL.Path)
@@ -152,7 +162,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) generateToken(user *LmsUser) (string, error) {
+func (h *AuthHandler) generateToken(ctx context.Context, user *LmsUser) (string, error) {
 	header := base64URLEncode([]byte(`{"alg":"HS256","typ":"JWT"}`))
 
 	now := time.Now()
@@ -164,6 +174,20 @@ func (h *AuthHandler) generateToken(user *LmsUser) (string, error) {
 		"email":    user.Email,
 		"iat":      now.Unix(),
 		"exp":      now.Add(24 * time.Hour).Unix(),
+	}
+
+	// Stamp effective RBAC permissions (+ matrix version) into the token. This
+	// is best-effort: if the matrix is unavailable, log and issue a token with
+	// no permission claims — enforcement then falls back to role checks, so a
+	// matrix outage never blocks login or breaks authorisation.
+	if h.perms != nil {
+		if perms, version, err := h.perms.PermissionsForRoles(ctx, user.Roles); err != nil {
+			h.logger.Warn("RBAC permission resolution failed; issuing token without permissions claim",
+				zap.String("user", user.Username), zap.Error(err))
+		} else {
+			claims["permissions"] = perms
+			claims["permVersion"] = version
+		}
 	}
 	claimsJSON, err := json.Marshal(claims)
 	if err != nil {

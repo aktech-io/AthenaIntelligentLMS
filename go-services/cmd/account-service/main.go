@@ -15,6 +15,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/handler"
+	"github.com/athena-lms/go-services/internal/account/rbac"
 	"github.com/athena-lms/go-services/internal/account/repository"
 	"github.com/athena-lms/go-services/internal/account/service"
 	"github.com/athena-lms/go-services/internal/common/auth"
@@ -92,6 +93,7 @@ func main() {
 
 	// Service wiring
 	repo := repository.New(pool)
+	rbacStore := rbac.NewStore(pool)
 	accountSvc := service.NewAccountService(repo, acctPub, logger)
 	customerSvc := service.NewCustomerService(repo, acctPub, logger)
 	transferSvc := service.NewTransferService(repo, acctPub, logger, "", cfg.InternalServiceKey)
@@ -112,8 +114,9 @@ func main() {
 		logger.Fatal("Failed to initialize JWT", zap.Error(err))
 	}
 
-	// Auth handler (login — unauthenticated)
-	authHandler, err := handler.NewAuthHandler(cfg.JWTSecret, logger)
+	// Auth handler (login — unauthenticated). The rbac store stamps effective
+	// permissions into issued tokens.
+	authHandler, err := handler.NewAuthHandler(cfg.JWTSecret, rbacStore, logger)
 	if err != nil {
 		logger.Fatal("Failed to initialize auth handler", zap.Error(err))
 	}

@@ -55,6 +55,9 @@ func (m *Middleware) Handler(next http.Handler) http.Handler {
 			ctx = WithTenantID(ctx, claims.TenantID)
 			ctx = WithUserID(ctx, claims.Username)
 			ctx = WithRoles(ctx, claims.Roles)
+			if claims.PermissionsSet {
+				ctx = WithPermissions(ctx, claims.Permissions)
+			}
 			if claims.CustomerIDStr != "" {
 				ctx = WithCustomerIDStr(ctx, claims.CustomerIDStr)
 				if claims.CustomerID != nil {
@@ -117,6 +120,62 @@ func RequireRole(allowed ...string) func(http.Handler) http.Handler {
 					return
 				}
 			}
+			httputil.WriteErrorJSON(w, http.StatusForbidden, "Forbidden",
+				"You do not have permission to perform this operation.", r.URL.Path)
+		})
+	}
+}
+
+// RequirePermission returns a chi middleware that authorises the request only if
+// the caller holds the given RBAC permission. It must be chained AFTER Handler.
+//
+// Authorisation precedence:
+//  1. Internal service-to-service calls (SERVICE role) always pass — system
+//     flows are never blocked.
+//  2. If the token carries a permissions claim (RBAC-aware), the caller passes
+//     iff that claim contains `permission`.
+//  3. If the token carries NO permissions claim (e.g. issued before the matrix
+//     existed, or by a service that doesn't stamp permissions), it falls back to
+//     a role check against fallbackRoles — preserving the previous behaviour so
+//     the rollout is safe. Pass the same roles the route used with RequireRole.
+//
+// A caller who satisfies none of these gets HTTP 403.
+func RequirePermission(permission string, fallbackRoles ...string) func(http.Handler) http.Handler {
+	fallback := make(map[string]bool, len(fallbackRoles))
+	for _, r := range fallbackRoles {
+		fallback[strings.ToUpper(strings.TrimSpace(r))] = true
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+
+			// (1) Internal service calls always pass.
+			for _, role := range RolesFromContext(ctx) {
+				if strings.EqualFold(strings.TrimSpace(role), "SERVICE") {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			perms, present := PermissionsFromContext(ctx)
+			if present {
+				// (2) RBAC-aware token: check the permission claim.
+				for _, p := range perms {
+					if p == permission {
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+			} else if len(fallback) > 0 {
+				// (3) Legacy token: fall back to a role check.
+				for _, role := range RolesFromContext(ctx) {
+					if fallback[strings.ToUpper(strings.TrimSpace(role))] {
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+
 			httputil.WriteErrorJSON(w, http.StatusForbidden, "Forbidden",
 				"You do not have permission to perform this operation.", r.URL.Path)
 		})

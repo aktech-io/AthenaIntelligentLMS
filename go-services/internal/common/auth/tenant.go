@@ -10,6 +10,8 @@ const (
 	customerIDKey  contextKey = "customerId"
 	customerStrKey contextKey = "customerIdStr"
 	rolesKey       contextKey = "roles"
+	permsKey       contextKey = "permissions"
+	permsSetKey    contextKey = "permissionsPresent"
 )
 
 // WithTenantID returns a new context with the tenant ID set.
@@ -85,4 +87,23 @@ func RolesFromContext(ctx context.Context) []string {
 		return v
 	}
 	return nil
+}
+
+// WithPermissions returns a new context carrying the caller's effective
+// permissions and marks that the token actually carried a permissions claim
+// (so RequirePermission can distinguish "no permission" from "old token with no
+// permissions claim at all" and fall back to a role check in the latter case).
+func WithPermissions(ctx context.Context, perms []string) context.Context {
+	ctx = context.WithValue(ctx, permsKey, perms)
+	return context.WithValue(ctx, permsSetKey, true)
+}
+
+// PermissionsFromContext returns the caller's permissions and whether the token
+// carried a permissions claim at all.
+func PermissionsFromContext(ctx context.Context) (perms []string, present bool) {
+	present, _ = ctx.Value(permsSetKey).(bool)
+	if v, ok := ctx.Value(permsKey).([]string); ok {
+		return v, present
+	}
+	return nil, present
 }

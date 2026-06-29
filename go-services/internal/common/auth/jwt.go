@@ -31,6 +31,9 @@ type Claims struct {
 	CustomerID *int64  // nil if not present or not numeric (e.g. mobile wallet string IDs)
 	CustomerIDStr string // raw string value of customerId claim
 	Roles      []string
+	Permissions    []string // effective permission keys (RBAC matrix), if stamped
+	PermissionsSet bool     // true if the token carried a permissions claim at all
+	PermVersion    int64    // matrix version the permissions were resolved from
 }
 
 // ParseToken validates the token signature and extracts claims.
@@ -80,6 +83,21 @@ func (j *JWTUtil) ParseToken(tokenString string) (*Claims, error) {
 				c.Roles = append(c.Roles, s)
 			}
 		}
+	}
+
+	// Permissions (RBAC matrix) — optional. Presence is tracked separately so
+	// enforcement can fall back to role checks for tokens issued before the
+	// matrix existed.
+	if perms, ok := mapClaims["permissions"].([]any); ok {
+		c.PermissionsSet = true
+		for _, p := range perms {
+			if s, ok := p.(string); ok {
+				c.Permissions = append(c.Permissions, s)
+			}
+		}
+	}
+	if v, ok := mapClaims["permVersion"].(float64); ok {
+		c.PermVersion = int64(v)
 	}
 
 	return c, nil
