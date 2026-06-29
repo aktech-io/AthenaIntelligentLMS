@@ -157,10 +157,13 @@ func (r *Repository) GetPARReport(ctx context.Context, tenantID string) (*PARRep
 //   - PD  (probability of default): 12-month for Stage 1, lifetime for 2 & 3.
 //   - LGD (loss given default): the share of exposure not recovered on default.
 //
-// The parameters below are point-estimates (not yet calibrated from historical
-// default/recovery data — that calibration is the remaining follow-up). They are
-// package-level consts so they are easy to find and tune, and the report exposes
-// PD/LGD/EAD per stage so the provision is fully transparent/auditable.
+// The parameters below are benchmark point-estimates, NOT calibrated from this
+// institution's own default/recovery experience: that data does not yet exist
+// (no observed defaults, no recovery/write-off capture). Calibrating them is
+// blocked on data, not engineering — see docs/IFRS9_PD_LGD_CALIBRATION.md for the
+// finding, the basis for these values, and the data + method to calibrate later.
+// They are package-level consts so they are easy to find and tune, and the report
+// exposes PD/LGD/EAD per stage so the provision is fully transparent/auditable.
 const (
 	// Probability of default per stage.
 	PDStage1 = 0.02 // 2%  — performing (12-month PD)
