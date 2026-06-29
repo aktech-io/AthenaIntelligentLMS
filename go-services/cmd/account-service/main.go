@@ -18,6 +18,7 @@ import (
 	"github.com/athena-lms/go-services/internal/account/rbac"
 	"github.com/athena-lms/go-services/internal/account/repository"
 	"github.com/athena-lms/go-services/internal/account/service"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/config"
 	"github.com/athena-lms/go-services/internal/common/db"
@@ -134,10 +135,14 @@ func main() {
 
 	// Protected routes
 	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)
+	rbacAudit := audit.New(repo, logger)
+	rbacHandler := rbac.NewHandler(rbacStore, rbacAudit, logger)
 	r.Group(func(r chi.Router) {
 		r.Use(authMw.Handler)
 		r.Get("/api/auth/me", authHandler.Me)
 		hdlr.RegisterRoutes(r)
+		// RBAC matrix: reads open to authenticated callers; writes require rbac.manage.
+		rbacHandler.RegisterRoutes(r, auth.RequirePermission("rbac.manage", "ADMIN"))
 	})
 
 	// Server

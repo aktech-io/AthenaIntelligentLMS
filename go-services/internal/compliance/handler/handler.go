@@ -33,7 +33,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	// pass/fail) are gated to ADMIN/MANAGER. Internal SERVICE calls always pass
 	// (see auth.RequireRole), so system-generated alerts/events are unaffected.
 	// Data entry (KYC create/update) and all reads stay open to staff.
-	decide := auth.RequireRole("ADMIN", "MANAGER")
+	// RBAC: gated by the compliance.decide permission (matrix-managed), falling
+	// back to ADMIN/MANAGER for tokens issued before permissions were stamped.
+	decide := auth.RequirePermission("compliance.decide", "ADMIN", "MANAGER")
 
 	r.Route("/api/v1/compliance", func(r chi.Router) {
 		// AML Alerts
