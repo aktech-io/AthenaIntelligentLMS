@@ -29,6 +29,14 @@ Availability posture is also weak for "at scale": every service runs a **single 
 with no liveness probe, no HPA, and no PodDisruptionBudget**, so any wedged pod or rollout
 is a user-visible outage.
 
+### Remediation status (updated 2026-06-30)
+- **CRIT-1** gateway auth bypass — ✅ FIXED & verified live (forged `X-Service-Key` → 401; headers stripped at proxy; gateway no longer honours the service key).
+- **CRIT-2** default credentials — ✅ FIXED (no hardcoded passwords; env/Secret-sourced; fail-closed; unit-tested).
+- **HIGH-1** CORS reflect-any-origin + credentials — ✅ FIXED (origin allowlist via `LMS_CORS_ALLOWED_ORIGINS`).
+- **HIGH-2** empty JWT secret fails open — ✅ FIXED (reject secret < 32 bytes).
+- **CRIT-3** plaintext secrets + **HIGH-4** no liveness/HA — 📦 production manifests delivered in `deploy/k8s/` (Secret template, liveness/replicas/PDB/HPA, NetworkPolicy); apply + rotate on the prod cluster (ops step, not auto-applied to dev).
+- Open: **HIGH-3** login rate-limit/lockout, **HIGH-5** migration reliability, and the MEDIUM/LOW items below.
+
 ---
 
 ## CRITICAL
