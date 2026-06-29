@@ -88,7 +88,9 @@ pytestmark = pytest.mark.skipif(
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-@pytest.fixture(scope="module")
+# Session-scoped so conftest's session-scoped, autouse `disable_maker_checker`
+# fixture (which depends on admin_token) can consume it without a ScopeMismatch.
+@pytest.fixture(scope="session")
 def admin_token():
     token = get_token("admin", "admin123")
     if not token:
@@ -96,8 +98,12 @@ def admin_token():
     return token
 
 
+# Maker-checker on GL journal entries requires two *distinct finance-role* users
+# (RBAC gates posting to ADMIN/MANAGER/ACCOUNTANT — officers cannot touch the
+# GL). Maker = MANAGER, checker = ADMIN; different users satisfy the
+# approved_by != created_by segregation-of-duties rule.
 @pytest.fixture(scope="module")
-def manager_token():
+def maker_token():
     token = get_token("manager", "manager123")
     if not token:
         pytest.skip("Cannot authenticate as manager")
@@ -105,10 +111,10 @@ def manager_token():
 
 
 @pytest.fixture(scope="module")
-def officer_token():
-    token = get_token("officer", "officer123")
+def checker_token():
+    token = get_token("admin", "admin123")
     if not token:
-        pytest.skip("Cannot authenticate as officer")
+        pytest.skip("Cannot authenticate as admin")
     return token
 
 
@@ -210,24 +216,24 @@ class TestChartOfAccounts:
 class TestMakerCheckerWorkflow:
     """Test the maker-checker approval workflow for journal entries."""
 
-    def test_create_journal_entry_starts_as_draft(self, officer_token, cash_account_id, loans_account_id):
+    def test_create_journal_entry_starts_as_draft(self, maker_token, cash_account_id, loans_account_id):
         """POST /journal-entries -> entry should have status DRAFT."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=500)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=500)
         assert resp.status_code == 201, f"Create entry failed: {resp.status_code} {resp.text[:300]}"
         body = resp.json()
         assert body.get("status") == "DRAFT", (
             f"Expected status DRAFT, got {body.get('status')}"
         )
 
-    def test_submit_entry_for_approval(self, officer_token, cash_account_id, loans_account_id):
+    def test_submit_entry_for_approval(self, maker_token, cash_account_id, loans_account_id):
         """POST /journal-entries/{id}/submit -> status becomes PENDING_APPROVAL."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=600)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=600)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         submit_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         assert submit_resp.status_code == 200, (
@@ -235,23 +241,23 @@ class TestMakerCheckerWorkflow:
         )
         assert submit_resp.json().get("status") == "PENDING_APPROVAL"
 
-    def test_approve_entry_by_different_user(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_approve_entry_by_different_user(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Officer creates + submits, manager approves -> POSTED."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=700)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=700)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         # Submit
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
 
         # Approve by different user
         approve_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert approve_resp.status_code == 200, (
@@ -261,43 +267,43 @@ class TestMakerCheckerWorkflow:
         assert body.get("status") == "POSTED"
         assert body.get("approvedBy") is not None
 
-    def test_self_approval_blocked(self, officer_token, cash_account_id, loans_account_id):
+    def test_self_approval_blocked(self, maker_token, cash_account_id, loans_account_id):
         """Officer creates + submits, then tries to self-approve -> 403 or 422."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=800)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=800)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
 
         approve_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         assert approve_resp.status_code in (403, 422), (
             f"Self-approval should be blocked, got {approve_resp.status_code}"
         )
 
-    def test_reject_entry(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_reject_entry(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Create -> submit -> reject with reason -> REJECTED."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=900)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=900)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
 
         reject_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/reject",
             json={"reason": "Incorrect account mapping"},
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert reject_resp.status_code == 200, (
@@ -307,36 +313,36 @@ class TestMakerCheckerWorkflow:
         assert body.get("status") == "REJECTED"
         assert body.get("rejectionReason") is not None
 
-    def test_approve_requires_pending_status(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_approve_requires_pending_status(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Try to approve a DRAFT entry (not submitted) -> 422."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=1100)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=1100)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         approve_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert approve_resp.status_code == 422, (
             f"Approve on DRAFT should return 422, got {approve_resp.status_code}"
         )
 
-    def test_reverse_posted_entry(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_reverse_posted_entry(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Approve entry then reverse -> original becomes REVERSED + mirror entry created."""
         # Create, submit, approve
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=1200)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=1200)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
 
@@ -344,7 +350,7 @@ class TestMakerCheckerWorkflow:
         reverse_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/reverse",
             json={"reason": "Duplicate entry"},
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert reverse_resp.status_code in (200, 201), (
@@ -354,32 +360,32 @@ class TestMakerCheckerWorkflow:
         # The original entry should now be REVERSED
         original = requests.get(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         ).json()
         assert original.get("status") == "REVERSED"
 
-    def test_reverse_creates_mirror_entry(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_reverse_creates_mirror_entry(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Verify the reversal creates a mirror entry with flipped debits/credits."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=1300)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=1300)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
 
         reverse_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/reverse",
             json={"reason": "Test reversal mirror"},
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert reverse_resp.status_code in (200, 201)
@@ -391,14 +397,14 @@ class TestMakerCheckerWorkflow:
         # Verify lines are flipped: original debit becomes credit and vice versa
         original = requests.get(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         ).json()
 
         reversal_id = reversal.get("id")
         mirror = requests.get(
             f"{ACCOUNTING_URL}/journal-entries/{reversal_id}",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         ).json()
 
@@ -411,31 +417,31 @@ class TestMakerCheckerWorkflow:
             assert float(mirror_line.get("debitAmount", 0)) == float(orig_line.get("creditAmount", 0))
             assert float(mirror_line.get("creditAmount", 0)) == float(orig_line.get("debitAmount", 0))
 
-    def test_cannot_reverse_draft(self, officer_token, cash_account_id, loans_account_id):
+    def test_cannot_reverse_draft(self, maker_token, cash_account_id, loans_account_id):
         """Try to reverse a DRAFT entry -> 422."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=1400)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=1400)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         reverse_resp = requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/reverse",
             json={"reason": "Should fail"},
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         assert reverse_resp.status_code == 422, (
             f"Reverse on DRAFT should return 422, got {reverse_resp.status_code}"
         )
 
-    def test_entry_has_sequential_numbers(self, officer_token, cash_account_id, loans_account_id):
+    def test_entry_has_sequential_numbers(self, maker_token, cash_account_id, loans_account_id):
         """Create 2 entries and verify entryNumber is sequential."""
-        resp1 = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=100)
+        resp1 = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=100)
         assert resp1.status_code == 201
         num1 = resp1.json().get("entryNumber", 0)
 
         time.sleep(0.1)  # ensure different timestamps
 
-        resp2 = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=200)
+        resp2 = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=200)
         assert resp2.status_code == 201
         num2 = resp2.json().get("entryNumber", 0)
 
@@ -595,20 +601,20 @@ class TestAuditTrail:
             f"No CREATE_ENTRY audit log found for entry {entry_id}"
         )
 
-    def test_audit_log_records_approval(self, officer_token, manager_token, cash_account_id, loans_account_id):
+    def test_audit_log_records_approval(self, maker_token, checker_token, cash_account_id, loans_account_id):
         """Approve an entry and verify APPROVE_ENTRY appears in the audit log."""
-        resp = create_test_entry(officer_token, cash_account_id, loans_account_id, amount=222)
+        resp = create_test_entry(maker_token, cash_account_id, loans_account_id, amount=222)
         assert resp.status_code == 201
         entry_id = resp.json()["id"]
 
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/submit",
-            headers=auth_header(officer_token),
+            headers=auth_header(maker_token),
             timeout=TIMEOUT,
         )
         requests.post(
             f"{ACCOUNTING_URL}/journal-entries/{entry_id}/approve",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
 
@@ -616,7 +622,7 @@ class TestAuditTrail:
 
         log_resp = requests.get(
             f"{ACCOUNTING_URL}/audit-log",
-            headers=auth_header(manager_token),
+            headers=auth_header(checker_token),
             timeout=TIMEOUT,
         )
         assert log_resp.status_code == 200

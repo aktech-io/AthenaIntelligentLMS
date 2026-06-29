@@ -49,44 +49,34 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 		return nil, err
 	}
 
-	var lines []model.JournalLine
-	lineNo := 0
-	totalIncome := decimal.Zero
-	totalExpense := decimal.Zero
-
-	// reverse posts a closing line that zeroes the account's net balance.
-	reverse := func(acctID uuid.UUID, net decimal.Decimal) {
-		if net.IsZero() {
-			return
-		}
-		lineNo++
-		if net.IsPositive() {
-			// net debit balance -> credit to reverse
-			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: net, Currency: "KES"})
-		} else {
-			// net credit balance -> debit to reverse
-			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: net.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
-		}
-	}
-
+	// Gather the net balance of every P&L account, then build the closing lines.
+	income := make([]accountBalance, 0, len(incomeAccts))
 	for _, a := range incomeAccts {
 		net, err := s.repo.GetNetBalance(ctx, a.ID, tenantID) // debits - credits
 		if err != nil {
 			return nil, err
 		}
-		totalIncome = totalIncome.Add(net.Neg()) // income has a credit (negative) net
-		reverse(a.ID, net)
+		income = append(income, accountBalance{ID: a.ID, Net: net})
 	}
+	expense := make([]accountBalance, 0, len(expenseAccts))
 	for _, a := range expenseAccts {
 		net, err := s.repo.GetNetBalance(ctx, a.ID, tenantID)
 		if err != nil {
 			return nil, err
 		}
-		totalExpense = totalExpense.Add(net) // expense has a debit (positive) net
-		reverse(a.ID, net)
+		expense = append(expense, accountBalance{ID: a.ID, Net: net})
 	}
 
-	netIncome := totalIncome.Sub(totalExpense)
+	// Retained Earnings (3000) receives the balancing leg.
+	reID, err := s.resolveAccountID(ctx, tenantID, "3000")
+	if err != nil {
+		return nil, err
+	}
+
+	lines, totalIncome, totalExpense, netIncome, err := buildYearEndCloseLines(income, expense, reID)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(lines) == 0 {
 		return &YearEndCloseResponse{
@@ -95,27 +85,11 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 		}, nil
 	}
 
-	// Balancing leg: roll net income to Retained Earnings (3000).
-	reID, err := s.resolveAccountID(ctx, tenantID, "3000")
-	if err != nil {
-		return nil, err
-	}
-	if netIncome.IsPositive() {
-		lineNo++
-		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: netIncome, Currency: "KES"})
-	} else if netIncome.IsNegative() {
-		lineNo++
-		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: netIncome.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
-	}
-
-	// Assert balance — never post an unbalanced entry.
+	// buildYearEndCloseLines guarantees the lines balance; sum for the header.
 	totalDr, totalCr := decimal.Zero, decimal.Zero
 	for _, l := range lines {
 		totalDr = totalDr.Add(l.DebitAmount)
 		totalCr = totalCr.Add(l.CreditAmount)
-	}
-	if !totalDr.Equal(totalCr) {
-		return nil, fmt.Errorf("year-end closing entry is not balanced: DR %s != CR %s", totalDr, totalCr)
 	}
 
 	postedBy := "system"
@@ -164,6 +138,82 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 		ClosingEntryID: &entry.ID, PeriodsClosed: periodsClosed,
 		Message: "Year-end close posted; net income rolled to Retained Earnings and periods locked.",
 	}, nil
+}
+
+// accountBalance pairs a P&L account with its net balance (debits − credits):
+// income accounts carry a credit (negative) net, expense accounts a debit
+// (positive) net.
+type accountBalance struct {
+	ID  uuid.UUID
+	Net decimal.Decimal
+}
+
+// buildYearEndCloseLines builds the balanced set of closing journal lines for a
+// fiscal year-end: each P&L account is zeroed by a line reversing its net
+// balance, and the net result (income − expense) is rolled into Retained
+// Earnings (reID). Accounts already at zero contribute no line. It returns the
+// lines together with the income/expense/net-income totals.
+//
+// This is pure (no repo/ctx) so the closing arithmetic is unit-testable; the
+// returned lines are asserted balanced before return, so an unbalanced
+// (GL-corrupting) entry can never be produced.
+func buildYearEndCloseLines(income, expense []accountBalance, reID uuid.UUID) (
+	lines []model.JournalLine, totalIncome, totalExpense, netIncome decimal.Decimal, err error,
+) {
+	totalIncome, totalExpense = decimal.Zero, decimal.Zero
+	lineNo := 0
+
+	// reverse appends a closing line that zeroes the account's net balance.
+	reverse := func(acctID uuid.UUID, net decimal.Decimal) {
+		if net.IsZero() {
+			return
+		}
+		lineNo++
+		if net.IsPositive() {
+			// net debit balance -> credit to reverse
+			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: net, Currency: "KES"})
+		} else {
+			// net credit balance -> debit to reverse
+			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: net.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
+		}
+	}
+
+	for _, a := range income {
+		totalIncome = totalIncome.Add(a.Net.Neg()) // income has a credit (negative) net
+		reverse(a.ID, a.Net)
+	}
+	for _, a := range expense {
+		totalExpense = totalExpense.Add(a.Net) // expense has a debit (positive) net
+		reverse(a.ID, a.Net)
+	}
+
+	netIncome = totalIncome.Sub(totalExpense)
+
+	if len(lines) == 0 {
+		return nil, totalIncome, totalExpense, netIncome, nil
+	}
+
+	// Balancing leg: roll net income to Retained Earnings.
+	if netIncome.IsPositive() {
+		lineNo++
+		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: netIncome, Currency: "KES"})
+	} else if netIncome.IsNegative() {
+		lineNo++
+		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: netIncome.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
+	}
+
+	// Assert balance — never return an unbalanced entry.
+	totalDr, totalCr := decimal.Zero, decimal.Zero
+	for _, l := range lines {
+		totalDr = totalDr.Add(l.DebitAmount)
+		totalCr = totalCr.Add(l.CreditAmount)
+	}
+	if !totalDr.Equal(totalCr) {
+		return nil, totalIncome, totalExpense, netIncome,
+			fmt.Errorf("year-end closing entry is not balanced: DR %s != CR %s", totalDr, totalCr)
+	}
+
+	return lines, totalIncome, totalExpense, netIncome, nil
 }
 
 func parseYear(year string) (int, error) {
