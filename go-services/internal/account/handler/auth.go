@@ -52,47 +52,45 @@ func NewAuthHandler(base64Secret string, perms PermissionResolver, logger *zap.L
 	}
 
 	tenantID := envOr("LMS_AUTH_TENANT_ID", "admin")
-	adminPwd := envOr("LMS_AUTH_ADMIN_PASSWORD", "admin123")
-	managerPwd := envOr("LMS_AUTH_MANAGER_PASSWORD", "manager123")
-	officerPwd := envOr("LMS_AUTH_OFFICER_PASSWORD", "officer123")
 
-	users := map[string]*LmsUser{
-		"admin": {
-			Username: "admin", Password: adminPwd,
-			Name: "System Administrator", Email: "admin@athena.com",
-			TenantID: tenantID, Roles: []string{"ADMIN", "USER"},
-		},
-		"admin@athena.com": {
-			Username: "admin@athena.com", Password: adminPwd,
-			Name: "System Administrator", Email: "admin@athena.com",
-			TenantID: tenantID, Roles: []string{"ADMIN", "USER"},
-		},
-		"manager": {
-			Username: "manager", Password: managerPwd,
-			Name: "Branch Manager", Email: "manager@athena.com",
-			TenantID: tenantID, Roles: []string{"MANAGER", "USER"},
-		},
-		"manager@athena.com": {
-			Username: "manager@athena.com", Password: managerPwd,
-			Name: "Branch Manager", Email: "manager@athena.com",
-			TenantID: tenantID, Roles: []string{"MANAGER", "USER"},
-		},
-		"officer": {
-			Username: "officer", Password: officerPwd,
-			Name: "Loan Officer", Email: "officer@athena.com",
-			TenantID: tenantID, Roles: []string{"OFFICER", "USER"},
-		},
-		"officer@athena.com": {
-			Username: "officer@athena.com", Password: officerPwd,
-			Name: "Loan Officer", Email: "officer@athena.com",
-			TenantID: tenantID, Roles: []string{"OFFICER", "USER"},
-		},
-		"teller@athena.com": {
-			Username: "teller@athena.com", Password: "teller123",
-			Name: "Senior Teller", Email: "teller@athena.com",
-			TenantID: tenantID, Roles: []string{"TELLER", "USER"},
-		},
+	// SECURITY (CRIT-2): no hardcoded password defaults. Passwords are supplied
+	// per account via env (sourced from a k8s Secret in production). Known demo
+	// defaults are used ONLY when LMS_AUTH_ALLOW_DEFAULT_PASSWORDS=true is set
+	// explicitly (local/dev/CI) — production leaves it unset, so a missing
+	// password means that account is not created, and a missing ADMIN password
+	// is a fatal misconfiguration rather than a silent "admin/admin123".
+	allowDefaults := os.Getenv("LMS_AUTH_ALLOW_DEFAULT_PASSWORDS") == "true"
+	pwd := func(envKey, devDefault string) string {
+		if v := os.Getenv(envKey); v != "" {
+			return v
+		}
+		if allowDefaults {
+			return devDefault
+		}
+		return ""
 	}
+
+	adminPwd := pwd("LMS_AUTH_ADMIN_PASSWORD", "admin123")
+	if adminPwd == "" {
+		return nil, fmt.Errorf("LMS_AUTH_ADMIN_PASSWORD is required (or set LMS_AUTH_ALLOW_DEFAULT_PASSWORDS=true for dev); refusing to start with a default/empty admin password")
+	}
+	managerPwd := pwd("LMS_AUTH_MANAGER_PASSWORD", "manager123")
+	officerPwd := pwd("LMS_AUTH_OFFICER_PASSWORD", "officer123")
+	tellerPwd := pwd("LMS_AUTH_TELLER_PASSWORD", "teller123")
+
+	users := map[string]*LmsUser{}
+	addUser := func(usernames []string, password, name, email string, roles []string) {
+		if password == "" {
+			return // account disabled when no password is configured
+		}
+		for _, u := range usernames {
+			users[u] = &LmsUser{Username: u, Password: password, Name: name, Email: email, TenantID: tenantID, Roles: roles}
+		}
+	}
+	addUser([]string{"admin", "admin@athena.com"}, adminPwd, "System Administrator", "admin@athena.com", []string{"ADMIN", "USER"})
+	addUser([]string{"manager", "manager@athena.com"}, managerPwd, "Branch Manager", "manager@athena.com", []string{"MANAGER", "USER"})
+	addUser([]string{"officer", "officer@athena.com"}, officerPwd, "Loan Officer", "officer@athena.com", []string{"OFFICER", "USER"})
+	addUser([]string{"teller@athena.com"}, tellerPwd, "Senior Teller", "teller@athena.com", []string{"TELLER", "USER"})
 
 	return &AuthHandler{users: users, jwtSecret: key, perms: perms, logger: logger}, nil
 }
