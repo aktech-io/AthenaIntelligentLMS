@@ -56,16 +56,28 @@ this to resume if a session ends.
    (`internal/accounting/service/yearend.go`): reverses each P&L (INCOME+EXPENSE)
    net into a balanced system closing entry, rolls net income to Retained Earnings
    (3000), locks the 12 periods. Balance-asserted before posting (can't corrupt
-   GL). RBAC-gated. Verified: officer→403, no-activity handled, trial balance stays
-   balanced. NOTE: demo has ~0 P&L balances so a non-zero close path wasn't
-   exercised on live data — exercise it with a seeded P&L entry in a test env.
+   GL). RBAC-gated. ~~NOTE: non-zero close path not exercised on live data.~~
+   ✅ **non-zero path now covered (2026-06-29)** — extracted the closing-line math
+   into pure `buildYearEndCloseLines()` and unit-tested profit/loss/break-even/
+   no-activity/multi-account (`yearend_test.go`). Done as a unit test on purpose:
+   running the real close on the shared demo tenant would sweep its accumulated
+   P&L into Retained Earnings (GetNetBalance is not year-filtered). Also repaired
+   `test_28` which was fully broken in CI (admin_token ScopeMismatch + officer
+   maker → 403 under RBAC; maker now MANAGER, checker ADMIN). 30/30 green.
 2. **return→outbox-retry** — DEFERRED (see `docs/TODO_return_to_outbox_retry.md` for the full spec). make an unroutable
    (basic.return) publish fail so the outbox retries instead of marking dispatched.
    Needs confirm+return correlation; fail-safe design (never worse than today).
    Requires rebuilding ALL services (shared lib).
 3. ~~**Proper IFRS 9 PD/LGD/EAD**~~ ✅ DONE — ECL now EAD×PD×LGD with components
-   exposed; remaining: calibrate PD/LGD from historical data.
-4. RBAC rollout to KYC / SAR / remaining surfaces; central role→permission matrix.
+   exposed. **Calibration spike concluded (2026-06-29): blocked on data, not code.**
+   51 loans, all PERFORMING, 0 defaults, no recovery/write-off capture → PD/LGD are
+   unestimable; benchmark params (PD 2/20/100%, LGD 45%) remain the correct interim.
+   Finding + data prerequisites + method documented in `docs/IFRS9_PD_LGD_CALIBRATION.md`.
+4. ~~RBAC rollout to KYC / SAR~~ ✅ **DONE (2026-06-29)** — compliance SAR filing,
+   AML alert resolution, and KYC pass/fail gated to ADMIN/MANAGER
+   (`internal/compliance/handler/handler.go`); `tests/test_33_rbac_compliance.py`
+   (10 tests, verified live). **Remaining:** product activate, watchlist; central
+   role→permission matrix vs inline lists.
 
 ## 🛠️ Operational runbook (local k3s)
 - **Cluster was found scaled to 0 after a restart.** Bring up:
