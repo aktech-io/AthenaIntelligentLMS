@@ -313,6 +313,14 @@ func (gw *Gateway) newReverseProxy(targetURL string, routeID string) *httputil.R
 		req.URL.Path = stripPrefix(req.URL.Path)
 		req.URL.RawPath = stripPrefix(req.URL.RawPath)
 		req.Host = target.Host
+		// SECURITY (CRIT-1): never forward client-supplied internal service-auth
+		// headers to backends. The service-key path grants SERVICE+ADMIN on any
+		// tenant; allowing a client to smuggle these through the public gateway
+		// is a full auth/tenant bypass. Internal service-to-service calls do not
+		// transit the gateway, so stripping here is safe.
+		req.Header.Del("X-Service-Key")
+		req.Header.Del("X-Service-Tenant")
+		req.Header.Del("X-Service-User")
 	}
 
 	// Custom error handler to record circuit breaker failures
@@ -431,26 +439,58 @@ func (gw *Gateway) proxyHandler(proxy *httputil.ReverseProxy, cb *CircuitBreaker
 // CORS middleware
 // ---------------------------------------------------------------------------
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
+// newCORSMiddleware builds a CORS middleware restricted to an explicit origin
+// allowlist. SECURITY (HIGH-1): the previous implementation reflected ANY Origin
+// while also sending Access-Control-Allow-Credentials: true, which lets any web
+// page make credentialed cross-origin calls. We now only echo an Origin (and set
+// credentials) when it is explicitly allowed. A literal "*" entry allows all
+// origins but WITHOUT credentials (the only spec-safe wildcard).
+//
+// Non-browser clients (mobile, USSD) send no Origin and are unaffected.
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func newCORSMiddleware(allowed []string) func(http.Handler) http.Handler {
+	allowAll := false
+	set := make(map[string]bool, len(allowed))
+	for _, o := range allowed {
+		o = strings.TrimSpace(o)
+		if o == "*" {
+			allowAll = true
+		} else if o != "" {
+			set[o] = true
 		}
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				switch {
+				case set[origin]:
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Add("Vary", "Origin")
+				case allowAll:
+					// Wildcard without credentials (cannot combine "*" + credentials).
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				}
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+				w.Header().Set("Access-Control-Max-Age", "3600")
+			}
 
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, X-Service-Key, X-Service-Tenant, X-Service-User")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Max-Age", "3600")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -515,13 +555,20 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(commonmw.Recovery(logger))
 	r.Use(commonmw.Logging(logger, cfg.ServiceName))
-	r.Use(corsMiddleware)
+	// CORS origin allowlist (comma-separated env, e.g. https://portal.example.com).
+	// Defaults to local dev portal origins; set LMS_CORS_ALLOWED_ORIGINS in prod.
+	corsOrigins := strings.Split(envOrDefault("LMS_CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001"), ",")
+	r.Use(newCORSMiddleware(corsOrigins))
 
 	// Health endpoint (unauthenticated)
 	r.Get("/actuator/health", healthHandler(gw))
 
-	// Auth middleware
-	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)
+	// Auth middleware. SECURITY (CRIT-1): the public gateway must NOT honour the
+	// internal service key — that path grants SERVICE+ADMIN on a client-supplied
+	// tenant and would bypass JWT auth and all RBAC. Service-to-service calls go
+	// directly between in-cluster services, never through this ingress, so the
+	// gateway is constructed with an empty internal key (JWT only).
+	authMw := auth.NewMiddleware(jwtUtil, "", logger)
 
 	// Register all proxy routes
 	gw.RegisterRoutes(r, authMw)

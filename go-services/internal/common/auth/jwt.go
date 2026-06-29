@@ -16,10 +16,18 @@ type JWTUtil struct {
 }
 
 // NewJWTUtil creates a JWTUtil from a base64-encoded HMAC secret.
+//
+// SECURITY (HIGH-2): an empty or too-short secret is rejected rather than
+// accepted. Previously an empty JWT_SECRET decoded to an empty HMAC key and was
+// used as-is, which is a fail-open: tokens validate against a known/empty key.
+// HMAC-SHA256 needs at least a 256-bit (32-byte) key for full strength.
 func NewJWTUtil(base64Secret string) (*JWTUtil, error) {
 	key, err := base64.StdEncoding.DecodeString(base64Secret)
 	if err != nil {
 		return nil, fmt.Errorf("decode jwt secret: %w", err)
+	}
+	if len(key) < 32 {
+		return nil, fmt.Errorf("jwt secret too weak: decoded to %d bytes, require >= 32 (256-bit)", len(key))
 	}
 	return &JWTUtil{signingKey: key}, nil
 }
