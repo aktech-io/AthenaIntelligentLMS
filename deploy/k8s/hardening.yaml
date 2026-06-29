@@ -1,0 +1,83 @@
+# PRODUCTION HARDENING PATCHES — go-live availability + network isolation.
+# Apply per service (example shown for account-service; replicate for each).
+# Addresses: HIGH (no liveness probe, single replica, no HPA/PDB) and CRIT-1
+# defence-in-depth (NetworkPolicy so the internal service-key path is only
+# reachable in-cluster, never from ingress).
+#
+# These are templates — review resource targets per service before applying.
+---
+# 1) Source secrets from the Secret instead of the plaintext ConfigMap, and add a
+#    LIVENESS probe (HIGH-4: today only readiness exists, so a wedged pod is
+#    pulled from rotation but never restarted). Strategic-merge patch:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: lms
+spec:
+  replicas: 2                      # HA: no single point of failure during rollouts/hangs
+  template:
+    spec:
+      containers:
+        - name: account-service
+          envFrom:
+            - configMapRef:
+                name: lms-go-common   # keep NON-secret config here
+            - secretRef:
+                name: lms-secrets     # secrets now sourced from the Secret
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3       # restart a wedged pod
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+---
+# 2) PodDisruptionBudget — keep at least one pod during voluntary disruptions
+#    (node drains, rollouts). Requires replicas >= 2.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: account-service-pdb
+  namespace: lms
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: account-service }
+---
+# 3) HorizontalPodAutoscaler — scale with load (needs metrics-server).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: account-service-hpa
+  namespace: lms
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: account-service }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+# 4) NetworkPolicy — only the gateway may reach service HTTP ports from outside
+#    its own tier; the internal service-key auth path is therefore not reachable
+#    from the ingress/gateway hop, only from peer services. Tighten selectors to
+#    your topology. (Requires a CNI that enforces NetworkPolicy.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lms-default-deny-ingress
+  namespace: lms
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}            # allow same-namespace peers (service-to-service)
+      # Add an explicit rule allowing the gateway -> services, and expose ONLY the
+      # gateway via the Ingress/LoadBalancer. Backends are not internet-facing.

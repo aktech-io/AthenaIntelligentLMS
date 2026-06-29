@@ -46,3 +46,6 @@ Thumbs.db
 
 # Go vendored deps (created at build time by scripts/build-k3s.sh)
 go-services/vendor/
+
+# Real k8s secrets (never commit)
+deploy/k8s/lms-secrets.yaml
