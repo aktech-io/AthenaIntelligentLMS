@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -46,8 +47,8 @@ func TestYearEndClose_Profit(t *testing.T) {
 	exp := uuid.New()
 	re := uuid.New()
 
-	income := []accountBalance{{ID: inc, Net: dec("-5000")}}  // credit balance
-	expense := []accountBalance{{ID: exp, Net: dec("2000")}}  // debit balance
+	income := []accountBalance{{ID: inc, Net: dec("-5000")}} // credit balance
+	expense := []accountBalance{{ID: exp, Net: dec("2000")}} // debit balance
 
 	lines, ti, te, ni, err := buildYearEndCloseLines(income, expense, re)
 	require.NoError(t, err)
@@ -151,6 +152,66 @@ func TestYearEndClose_MultiAccount(t *testing.T) {
 	assert.False(t, hasZero, "zero-balance account contributes no line")
 	assert.True(t, byID[re].cr.Equal(dec("5000")), "aggregate profit to RE")
 	assert.Len(t, lines, 5, "i1,i2,e1,e2 reversals + RE leg")
+}
+
+// TestFiscalYearBounds verifies the half-open [start, nextStart) range used to
+// bound the year-end sweep to a single fiscal year (H-1). The upper bound is the
+// first instant of the following year so all of 31 December is captured.
+func TestFiscalYearBounds(t *testing.T) {
+	start, next := fiscalYearBounds(2024)
+	assert.Equal(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), start)
+	assert.Equal(t, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), next)
+
+	// A 31-December entry must fall inside the range; 1 January of next year must not.
+	dec31 := time.Date(2024, 12, 31, 23, 59, 0, 0, time.UTC)
+	assert.True(t, !dec31.Before(start) && dec31.Before(next), "31 Dec is in-year")
+	jan1Next := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	assert.False(t, jan1Next.Before(next), "1 Jan next year is at/after the exclusive upper bound")
+}
+
+// TestCheckPriorYearClosed exercises the sequential-close guard (H-1): the prior
+// fiscal year must be locked before this year can close, EXCEPT when the prior
+// year has no posted activity at all (the first operating year).
+func TestCheckPriorYearClosed(t *testing.T) {
+	// Out-of-sequence: prior year has activity but is not closed -> rejected.
+	err := checkPriorYearClosed(2024, false, true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "2023")
+
+	// First operating year: prior year has no activity -> allowed.
+	assert.NoError(t, checkPriorYearClosed(2024, false, false))
+
+	// Prior year already locked -> allowed regardless of activity.
+	assert.NoError(t, checkPriorYearClosed(2024, true, true))
+	assert.NoError(t, checkPriorYearClosed(2024, true, false))
+}
+
+// TestYearEndCloseSweepsOnlyGivenBalances proves the close builds its sweep
+// strictly from the (already date-bounded) balances it is handed: only those
+// amounts are reversed and rolled to Retained Earnings. Combined with
+// GetNetBalanceForRange (date-bounded, exercised in the repository integration
+// test), this is the H-1 guarantee that lifetime P&L is never swept.
+func TestYearEndCloseSweepsOnlyGivenBalances(t *testing.T) {
+	inc := uuid.New()
+	exp := uuid.New()
+	re := uuid.New()
+
+	// These represent ONLY the target year's activity as returned by the
+	// date-bounded query — prior-year activity is already excluded upstream.
+	income := []accountBalance{{ID: inc, Net: dec("-8000")}} // 8,000 earned this year
+	expense := []accountBalance{{ID: exp, Net: dec("3000")}} // 3,000 spent this year
+
+	lines, ti, te, ni, err := buildYearEndCloseLines(income, expense, re)
+	require.NoError(t, err)
+
+	assert.True(t, ti.Equal(dec("8000")), "only in-year income swept")
+	assert.True(t, te.Equal(dec("3000")), "only in-year expense swept")
+	assert.True(t, ni.Equal(dec("5000")), "net income reflects in-year P&L only")
+
+	byID := indexByID(toDC(lines))
+	assert.True(t, byID[inc].dr.Equal(dec("8000")), "income reversed by exactly the in-year amount")
+	assert.True(t, byID[exp].cr.Equal(dec("3000")), "expense reversed by exactly the in-year amount")
+	assert.True(t, byID[re].cr.Equal(dec("5000")), "in-year net profit rolled to RE")
 }
 
 func indexByID(lines []journalLineDebitCredit) map[uuid.UUID]journalLineDebitCredit {

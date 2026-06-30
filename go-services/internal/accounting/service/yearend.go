@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/accounting/model"
+	"github.com/athena-lms/go-services/internal/common/errors"
 )
 
 // YearEndCloseResponse summarises a fiscal year-end close.
@@ -37,6 +38,28 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 	if err != nil {
 		return nil, err
 	}
+	yearStart, nextYearStart := fiscalYearBounds(yr)
+
+	// Sequential-close guard (H-1): the immediately-preceding fiscal year must
+	// already be locked before this year can close, to prevent out-of-sequence
+	// closes that would strand or double-count P&L. A prior year with no posted
+	// activity at all (e.g. the first year of operation) has nothing to close
+	// and is permitted.
+	priorClosed, err := s.priorYearClosed(ctx, tenantID, yr)
+	if err != nil {
+		return nil, err
+	}
+	priorActivity := false
+	if !priorClosed {
+		priorStart, _ := fiscalYearBounds(yr - 1)
+		priorActivity, err = s.repo.HasPostedEntriesInRange(ctx, tenantID, priorStart, yearStart)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := checkPriorYearClosed(yr, priorClosed, priorActivity); err != nil {
+		return nil, err
+	}
 
 	incomeType := model.AccountTypeIncome
 	expenseType := model.AccountTypeExpense
@@ -50,9 +73,11 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 	}
 
 	// Gather the net balance of every P&L account, then build the closing lines.
+	// Net balances are bounded to the fiscal year's date range so the close
+	// sweeps ONLY this year's P&L activity, not lifetime balances (H-1).
 	income := make([]accountBalance, 0, len(incomeAccts))
 	for _, a := range incomeAccts {
-		net, err := s.repo.GetNetBalance(ctx, a.ID, tenantID) // debits - credits
+		net, err := s.repo.GetNetBalanceForRange(ctx, a.ID, tenantID, yearStart, nextYearStart) // debits - credits
 		if err != nil {
 			return nil, err
 		}
@@ -60,7 +85,7 @@ func (s *AccountingService) YearEndClose(ctx context.Context, tenantID string, y
 	}
 	expense := make([]accountBalance, 0, len(expenseAccts))
 	for _, a := range expenseAccts {
-		net, err := s.repo.GetNetBalance(ctx, a.ID, tenantID)
+		net, err := s.repo.GetNetBalanceForRange(ctx, a.ID, tenantID, yearStart, nextYearStart)
 		if err != nil {
 			return nil, err
 		}
@@ -222,4 +247,39 @@ func parseYear(year string) (int, error) {
 		return 0, fmt.Errorf("invalid year: %q", year)
 	}
 	return y, nil
+}
+
+// fiscalYearBounds returns the half-open date range [start, nextStart) covering
+// the whole of fiscal year yr. The upper bound is exclusive (1 January of the
+// next year) so all of 31 December is captured regardless of any time
+// component on the entry date. Pure for unit-testing.
+func fiscalYearBounds(yr int) (start, nextStart time.Time) {
+	start = time.Date(yr, 1, 1, 0, 0, 0, 0, time.UTC)
+	nextStart = time.Date(yr+1, 1, 1, 0, 0, 0, 0, time.UTC)
+	return start, nextStart
+}
+
+// checkPriorYearClosed enforces sequential year-end closing: the immediately
+// preceding fiscal year must already be locked before this year can close.
+// A prior year with no posted activity at all (the first operating year) has
+// nothing to close and is permitted. Pure for unit-testing.
+func checkPriorYearClosed(yr int, priorYearClosed, priorYearHasActivity bool) error {
+	if priorYearClosed || !priorYearHasActivity {
+		return nil
+	}
+	return errors.NewBusinessError(fmt.Sprintf(
+		"Cannot close fiscal year %d: prior fiscal year %d has posted activity but is not closed; close %d first",
+		yr, yr-1, yr-1))
+}
+
+// priorYearClosed reports whether the fiscal year before yr is locked. A fiscal
+// year is treated as closed once its December period is CLOSED — the year-end
+// close locks all twelve periods, so a locked December implies the year was
+// closed.
+func (s *AccountingService) priorYearClosed(ctx context.Context, tenantID string, yr int) (bool, error) {
+	dec, err := s.repo.FindPeriod(ctx, tenantID, yr-1, 12)
+	if err != nil {
+		return false, err
+	}
+	return dec != nil && dec.Status == model.PeriodStatusClosed, nil
 }
