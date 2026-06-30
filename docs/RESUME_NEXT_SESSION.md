@@ -9,17 +9,24 @@
   overdraft.repaid / overdraft.interest.charged / float.repaid) (`9d6f1d3`).
 - **Regulatory spec** — `docs/REGULATORY_REPORTING_KE.md` (gap analysis + build order) (`d0932b9`).
 
+## ✅ Also done & pushed (2026-07-01)
+- **Per-tenant regulatory profile FOUNDATION** (`a6404be`) — `internal/regulatory` in the
+  compliance service: `regulatory_profile` table + hash-chained append-only `audit_log`
+  (compliance migrations 2/3/4), license types → default report sets, rate-free provisioning
+  pointer keys, bureau-agnostic CRB config, `GET/PUT /api/v1/regulatory/profile` (GET open,
+  PUT ADMIN+audited, seeds DCP default on first read). Build/vet/tests green.
+
 ## ▶️ NEXT — pick up here (in order)
-1. **H-2 (NOT done — agent died on spend limit, re-dispatch).** Enforce closed-period
+1. **H-2 (STILL NOT done — agent died twice, re-dispatch or do inline).** Enforce closed-period
    immutability on ALL system/event posters (they bypass `checkPeriodOpen` today).
    **Decision: REDIRECT to current open period** (re-date the entry into the open period,
    keep original event date; fail closed only if ALL periods closed). Centralize the check
    in the shared posting path. Worktree + review, no push to master without EM review.
-2. **Regulatory epic — GREENLIT: "Foundation + CRB feed first".**
-   - **Per-tenant regulatory profile** (foundation): license type → report set + provisioning
-     table + CRB target + frequency. Org settings exist but no regulatory profile yet.
-   - **CRB borrower feed** (go-live blocker, mandatory): **bureau-agnostic, config-driven**
-     generator (pluggable output mapper; Metropol/TransUnion/Creditinfo per-tenant config).
+2. **CRB borrower feed** (go-live blocker, mandatory) — reads the new regulatory profile.
+   **Bureau-agnostic, config-driven** generator (pluggable output mapper;
+   Metropol/TransUnion/Creditinfo per-tenant config). Monthly borrower performance export.
+   Consume the profile via `regulatory/service.GetOrCreateForTenant` (CrbBureau / CrbEnabled /
+   CrbSubmissionFrequency / ReportSet).
 3. **H-4 — CBK provisioning overlay (scoped, queued).** Post IFRS-9 **movement** (required ECL −
    current allowance) to P&L, stage-tagged, maker-checker, **DRAFT until PD/LGD calibrated**;
    book **excess of CBK provision over IFRS to a non-distributable Statutory Loan Loss Reserve
