@@ -382,7 +382,7 @@ func (s *AccountingService) PostLoanDisbursement(ctx context.Context, tenantID, 
 		"loan.disbursed", applicationID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted disbursement journal", zap.String("applicationId", applicationID), zap.String("amount", amount.String()))
@@ -483,7 +483,7 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 		})
 	}
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted repayment journal",
@@ -510,7 +510,7 @@ func (s *AccountingService) PostPaymentReversal(ctx context.Context, tenantID, p
 		"payment.reversed", paymentID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	return nil
@@ -532,7 +532,7 @@ func (s *AccountingService) PostOverdraftDrawn(ctx context.Context, tenantID, so
 		"Overdraft drawn "+sourceID, "overdraft.drawn", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted overdraft drawn journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -555,7 +555,7 @@ func (s *AccountingService) PostOverdraftRepaid(ctx context.Context, tenantID, s
 		"Overdraft repayment "+sourceID, "overdraft.repaid", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted overdraft repayment journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -578,7 +578,7 @@ func (s *AccountingService) PostOverdraftInterestCharged(ctx context.Context, te
 		"Overdraft interest charged "+sourceID, "overdraft.interest.charged", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted overdraft interest journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -601,7 +601,7 @@ func (s *AccountingService) PostOverdraftFeeCharged(ctx context.Context, tenantI
 		"Overdraft fee charged "+sourceID, "overdraft.fee.charged", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted overdraft fee journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -624,7 +624,7 @@ func (s *AccountingService) PostFloatDrawn(ctx context.Context, tenantID, source
 		"Float drawn for loan disbursement "+sourceID, "float.drawn", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted float drawn journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -647,7 +647,7 @@ func (s *AccountingService) PostFloatRepaid(ctx context.Context, tenantID, sourc
 		"Float repayment from collections "+sourceID, "float.repaid", sourceID,
 		drAccount, crAccount, amount)
 
-	if err := s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted); err != nil {
+	if err := s.postSystemEntry(ctx, entry); err != nil {
 		return err
 	}
 	s.logger.Info("Posted float repayment journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
@@ -986,6 +986,80 @@ func (s *AccountingService) checkPeriodOpen(ctx context.Context, tenantID string
 		return errors.NewBusinessError(fmt.Sprintf("Fiscal period %d/%02d is closed", year, month))
 	}
 	return nil
+}
+
+// maxRedirectMonths bounds the forward search for an open period when redirecting
+// a system entry out of a closed period (degenerate guard; normally i==0 hits).
+const maxRedirectMonths = 24
+
+// resolveOpenPostingDate decides the posting date for a system-generated entry so
+// it never lands in a CLOSED fiscal period (H-2: closed-period immutability). If
+// preferred's period is open it is returned unchanged. Otherwise the entry is a
+// late posting into a closed period and is redirected to the current open period:
+// starting at now it walks forward to the first non-closed month (today's date if
+// i==0, else the 1st of that month). ok=false if no open period exists within
+// maxRedirectMonths, so the caller fails closed rather than post into a closed one.
+func resolveOpenPostingDate(preferred, now time.Time, isClosed func(year, month int) bool) (postDate time.Time, redirected, ok bool) {
+	if !isClosed(preferred.Year(), int(preferred.Month())) {
+		return preferred, false, true
+	}
+	now = now.UTC()
+	for i := 0; i < maxRedirectMonths; i++ {
+		cand := now.AddDate(0, i, 0)
+		if !isClosed(cand.Year(), int(cand.Month())) {
+			if i == 0 {
+				return cand, true, true
+			}
+			return time.Date(cand.Year(), cand.Month(), 1, 0, 0, 0, 0, time.UTC), true, true
+		}
+	}
+	return time.Time{}, false, false
+}
+
+// postSystemEntry is the single posting path for all event-driven/system journal
+// entries. It enforces closed-period immutability: an entry whose date falls in a
+// CLOSED period is redirected to the current open period (re-dated, original event
+// date preserved in the description) rather than corrupting the closed period or
+// being dropped. Centralising it here means a future poster cannot silently bypass
+// the period lock. Fails closed if no open period is available.
+func (s *AccountingService) postSystemEntry(ctx context.Context, entry *model.JournalEntry) error {
+	var lookupErr error
+	isClosed := func(year, month int) bool {
+		if lookupErr != nil {
+			return true
+		}
+		p, ferr := s.repo.FindPeriod(ctx, entry.TenantID, year, month)
+		if ferr != nil {
+			lookupErr = ferr
+			return true
+		}
+		return p != nil && p.Status == model.PeriodStatusClosed
+	}
+	postDate, redirected, ok := resolveOpenPostingDate(entry.EntryDate, time.Now(), isClosed)
+	if lookupErr != nil {
+		return lookupErr
+	}
+	if !ok {
+		return errors.NewBusinessError("no open fiscal period available to post system entry")
+	}
+	if redirected {
+		orig := entry.EntryDate
+		entry.EntryDate = postDate
+		note := fmt.Sprintf("System entry redirected from closed period %d/%02d; original event date %s",
+			orig.Year(), int(orig.Month()), orig.Format("2006-01-02"))
+		if entry.Description != nil {
+			d := *entry.Description + " [" + note + "]"
+			entry.Description = &d
+		} else {
+			entry.Description = &note
+		}
+		s.logger.Warn("system journal redirected from closed period",
+			zap.String("tenantId", entry.TenantID),
+			zap.Time("originalDate", orig),
+			zap.Time("postDate", postDate),
+			zap.String("reference", entry.Reference))
+	}
+	return s.repo.CreateJournalEntryWithEvent(ctx, entry, s.publisher.BuildJournalPosted)
 }
 
 // isOperatingAccount classifies an account code as operating activity.

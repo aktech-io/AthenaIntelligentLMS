@@ -16,13 +16,15 @@
   pointer keys, bureau-agnostic CRB config, `GET/PUT /api/v1/regulatory/profile` (GET open,
   PUT ADMIN+audited, seeds DCP default on first read). Build/vet/tests green.
 
+## ✅ H-2 done & pushed (2026-07-01)
+- **Closed-period immutability on system postings** — all 9 event-driven posters in
+  `internal/accounting/service/service.go` now route through `postSystemEntry`, which
+  redirects an entry out of a CLOSED period into the current open period (re-dated, original
+  event date preserved in the description), fail-closed if no open period in 24mo. Pure
+  `resolveOpenPostingDate` helper unit-tested. Year-end's own posting path left untouched.
+
 ## ▶️ NEXT — pick up here (in order)
-1. **H-2 (STILL NOT done — agent died twice, re-dispatch or do inline).** Enforce closed-period
-   immutability on ALL system/event posters (they bypass `checkPeriodOpen` today).
-   **Decision: REDIRECT to current open period** (re-date the entry into the open period,
-   keep original event date; fail closed only if ALL periods closed). Centralize the check
-   in the shared posting path. Worktree + review, no push to master without EM review.
-2. **CRB borrower feed** (go-live blocker, mandatory) — reads the new regulatory profile.
+1. **CRB borrower feed** (go-live blocker, mandatory) — reads the new regulatory profile.
    **Bureau-agnostic, config-driven** generator (pluggable output mapper;
    Metropol/TransUnion/Creditinfo per-tenant config). Monthly borrower performance export.
    Consume the profile via `regulatory/service.GetOrCreateForTenant` (CrbBureau / CrbEnabled /
