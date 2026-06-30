@@ -35,7 +35,13 @@ is a user-visible outage.
 - **HIGH-1** CORS reflect-any-origin + credentials — ✅ FIXED (origin allowlist via `LMS_CORS_ALLOWED_ORIGINS`).
 - **HIGH-2** empty JWT secret fails open — ✅ FIXED (reject secret < 32 bytes).
 - **CRIT-3** plaintext secrets + **HIGH-4** no liveness/HA — 📦 production manifests delivered in `deploy/k8s/` (Secret template, liveness/replicas/PDB/HPA, NetworkPolicy); apply + rotate on the prod cluster (ops step, not auto-applied to dev).
-- Open: **HIGH-3** login rate-limit/lockout, **HIGH-5** migration reliability, and the MEDIUM/LOW items below.
+- **HIGH-3** no rate limiting — ✅ FIXED (gateway IP/subject rate limiter at ingress before proxying + a stricter limiter on the login route; per-username/per-IP login lockout in the account service; HTTP 429 + `Retry-After`; bounded, evicting in-memory state; unit-tested). Config via `LMS_RATE_LIMIT_*` / `LMS_LOGIN_*` env with secure defaults (see below). NOTE: limiters are PER-POD; a shared store (Redis) is the path to global limits at higher replica counts.
+- **LOW-5** raw username logged on failed login — ✅ FIXED (failed/locked logins now log a truncated SHA-256 fingerprint + client IP instead of the raw username).
+- Open: **HIGH-5** migration reliability, and the MEDIUM/LOW items below.
+
+**HIGH-3 / LOW-5 config knobs (secure defaults):**
+- Gateway (`cmd/lms-api-gateway`): `LMS_RATE_LIMIT_ENABLED` (true), `LMS_RATE_LIMIT_RPS` (20), `LMS_RATE_LIMIT_BURST` (40), `LMS_LOGIN_RATE_LIMIT_RPS` (0.5), `LMS_LOGIN_RATE_LIMIT_BURST` (10), `LMS_RATE_LIMIT_TTL_SECONDS` (600), `LMS_RATE_LIMIT_MAX_KEYS` (100000), `LMS_RATE_LIMIT_TRUST_PROXY` (false — enable only behind a trusted XFF-setting ingress).
+- Account login lockout (`internal/account/handler`): `LMS_LOGIN_LOCKOUT_ENABLED` (true), `LMS_LOGIN_MAX_FAILURES` (5), `LMS_LOGIN_FAILURE_WINDOW_SECONDS` (900), `LMS_LOGIN_LOCKOUT_SECONDS` (900), `LMS_LOGIN_LOCKOUT_MAX_KEYS` (100000).
 
 ---
 

@@ -138,7 +138,7 @@ func TestCircuitBreaker_SuccessResetsClosed(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCORSMiddleware_PreflightRequest(t *testing.T) {
-	handler := corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := newCORSMiddleware([]string{"http://localhost:3000"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -156,17 +156,24 @@ func TestCORSMiddleware_PreflightRequest(t *testing.T) {
 	assert.Contains(t, rr.Header().Get("Access-Control-Allow-Headers"), "Authorization")
 }
 
-func TestCORSMiddleware_NoOriginDefaultsStar(t *testing.T) {
-	handler := corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// HIGH-1: a request with no Origin (non-browser client) gets NO ACAO header,
+// and an Origin not on the allowlist is never reflected.
+func TestCORSMiddleware_NoOriginNoHeader(t *testing.T) {
+	handler := newCORSMiddleware([]string{"http://localhost:3000"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
-
 	handler.ServeHTTP(rr, req)
+	assert.Empty(t, rr.Header().Get("Access-Control-Allow-Origin"))
 
-	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+	// Disallowed origin is not reflected.
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.Header.Set("Origin", "https://evil.example.com")
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+	assert.Empty(t, rr2.Header().Get("Access-Control-Allow-Origin"))
 }
 
 // ---------------------------------------------------------------------------
@@ -274,13 +281,13 @@ func TestProxyRouting_ForwardsToUpstream(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Use(corsMiddleware)
+	r.Use(newCORSMiddleware([]string{"http://localhost:3000"}))
 
 	// For this test, use a no-op auth middleware
 	noopAuth := &auth.Middleware{}
 	// Register with public route to skip auth
 	gw.routes[0].Public = true
-	gw.RegisterRoutes(r, noopAuth)
+	gw.RegisterRoutes(r, noopAuth, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/lms/api/v1/test/items/42", nil)
 	rr := httptest.NewRecorder()
@@ -320,7 +327,7 @@ func TestProxyRouting_CircuitBreakerRejects(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	gw.RegisterRoutes(r, &auth.Middleware{})
+	gw.RegisterRoutes(r, &auth.Middleware{}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/lms/api/v1/test/items", nil)
 	rr := httptest.NewRecorder()

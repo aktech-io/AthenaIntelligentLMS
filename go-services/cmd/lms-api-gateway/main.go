@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -359,7 +360,12 @@ func (gw *Gateway) newReverseProxy(targetURL string, routeID string) *httputil.R
 // RegisterRoutes registers all proxy routes onto the chi router.
 // Public routes (like auth endpoints) skip JWT middleware.
 // Protected routes are registered with the auth middleware.
-func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware) {
+//
+// loginLimiter, when non-nil, is applied ONLY to the public auth route as an
+// extra, stricter rate limit on top of the gateway-wide limiter. SECURITY
+// (HIGH-3): the login endpoint is the prime brute-force target, so it gets a
+// tighter per-IP bucket than ordinary API traffic. Pass nil to skip it (tests).
+func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware, loginLimiter func(http.Handler) http.Handler) {
 	publicRoutes := make([]RouteConfig, 0)
 	protectedRoutes := make([]RouteConfig, 0)
 
@@ -372,14 +378,18 @@ func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware) {
 	}
 
 	// registerRoute registers both the wildcard and exact-prefix patterns for a route,
-	// so that /lms/api/v1/products and /lms/api/v1/products/ both match.
-	registerRoute := func(r chi.Router, route RouteConfig, proxy *httputil.ReverseProxy, cb *CircuitBreaker) {
-		handler := gw.proxyHandler(proxy, cb, route)
-		r.HandleFunc(route.PathPrefix+"*", handler)
+	// so that /lms/api/v1/products and /lms/api/v1/products/ both match. An optional
+	// per-route middleware (mw) wraps the handler before registration.
+	registerRoute := func(r chi.Router, route RouteConfig, proxy *httputil.ReverseProxy, cb *CircuitBreaker, mw func(http.Handler) http.Handler) {
+		var handler http.Handler = gw.proxyHandler(proxy, cb, route)
+		if mw != nil {
+			handler = mw(handler)
+		}
+		r.Handle(route.PathPrefix+"*", handler)
 		// Also register without trailing wildcard (e.g., /lms/api/v1/products)
 		bare := strings.TrimRight(route.PathPrefix, "/")
 		if bare != route.PathPrefix {
-			r.HandleFunc(bare, handler)
+			r.Handle(bare, handler)
 		}
 	}
 
@@ -388,7 +398,11 @@ func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware) {
 		route := route
 		proxy := gw.newReverseProxy(route.TargetURL, route.ID)
 		cb := gw.circuitBreakers[route.ID]
-		registerRoute(r, route, proxy, cb)
+		var mw func(http.Handler) http.Handler
+		if route.ID == "account-service-auth" {
+			mw = loginLimiter
+		}
+		registerRoute(r, route, proxy, cb, mw)
 		gw.logger.Info("Registered public route",
 			zap.String("id", route.ID),
 			zap.String("prefix", route.PathPrefix),
@@ -403,7 +417,7 @@ func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware) {
 			route := route
 			proxy := gw.newReverseProxy(route.TargetURL, route.ID)
 			cb := gw.circuitBreakers[route.ID]
-			registerRoute(r, route, proxy, cb)
+			registerRoute(r, route, proxy, cb, nil)
 			gw.logger.Info("Registered protected route",
 				zap.String("id", route.ID),
 				zap.String("prefix", route.PathPrefix),
@@ -560,6 +574,37 @@ func main() {
 	corsOrigins := strings.Split(envOrDefault("LMS_CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001"), ",")
 	r.Use(newCORSMiddleware(corsOrigins))
 
+	// SECURITY (HIGH-3): gateway-wide IP/subject rate limiting at ingress, before
+	// proxying, to blunt API abuse and brute-force. The /actuator/health path is
+	// exempt inside the limiter. NOTE: this is a PER-INSTANCE (per-pod) limiter;
+	// see RateLimiterConfig for the shared-store (Redis) path to global limits.
+	rateEnabled := envBool("LMS_RATE_LIMIT_ENABLED", true)
+	trustProxy := envBool("LMS_RATE_LIMIT_TRUST_PROXY", false)
+	apiLimiter := commonmw.NewRateLimiter(commonmw.RateLimiterConfig{
+		Enabled:           rateEnabled,
+		RPS:               envFloat("LMS_RATE_LIMIT_RPS", 20),
+		Burst:             envInt("LMS_RATE_LIMIT_BURST", 40),
+		IdleTTL:           time.Duration(envInt("LMS_RATE_LIMIT_TTL_SECONDS", 600)) * time.Second,
+		MaxKeys:           envInt("LMS_RATE_LIMIT_MAX_KEYS", 100_000),
+		TrustProxyHeaders: trustProxy,
+	}, logger)
+	defer apiLimiter.Stop()
+	r.Use(apiLimiter.Middleware)
+
+	// Stricter limiter applied only to the login/auth route — the prime
+	// brute-force target. Defaults to a slow trickle with a small burst so a
+	// human can still retry but a flood is rejected. Pairs with the account
+	// service's per-username login lockout (HIGH-3 / LOW-5).
+	loginLimiter := commonmw.NewRateLimiter(commonmw.RateLimiterConfig{
+		Enabled:           rateEnabled,
+		RPS:               envFloat("LMS_LOGIN_RATE_LIMIT_RPS", 0.5),
+		Burst:             envInt("LMS_LOGIN_RATE_LIMIT_BURST", 10),
+		IdleTTL:           time.Duration(envInt("LMS_RATE_LIMIT_TTL_SECONDS", 600)) * time.Second,
+		MaxKeys:           envInt("LMS_RATE_LIMIT_MAX_KEYS", 100_000),
+		TrustProxyHeaders: trustProxy,
+	}, logger)
+	defer loginLimiter.Stop()
+
 	// Health endpoint (unauthenticated)
 	r.Get("/actuator/health", healthHandler(gw))
 
@@ -570,8 +615,8 @@ func main() {
 	// gateway is constructed with an empty internal key (JWT only).
 	authMw := auth.NewMiddleware(jwtUtil, "", logger)
 
-	// Register all proxy routes
-	gw.RegisterRoutes(r, authMw)
+	// Register all proxy routes (login route gets the stricter limiter)
+	gw.RegisterRoutes(r, authMw, loginLimiter.Middleware)
 
 	// Server
 	srv := &http.Server{
@@ -617,6 +662,26 @@ func envInt(key string, fallback int) int {
 		fmt.Sscanf(v, "%d", &n)
 		if n > 0 {
 			return n
+		}
+	}
+	return fallback
+}
+
+// envFloat reads a positive float env var, falling back on empty/invalid/non-positive.
+func envFloat(key string, fallback float64) float64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
+
+// envBool reads a boolean env var (true/false/1/0). Falls back on empty/invalid.
+func envBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(strings.TrimSpace(v)); err == nil {
+			return b
 		}
 	}
 	return fallback

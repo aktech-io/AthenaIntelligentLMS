@@ -5,10 +5,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +42,7 @@ type AuthHandler struct {
 	users     map[string]*LmsUser
 	jwtSecret []byte
 	perms     PermissionResolver // optional; nil = don't stamp permissions
+	throttle  *loginThrottle     // failed-login lockout (HIGH-3)
 	logger    *zap.Logger
 }
 
@@ -92,7 +96,13 @@ func NewAuthHandler(base64Secret string, perms PermissionResolver, logger *zap.L
 	addUser([]string{"officer", "officer@athena.com"}, officerPwd, "Loan Officer", "officer@athena.com", []string{"OFFICER", "USER"})
 	addUser([]string{"teller@athena.com"}, tellerPwd, "Senior Teller", "teller@athena.com", []string{"TELLER", "USER"})
 
-	return &AuthHandler{users: users, jwtSecret: key, perms: perms, logger: logger}, nil
+	return &AuthHandler{
+		users:     users,
+		jwtSecret: key,
+		perms:     perms,
+		throttle:  newLoginThrottle(loginThrottleConfigFromEnv()),
+		logger:    logger,
+	}, nil
 }
 
 type loginRequest struct {
@@ -123,9 +133,37 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SECURITY (HIGH-3): brute-force lockout keyed by BOTH the attempted username
+	// and the client IP. The response is generic and identical whether the
+	// account exists or not, so it cannot be used to enumerate users.
+	ip := clientIP(r)
+	userKey := "u:" + strings.ToLower(req.Username)
+	ipKey := "ip:" + ip
+	if locked, retry := h.throttle.Locked(userKey, ipKey); locked {
+		secs := int(retry.Seconds())
+		if secs < 1 {
+			secs = 1
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(secs))
+		// LOW-5: never log the raw attempted username; use a short fingerprint.
+		h.logger.Warn("Login blocked by lockout",
+			zap.String("userFingerprint", usernameFingerprint(req.Username)),
+			zap.String("ip", ip),
+		)
+		httputil.WriteTooManyRequests(w, "Too many failed login attempts. Please try again later.", r.URL.Path)
+		return
+	}
+
 	user, ok := h.users[strings.ToLower(req.Username)]
 	if !ok || user.Password != req.Password {
-		h.logger.Warn("Failed login attempt", zap.String("username", req.Username))
+		h.throttle.RecordFailure(userKey, ipKey)
+		// LOW-5: do NOT log the raw attempted username (PII / log-volume vector).
+		// A truncated, salt-free fingerprint still lets us correlate repeated
+		// attempts on the same value without storing the credential-adjacent value.
+		h.logger.Warn("Failed login attempt",
+			zap.String("userFingerprint", usernameFingerprint(req.Username)),
+			zap.String("ip", ip),
+		)
 		httputil.WriteErrorJSON(w, http.StatusUnauthorized, "Unauthorized", "Invalid credentials", r.URL.Path)
 		return
 	}
@@ -137,6 +175,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Successful login clears any accumulated failure state for this user and IP.
+	h.throttle.Reset(userKey, ipKey)
 	h.logger.Info("Successful login", zap.String("username", user.Username))
 	httputil.WriteJSON(w, http.StatusOK, loginResponse{
 		Token:     token,
@@ -154,9 +194,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{
-		"username":  auth.UserIDFromContext(ctx),
-		"tenantId":  auth.TenantIDFromContext(ctx),
-		"roles":     auth.RolesFromContext(ctx),
+		"username": auth.UserIDFromContext(ctx),
+		"tenantId": auth.TenantIDFromContext(ctx),
+		"roles":    auth.RolesFromContext(ctx),
 	})
 }
 
@@ -210,4 +250,41 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// envInt reads a positive int env var, falling back on empty/invalid/non-positive.
+func envInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
+
+// clientIP returns the best-available client IP for login throttling. The
+// account service sits behind the gateway, which appends the real client IP to
+// X-Forwarded-For; the leftmost entry is the originating client. NOTE: XFF is
+// client-spoofable, so per-IP throttling is best-effort defence-in-depth — the
+// per-username lockout is the robust control and does not depend on the IP.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+// usernameFingerprint returns a short, non-reversible-ish fingerprint of an
+// attempted username for log correlation. LOW-5: this avoids logging the raw
+// username on every failed attempt (a PII / log-volume vector) while still
+// letting operators see that repeated failures target the same value.
+func usernameFingerprint(username string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(username))))
+	return hex.EncodeToString(sum[:4]) // 8 hex chars is enough to correlate
 }

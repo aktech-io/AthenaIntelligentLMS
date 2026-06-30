@@ -68,3 +68,9 @@ func WriteForbidden(w http.ResponseWriter, message, path string) {
 func WriteUnprocessable(w http.ResponseWriter, message, path string) {
 	WriteErrorJSON(w, http.StatusUnprocessableEntity, "Unprocessable Entity", message, path)
 }
+
+// WriteTooManyRequests writes a 429 error response. Callers should set a
+// Retry-After header before calling this when a retry window is known.
+func WriteTooManyRequests(w http.ResponseWriter, message, path string) {
+	WriteErrorJSON(w, http.StatusTooManyRequests, "Too Many Requests", message, path)
+}
