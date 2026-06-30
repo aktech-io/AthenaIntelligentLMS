@@ -78,10 +78,10 @@ type ReportCode string
 
 const (
 	// IFRS financial statements (all licenses).
-	ReportIFRSTrialBalance   ReportCode = "IFRS_TRIAL_BALANCE"
-	ReportIFRSIncomeStmt     ReportCode = "IFRS_INCOME_STATEMENT"
-	ReportIFRSBalanceSheet   ReportCode = "IFRS_BALANCE_SHEET"
-	ReportIFRSCashFlow       ReportCode = "IFRS_CASH_FLOW"
+	ReportIFRSTrialBalance ReportCode = "IFRS_TRIAL_BALANCE"
+	ReportIFRSIncomeStmt   ReportCode = "IFRS_INCOME_STATEMENT"
+	ReportIFRSBalanceSheet ReportCode = "IFRS_BALANCE_SHEET"
+	ReportIFRSCashFlow     ReportCode = "IFRS_CASH_FLOW"
 
 	// CBK Digital Credit Provider returns (DCP Regs 2022).
 	ReportDCPLoanBookReturn ReportCode = "DCP_LOAN_BOOK_RETURN"
@@ -96,11 +96,11 @@ const (
 	ReportAMLCTR ReportCode = "AML_CTR"
 
 	// CBK prudential returns (bank/MFB-licensed tenants only).
-	ReportCBKClassification ReportCode = "CBK_PRUDENTIAL_CLASSIFICATION"
-	ReportCBKNPLRatio       ReportCode = "CBK_NPL_RATIO"
+	ReportCBKClassification  ReportCode = "CBK_PRUDENTIAL_CLASSIFICATION"
+	ReportCBKNPLRatio        ReportCode = "CBK_NPL_RATIO"
 	ReportCBKCapitalAdequacy ReportCode = "CBK_CAPITAL_ADEQUACY"
-	ReportCBKLiquidity      ReportCode = "CBK_LIQUIDITY"
-	ReportCBKLargeExposure  ReportCode = "CBK_LARGE_EXPOSURE"
+	ReportCBKLiquidity       ReportCode = "CBK_LIQUIDITY"
+	ReportCBKLargeExposure   ReportCode = "CBK_LARGE_EXPOSURE"
 )
 
 // validReportCodes is the universe of recognised report codes.

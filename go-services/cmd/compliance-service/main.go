@@ -26,6 +26,9 @@ import (
 	"github.com/athena-lms/go-services/internal/compliance/handler"
 	"github.com/athena-lms/go-services/internal/compliance/repository"
 	"github.com/athena-lms/go-services/internal/compliance/service"
+	reghandler "github.com/athena-lms/go-services/internal/regulatory/handler"
+	regrepo "github.com/athena-lms/go-services/internal/regulatory/repository"
+	regservice "github.com/athena-lms/go-services/internal/regulatory/service"
 )
 
 func init() { decimal.MarshalJSONWithoutQuotes = true }
@@ -90,6 +93,11 @@ func main() {
 	svc := service.New(repo, compPub, logger)
 	hdlr := handler.New(svc, logger)
 
+	// Regulatory profile wiring (foundation for the CBK/CRB reporting epic). Its
+	// repository is both the data store and the audit sink (hash-chained audit_log).
+	regRepo := regrepo.New(pool)
+	regHdlr := reghandler.New(regservice.New(regRepo, regRepo, logger), logger)
+
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)
 	if err != nil {
@@ -109,6 +117,7 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(authMw.Handler)
 		hdlr.RegisterRoutes(r)
+		regHdlr.RegisterRoutes(r)
 	})
 
 	// Consumer (gated by RABBITMQ_CONSUME_ENABLED)
