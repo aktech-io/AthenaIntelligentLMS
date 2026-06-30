@@ -299,6 +299,40 @@ func (r *Repository) GetNetBalance(ctx context.Context, accountID uuid.UUID, ten
 	return net, err
 }
 
+// GetNetBalanceForRange returns the net balance (sum debits - sum credits) for
+// an account, bounded to POSTED entries whose entry_date falls in [from, to).
+// Unlike GetNetBalance (lifetime), this lets the year-end close sweep ONLY the
+// given fiscal year's profit & loss activity (H-1). The upper bound is
+// exclusive so callers pass the first day of the next period and capture the
+// whole final day regardless of any time component.
+func (r *Repository) GetNetBalanceForRange(ctx context.Context, accountID uuid.UUID, tenantID string, from, to time.Time) (decimal.Decimal, error) {
+	var net decimal.Decimal
+	err := r.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(debit_amount), 0) - COALESCE(SUM(credit_amount), 0)
+		 FROM journal_lines jl
+		 JOIN journal_entries je ON jl.entry_id = je.id
+		 WHERE jl.account_id = $1 AND je.tenant_id = $2 AND je.status = 'POSTED'
+		   AND je.entry_date >= $3 AND je.entry_date < $4`,
+		accountID, tenantID, from, to).Scan(&net)
+	return net, err
+}
+
+// HasPostedEntriesInRange reports whether the tenant has any POSTED journal
+// entry whose entry_date falls in [from, to). Used by the year-end close to
+// distinguish a genuine first year of operation (no prior activity → close
+// allowed) from a forgotten prior-year close (prior activity present but not
+// locked → close rejected). See YearEndClose (H-1).
+func (r *Repository) HasPostedEntriesInRange(ctx context.Context, tenantID string, from, to time.Time) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM journal_entries
+			WHERE tenant_id = $1 AND status = 'POSTED'
+			  AND entry_date >= $2 AND entry_date < $3)`,
+		tenantID, from, to).Scan(&exists)
+	return exists, err
+}
+
 // FindLedgerLines returns all journal lines for a given account.
 func (r *Repository) FindLedgerLines(ctx context.Context, accountID uuid.UUID) ([]model.JournalLine, error) {
 	rows, err := r.pool.Query(ctx,

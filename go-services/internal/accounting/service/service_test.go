@@ -1,15 +1,57 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/accounting/model"
 )
+
+// TestPostEntry_RejectsUnbalanced exercises the REAL PostEntry balance guard
+// (not a copy): an unbalanced manual entry must be rejected before any DB
+// access, so a nil repo is never touched. This complements
+// TestDoubleEntryBalanceMultiLine, which only exercises a copy of the logic.
+func TestPostEntry_RejectsUnbalanced(t *testing.T) {
+	svc := New(nil, nil, nil, zap.NewNop())
+
+	req := model.PostJournalEntryRequest{
+		Reference: "TEST-UNBAL",
+		Lines: []model.JournalLineRequest{
+			{AccountID: uuid.New(), DebitAmount: decimal.NewFromInt(1000), CreditAmount: decimal.Zero, Currency: "KES"},
+			{AccountID: uuid.New(), DebitAmount: decimal.Zero, CreditAmount: decimal.NewFromInt(999), Currency: "KES"},
+		},
+	}
+
+	resp, err := svc.PostEntry(context.Background(), req, "tenant-1", "user-1")
+	require.Error(t, err, "unbalanced entry must be rejected")
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "not balanced")
+}
+
+// TestPostEntry_RejectsTooFewLines verifies the minimum-lines guard fires before
+// any DB access as well.
+func TestPostEntry_RejectsTooFewLines(t *testing.T) {
+	svc := New(nil, nil, nil, zap.NewNop())
+
+	req := model.PostJournalEntryRequest{
+		Reference: "TEST-ONELINE",
+		Lines: []model.JournalLineRequest{
+			{AccountID: uuid.New(), DebitAmount: decimal.NewFromInt(1000), CreditAmount: decimal.NewFromInt(1000), Currency: "KES"},
+		},
+	}
+
+	resp, err := svc.PostEntry(context.Background(), req, "tenant-1", "user-1")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "at least 2 lines")
+}
 
 // TestDoubleEntryBalance verifies that buildSystemEntry produces balanced entries.
 func TestDoubleEntryBalance(t *testing.T) {

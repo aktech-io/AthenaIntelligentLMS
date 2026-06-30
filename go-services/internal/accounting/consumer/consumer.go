@@ -4,25 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
-	"github.com/athena-lms/go-services/internal/accounting/service"
 	"github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 )
 
+// accountingService is the subset of *service.AccountingService that the
+// consumer depends on. Declaring it as an interface keeps the consumer
+// unit-testable (a fake can record postings and dedupe) while the concrete
+// service satisfies it unchanged.
+type accountingService interface {
+	EntryExists(ctx context.Context, sourceEvent, sourceID string) bool
+	PostLoanDisbursement(ctx context.Context, tenantID, applicationID string, amount decimal.Decimal) error
+	PostRepayment(ctx context.Context, tenantID, paymentID string, amount decimal.Decimal, payload map[string]any) error
+	PostPaymentReversal(ctx context.Context, tenantID, paymentID string, amount decimal.Decimal) error
+	PostOverdraftDrawn(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostOverdraftRepaid(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostOverdraftInterestCharged(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostOverdraftFeeCharged(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostFloatDrawn(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostFloatRepaid(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+}
+
 // AccountingConsumer handles incoming domain events for the accounting service.
 type AccountingConsumer struct {
-	svc    *service.AccountingService
+	svc    accountingService
 	conn   *rabbitmq.Connection
 	logger *zap.Logger
 }
 
 // New creates a new accounting event consumer.
-func New(svc *service.AccountingService, conn *rabbitmq.Connection, logger *zap.Logger) *AccountingConsumer {
+func New(svc accountingService, conn *rabbitmq.Connection, logger *zap.Logger) *AccountingConsumer {
 	return &AccountingConsumer{svc: svc, conn: conn, logger: logger}
 }
 
@@ -91,15 +106,15 @@ func (c *AccountingConsumer) handle(ctx context.Context, evt *event.DomainEvent)
 		c.handleStageChanged(payload)
 		return nil
 	case "float.drawn":
-		return c.handleFloatDrawn(ctx, payload, tenantID)
+		return c.handleFloatDrawn(ctx, payload, tenantID, evt.ID)
 	case "float.repaid":
-		return c.handleFloatRepaid(ctx, payload, tenantID)
+		return c.handleFloatRepaid(ctx, payload, tenantID, evt.ID)
 	case "overdraft.drawn":
 		return c.handleOverdraftDrawn(ctx, payload, tenantID)
 	case "overdraft.repaid":
-		return c.handleOverdraftRepaid(ctx, payload, tenantID)
+		return c.handleOverdraftRepaid(ctx, payload, tenantID, evt.ID)
 	case "overdraft.interest.charged":
-		return c.handleOverdraftInterestCharged(ctx, payload, tenantID)
+		return c.handleOverdraftInterestCharged(ctx, payload, tenantID, evt.ID)
 	case "overdraft.fee.charged":
 		return c.handleOverdraftFeeCharged(ctx, payload, tenantID)
 	default:
@@ -167,9 +182,14 @@ func (c *AccountingConsumer) handleOverdraftDrawn(ctx context.Context, payload m
 	return c.svc.PostOverdraftDrawn(ctx, tenantID, sourceID, amount)
 }
 
-func (c *AccountingConsumer) handleOverdraftRepaid(ctx context.Context, payload map[string]any, tenantID string) error {
+func (c *AccountingConsumer) handleOverdraftRepaid(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
 	walletID := getStr(payload, "walletId")
-	sourceID := fmt.Sprintf("OD-RPMT-%s-%d", walletID, time.Now().UnixMilli())
+	// overdraft.repaid carries no per-repayment business key, so derive the
+	// idempotency key from the STABLE event envelope ID (constant across
+	// RabbitMQ redelivery) rather than a wall-clock timestamp. Using a timestamp
+	// made every redelivery a fresh sourceID, defeating EntryExists and
+	// double-posting the cash entry (H-3).
+	sourceID := fmt.Sprintf("OD-RPMT-%s-%s", walletID, eventID)
 	if c.svc.EntryExists(ctx, "overdraft.repaid", sourceID) {
 		return nil
 	}
@@ -177,9 +197,12 @@ func (c *AccountingConsumer) handleOverdraftRepaid(ctx context.Context, payload 
 	return c.svc.PostOverdraftRepaid(ctx, tenantID, sourceID, amount)
 }
 
-func (c *AccountingConsumer) handleOverdraftInterestCharged(ctx context.Context, payload map[string]any, tenantID string) error {
+func (c *AccountingConsumer) handleOverdraftInterestCharged(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
 	walletID := getStr(payload, "walletId")
-	sourceID := fmt.Sprintf("OD-INT-%s-%d", walletID, time.Now().UnixMilli())
+	// Dedupe on the stable event envelope ID (see handleOverdraftRepaid); the
+	// interest-charged event carries no per-charge business key, so a timestamp
+	// key would re-post the interest accrual on every redelivery (H-3).
+	sourceID := fmt.Sprintf("OD-INT-%s-%s", walletID, eventID)
 	if c.svc.EntryExists(ctx, "overdraft.interest.charged", sourceID) {
 		return nil
 	}
@@ -205,12 +228,14 @@ func (c *AccountingConsumer) handleOverdraftFeeCharged(ctx context.Context, payl
 
 // handleFloatDrawn creates a GL entry when float pool is drawn for loan disbursement.
 // DR 2100 Borrowings (Float Liability increases) / CR 1000 Cash (Cash decreases)
-func (c *AccountingConsumer) handleFloatDrawn(ctx context.Context, payload map[string]any, tenantID string) error {
+func (c *AccountingConsumer) handleFloatDrawn(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
 	floatAccountID := getStr(payload, "floatAccountId")
 	loanID := getStr(payload, "loanId")
 	sourceID := fmt.Sprintf("FLOAT-DRAW-%s-%s", floatAccountID, loanID)
 	if sourceID == "FLOAT-DRAW--" {
-		sourceID = fmt.Sprintf("FLOAT-DRAW-%d", time.Now().UnixMilli())
+		// No business key on the event — fall back to the stable event envelope
+		// ID so redelivery still dedupes (a timestamp would double-post; H-3).
+		sourceID = "FLOAT-DRAW-" + eventID
 	}
 	if c.svc.EntryExists(ctx, "float.drawn", sourceID) {
 		return nil
@@ -224,9 +249,12 @@ func (c *AccountingConsumer) handleFloatDrawn(ctx context.Context, payload map[s
 
 // handleFloatRepaid creates a GL entry when float pool is repaid via collections.
 // DR 1000 Cash (Cash increases) / CR 2100 Borrowings (Float Liability decreases)
-func (c *AccountingConsumer) handleFloatRepaid(ctx context.Context, payload map[string]any, tenantID string) error {
+func (c *AccountingConsumer) handleFloatRepaid(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
 	floatAccountID := getStr(payload, "floatAccountId")
-	sourceID := fmt.Sprintf("FLOAT-RPMT-%s-%d", floatAccountID, time.Now().UnixMilli())
+	// float.repaid carries no per-repayment business key, so dedupe on the stable
+	// event envelope ID (constant across redelivery) instead of a timestamp,
+	// which re-posted the cash receipt on every at-least-once redelivery (H-3).
+	sourceID := fmt.Sprintf("FLOAT-RPMT-%s-%s", floatAccountID, eventID)
 	if c.svc.EntryExists(ctx, "float.repaid", sourceID) {
 		return nil
 	}
