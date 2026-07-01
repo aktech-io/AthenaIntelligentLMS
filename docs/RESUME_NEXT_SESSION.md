@@ -70,7 +70,18 @@ invoice finance, Fuliza-style wallet overdraft, mobile lending).
 ## Quality rule
 No diff reaches master without EM review; agents work in worktrees, commit but DO NOT push.
 
-## Deploy/test
-Live deploy is **local k3s** (no public URL). Changed services to rebuild+roll:
-account-service, lms-api-gateway, accounting-service. See `docs/reference_k3s_deploy` /
-`reference_k3s_deploy.md` build commands.
+## Deploy/test (state as of 2026-07-01)
+Live deploy is **local k3s** (no public URL — localhost/LAN only). Cluster was started and is
+healthy. **BUT the running pods are OLD images (predate this session) — none of this session's
+work is live yet.** To test it, rebuild + roll these 5 changed services via
+`scripts/build-k3s.sh`: **account-service, lms-api-gateway, accounting-service,
+compliance-service, loan-management-service**. (Heavy build; deferred for budget.)
+
+Access when cluster is up:
+- Portal UI: http://localhost:30088 (NodePort 30088; node IP was 172.20.10.4).
+- Gateway API: `kubectl port-forward svc/lms-api-gateway 28105:8105 -n lms` → http://localhost:28105.
+- Login: `POST /lms/api/auth/login` `{"username":"admin","password":"admin123"}` (default
+  passwords enabled: `LMS_AUTH_ALLOW_DEFAULT_PASSWORDS=true`). admin/admin123, manager/manager123,
+  officer/officer123.
+- New endpoints to verify AFTER rebuild: `GET /lms/api/v1/loans/crb-feed?period=YYYY-MM`,
+  `GET /lms/api/v1/loans/cbk-provisioning`, `GET/PUT /lms/api/v1/regulatory/profile`.
