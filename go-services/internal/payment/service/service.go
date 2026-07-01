@@ -64,6 +64,22 @@ func (s *Service) Initiate(ctx context.Context, req *model.InitiatePaymentReques
 		return nil, errors.BadRequest("amount must be positive")
 	}
 
+	// Dedup on the channel-provided reference (HIGH-5): a duplicated callback
+	// with the same externalReference must not create a second payment — return
+	// the existing one as the idempotent response.
+	if req.ExternalReference != nil && *req.ExternalReference != "" {
+		existing, err := s.repo.FindByExternalReference(ctx, tenantID, *req.ExternalReference)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			s.logger.Info("Duplicate externalReference on initiate, returning existing payment",
+				zap.String("externalReference", *req.ExternalReference),
+				zap.String("paymentId", existing.ID.String()))
+			return existing, nil
+		}
+	}
+
 	// Validate loan exists
 	if err := s.loanClient.ValidateLoanExists(ctx, req.LoanID); err != nil {
 		return nil, err
@@ -94,6 +110,20 @@ func (s *Service) Initiate(ctx context.Context, req *model.InitiatePaymentReques
 	}
 
 	if err := s.repo.Insert(ctx, payment); err != nil {
+		// A concurrent request with the same externalReference won the race on
+		// the (tenant_id, external_reference) unique index — return the winner.
+		if repository.IsUniqueViolation(err) && req.ExternalReference != nil && *req.ExternalReference != "" {
+			existing, ferr := s.repo.FindByExternalReference(ctx, tenantID, *req.ExternalReference)
+			if ferr != nil {
+				return nil, ferr
+			}
+			if existing != nil {
+				s.logger.Info("Lost initiate race on externalReference, returning existing payment",
+					zap.String("externalReference", *req.ExternalReference),
+					zap.String("paymentId", existing.ID.String()))
+				return existing, nil
+			}
+		}
 		return nil, err
 	}
 
@@ -123,16 +153,17 @@ func (s *Service) ListByCustomer(ctx context.Context, customerID, tenantID strin
 	return s.repo.FindByTenantIDAndCustomerID(ctx, tenantID, customerID)
 }
 
-// GetByReference looks up a payment by external or internal reference.
-func (s *Service) GetByReference(ctx context.Context, ref string) (*model.Payment, error) {
-	p, err := s.repo.FindByExternalReference(ctx, ref)
+// GetByReference looks up a payment by external or internal reference,
+// scoped to the requesting tenant.
+func (s *Service) GetByReference(ctx context.Context, ref, tenantID string) (*model.Payment, error) {
+	p, err := s.repo.FindByExternalReference(ctx, tenantID, ref)
 	if err != nil {
 		return nil, err
 	}
 	if p != nil {
 		return p, nil
 	}
-	p, err = s.repo.FindByInternalReference(ctx, ref)
+	p, err = s.repo.FindByInternalReference(ctx, tenantID, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +218,11 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, req *model.Complet
 		return nil, err
 	}
 	if err := s.repo.UpdateWithEvent(ctx, payment, evt); err != nil {
+		// The unique index on (tenant_id, external_reference) rejects completing
+		// with a reference that already belongs to another payment.
+		if repository.IsUniqueViolation(err) && payment.ExternalReference != nil {
+			return nil, errors.Conflict("externalReference already used by another payment: " + *payment.ExternalReference)
+		}
 		return nil, err
 	}
 

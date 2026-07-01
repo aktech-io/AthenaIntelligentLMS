@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -22,6 +23,13 @@ type Repository struct {
 // New creates a new Repository.
 func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
+}
+
+// IsUniqueViolation reports whether err is a PostgreSQL unique-constraint
+// violation (SQLSTATE 23505), used to resolve idempotency races.
+func IsUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // paymentColumns is the canonical column list for scanning payments.
@@ -233,11 +241,11 @@ func (r *Repository) FindByTenantIDAndCustomerID(ctx context.Context, tenantID, 
 	return scanPayments(rows)
 }
 
-// FindByExternalReference looks up a payment by external reference.
-func (r *Repository) FindByExternalReference(ctx context.Context, ref string) (*model.Payment, error) {
+// FindByExternalReference looks up a payment by external reference within a tenant.
+func (r *Repository) FindByExternalReference(ctx context.Context, tenantID, ref string) (*model.Payment, error) {
 	row := r.pool.QueryRow(ctx,
-		fmt.Sprintf(`SELECT %s FROM payments WHERE external_reference = $1`, paymentColumns),
-		ref,
+		fmt.Sprintf(`SELECT %s FROM payments WHERE tenant_id = $1 AND external_reference = $2`, paymentColumns),
+		tenantID, ref,
 	)
 	p, err := scanPayment(row)
 	if err == pgx.ErrNoRows {
@@ -249,11 +257,11 @@ func (r *Repository) FindByExternalReference(ctx context.Context, ref string) (*
 	return p, nil
 }
 
-// FindByInternalReference looks up a payment by internal reference.
-func (r *Repository) FindByInternalReference(ctx context.Context, ref string) (*model.Payment, error) {
+// FindByInternalReference looks up a payment by internal reference within a tenant.
+func (r *Repository) FindByInternalReference(ctx context.Context, tenantID, ref string) (*model.Payment, error) {
 	row := r.pool.QueryRow(ctx,
-		fmt.Sprintf(`SELECT %s FROM payments WHERE internal_reference = $1`, paymentColumns),
-		ref,
+		fmt.Sprintf(`SELECT %s FROM payments WHERE tenant_id = $1 AND internal_reference = $2`, paymentColumns),
+		tenantID, ref,
 	)
 	p, err := scanPayment(row)
 	if err == pgx.ErrNoRows {
@@ -265,11 +273,11 @@ func (r *Repository) FindByInternalReference(ctx context.Context, ref string) (*
 	return p, nil
 }
 
-// FindByLoanID returns all payments for a loan.
-func (r *Repository) FindByLoanID(ctx context.Context, loanID uuid.UUID) ([]model.Payment, error) {
+// FindByLoanID returns all payments for a loan within a tenant.
+func (r *Repository) FindByLoanID(ctx context.Context, tenantID string, loanID uuid.UUID) ([]model.Payment, error) {
 	rows, err := r.pool.Query(ctx,
-		fmt.Sprintf(`SELECT %s FROM payments WHERE loan_id = $1 ORDER BY created_at DESC`, paymentColumns),
-		loanID,
+		fmt.Sprintf(`SELECT %s FROM payments WHERE tenant_id = $1 AND loan_id = $2 ORDER BY created_at DESC`, paymentColumns),
+		tenantID, loanID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list payments by loan: %w", err)

@@ -178,7 +178,8 @@ func (h *Handler) listByCustomer(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getByReference(w http.ResponseWriter, r *http.Request) {
 	ref := chi.URLParam(r, "ref")
 
-	payment, err := h.svc.GetByReference(r.Context(), ref)
+	tenantID := auth.TenantIDOrDefault(r.Context())
+	payment, err := h.svc.GetByReference(r.Context(), ref, tenantID)
 	if err != nil {
 		h.writeError(w, r, err)
 		return

@@ -4,11 +4,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
@@ -35,6 +37,13 @@ type Querier interface {
 // Pool returns the underlying pool (used for BeginTx).
 func (r *Repository) Pool() *pgxpool.Pool {
 	return r.pool
+}
+
+// IsUniqueViolation reports whether err is a PostgreSQL unique-constraint
+// violation (SQLSTATE 23505), used to resolve idempotency races.
+func IsUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // ─── Account ──────────────────────────────────────────────────────────────────
@@ -117,10 +126,12 @@ func (r *Repository) GetAccountByIDAndTenant(ctx context.Context, id uuid.UUID, 
 	return scanAccount(row)
 }
 
-// GetAccountByNumber fetches an account by its account number.
-func (r *Repository) GetAccountByNumber(ctx context.Context, accountNumber string) (*model.Account, error) {
+// GetAccountByNumberAndTenant fetches an account by its account number scoped
+// to a tenant (prevents cross-tenant account probing/resolution).
+func (r *Repository) GetAccountByNumberAndTenant(ctx context.Context, accountNumber, tenantID string) (*model.Account, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+accountCols+` FROM accounts WHERE account_number = $1`, accountNumber)
+		`SELECT `+accountCols+` FROM accounts WHERE account_number = $1 AND tenant_id = $2`,
+		accountNumber, tenantID)
 	return scanAccount(row)
 }
 
@@ -372,10 +383,12 @@ func (r *Repository) CreateTransaction(ctx context.Context, tx pgx.Tx, t *model.
 	return err
 }
 
-// GetTransactionByIdempotencyKey finds a transaction by its idempotency key.
-func (r *Repository) GetTransactionByIdempotencyKey(ctx context.Context, key string) (*model.AccountTransaction, error) {
+// GetTransactionByIdempotencyKeyAndTenant finds a transaction by its
+// idempotency key scoped to a tenant.
+func (r *Repository) GetTransactionByIdempotencyKeyAndTenant(ctx context.Context, key, tenantID string) (*model.AccountTransaction, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+txnCols+` FROM account_transactions WHERE idempotency_key = $1`, key)
+		`SELECT `+txnCols+` FROM account_transactions WHERE idempotency_key = $1 AND tenant_id = $2`,
+		key, tenantID)
 	return scanTransaction(row)
 }
 
@@ -709,10 +722,12 @@ func (r *Repository) GetTransferByIDAndTenant(ctx context.Context, id uuid.UUID,
 	return scanTransfer(row)
 }
 
-// GetTransferByReference fetches a transfer by unique reference.
-func (r *Repository) GetTransferByReference(ctx context.Context, reference string) (*model.FundTransfer, error) {
+// GetTransferByReferenceAndTenant fetches a transfer by unique reference
+// scoped to a tenant.
+func (r *Repository) GetTransferByReferenceAndTenant(ctx context.Context, reference, tenantID string) (*model.FundTransfer, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+transferCols+` FROM fund_transfers WHERE reference = $1`, reference)
+		`SELECT `+transferCols+` FROM fund_transfers WHERE reference = $1 AND tenant_id = $2`,
+		reference, tenantID)
 	return scanTransfer(row)
 }
 

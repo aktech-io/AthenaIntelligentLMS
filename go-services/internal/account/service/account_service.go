@@ -212,9 +212,13 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountCredit, "ACCOUNT", accountID.String(), req.Amount, desc, req)
 	}
 
-	// Idempotency check
-	if req.IdempotencyKey != nil {
-		existing, err := s.repo.GetTransactionByIdempotencyKey(ctx, *req.IdempotencyKey)
+	// Idempotency check. Only ErrNoRows means "no prior transaction" — any other
+	// error must surface, otherwise a flaky lookup would re-execute the credit.
+	if req.IdempotencyKey != nil && *req.IdempotencyKey != "" {
+		existing, err := s.repo.GetTransactionByIdempotencyKeyAndTenant(ctx, *req.IdempotencyKey, tenantID)
+		if err != nil && err != pgx.ErrNoRows {
+			return nil, err
+		}
 		if err == nil {
 			return existing, nil
 		}
@@ -280,6 +284,9 @@ func (s *AccountService) Credit(ctx context.Context, accountID uuid.UUID, req Tr
 		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, txn); err != nil {
+		if existing, handled, herr := s.idempotentTxnFromRace(ctx, tx, err, req.IdempotencyKey, tenantID); handled {
+			return existing, herr
+		}
 		return nil, err
 	}
 
@@ -326,9 +333,13 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		return nil, queueApproval(ctx, s.repo, tenantID, OpAccountDebit, "ACCOUNT", accountID.String(), req.Amount, desc, req)
 	}
 
-	// Idempotency check
-	if req.IdempotencyKey != nil {
-		existing, err := s.repo.GetTransactionByIdempotencyKey(ctx, *req.IdempotencyKey)
+	// Idempotency check. Only ErrNoRows means "no prior transaction" — any other
+	// error must surface, otherwise a flaky lookup would re-execute the debit.
+	if req.IdempotencyKey != nil && *req.IdempotencyKey != "" {
+		existing, err := s.repo.GetTransactionByIdempotencyKeyAndTenant(ctx, *req.IdempotencyKey, tenantID)
+		if err != nil && err != pgx.ErrNoRows {
+			return nil, err
+		}
 		if err == nil {
 			return existing, nil
 		}
@@ -395,6 +406,9 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		CreatedBy:       actorPtr(ctx),
 	}
 	if err := s.repo.CreateTransaction(ctx, tx, txn); err != nil {
+		if existing, handled, herr := s.idempotentTxnFromRace(ctx, tx, err, req.IdempotencyKey, tenantID); handled {
+			return existing, herr
+		}
 		return nil, err
 	}
 
@@ -424,6 +438,31 @@ func (s *AccountService) Debit(ctx context.Context, accountID uuid.UUID, req Tra
 		map[string]any{"amount": req.Amount, "channel": channel, "description": req.Description, "transactionId": txn.ID})
 
 	return txn, nil
+}
+
+// idempotentTxnFromRace resolves a lost idempotency race on credit/debit: if
+// err is a unique violation (uq_txn_idempotency), a concurrent request with the
+// same idempotency key won. Roll back this attempt (undoing its balance change)
+// and return the winner's transaction as the idempotent response. handled is
+// false when err is not an idempotency-key unique violation.
+func (s *AccountService) idempotentTxnFromRace(ctx context.Context, tx pgx.Tx, err error,
+	idempotencyKey *string, tenantID string) (existing *model.AccountTransaction, handled bool, herr error) {
+	if idempotencyKey == nil || *idempotencyKey == "" || !repository.IsUniqueViolation(err) {
+		return nil, false, nil
+	}
+	_ = tx.Rollback(ctx)
+	winner, ferr := s.repo.GetTransactionByIdempotencyKeyAndTenant(ctx, *idempotencyKey, tenantID)
+	if ferr != nil {
+		if ferr == pgx.ErrNoRows {
+			// Key exists but under another tenant — reject rather than leak it.
+			return nil, true, errors.Conflict("idempotencyKey already in use: " + *idempotencyKey)
+		}
+		return nil, true, ferr
+	}
+	s.logger.Info("Lost transaction idempotency race, returning existing transaction",
+		zap.String("idempotencyKey", *idempotencyKey),
+		zap.String("transactionId", winner.ID.String()))
+	return winner, true, nil
 }
 
 // actorPtr returns the acting user from context as a pointer, or nil if absent.

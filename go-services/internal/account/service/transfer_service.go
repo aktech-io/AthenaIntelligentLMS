@@ -102,9 +102,14 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		return nil, errors.BadRequest("amount must be > 0")
 	}
 
-	// Idempotency check
-	if req.IdempotencyKey != nil {
-		existing, err := s.repo.GetTransferByReference(ctx, *req.IdempotencyKey)
+	// Idempotency check. Only ErrNoRows means "no prior transfer" — any other
+	// error must surface, otherwise a flaky lookup would re-execute the transfer.
+	// The fund_transfers.reference UNIQUE constraint backstops the race below.
+	if req.IdempotencyKey != nil && *req.IdempotencyKey != "" {
+		existing, err := s.repo.GetTransferByReferenceAndTenant(ctx, *req.IdempotencyKey, tenantID)
+		if err != nil && err != pgx.ErrNoRows {
+			return nil, err
+		}
 		if err == nil {
 			srcNum := s.getAccountNumber(ctx, existing.SourceAccountID)
 			destNum := s.getAccountNumber(ctx, existing.DestinationAccountID)
@@ -142,10 +147,12 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		return nil, errors.NewBusinessError("Source account is " + string(sourceAccount.Status))
 	}
 
-	// Resolve destination account
+	// Resolve destination account. Transfers are intra-tenant only, so both
+	// lookups are tenant-scoped — a cross-tenant destination is indistinguishable
+	// from a missing one (no account probing across tenants).
 	var destAccount *model.Account
 	if req.DestinationAccountID != nil {
-		destAccount, err = s.repo.GetAccountByID(ctx, *req.DestinationAccountID)
+		destAccount, err = s.repo.GetAccountByIDAndTenant(ctx, *req.DestinationAccountID, tenantID)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				return nil, errors.NotFoundResource("Destination account", *req.DestinationAccountID)
@@ -153,7 +160,7 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 			return nil, err
 		}
 	} else if req.DestinationAccountNumber != nil {
-		destAccount, err = s.repo.GetAccountByNumber(ctx, *req.DestinationAccountNumber)
+		destAccount, err = s.repo.GetAccountByNumberAndTenant(ctx, *req.DestinationAccountNumber, tenantID)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				return nil, errors.BadRequest("Destination account not found: " + *req.DestinationAccountNumber)
@@ -189,7 +196,7 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 
 	// Generate reference
 	reference := fmt.Sprintf("TXF-%s", strings.ToUpper(uuid.New().String()[:12]))
-	if req.IdempotencyKey != nil {
+	if req.IdempotencyKey != nil && *req.IdempotencyKey != "" {
 		reference = *req.IdempotencyKey
 	}
 
@@ -303,6 +310,30 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		CompletedAt:          &now,
 	}
 	if err := s.repo.CreateTransfer(ctx, tx, transfer); err != nil {
+		// A concurrent request with the same idempotency key won the race on the
+		// fund_transfers.reference UNIQUE constraint. Roll back this attempt (the
+		// tx rollback undoes our balance updates and transaction rows — nothing
+		// was committed) and return the winner's transfer as the idempotent
+		// response.
+		if repository.IsUniqueViolation(err) {
+			_ = tx.Rollback(ctx)
+			winner, ferr := s.repo.GetTransferByReferenceAndTenant(ctx, reference, tenantID)
+			if ferr != nil {
+				if ferr == pgx.ErrNoRows {
+					// Reference exists but not in this tenant (cross-tenant key
+					// collision) — reject rather than leak the other row.
+					return nil, errors.Conflict("Transfer reference already in use: " + reference)
+				}
+				return nil, ferr
+			}
+			s.logger.Info("Lost transfer idempotency race, returning existing transfer",
+				zap.String("reference", reference),
+				zap.String("transferId", winner.ID.String()))
+			srcNum := s.getAccountNumber(ctx, winner.SourceAccountID)
+			destNum := s.getAccountNumber(ctx, winner.DestinationAccountID)
+			resp := transferResponseFrom(winner, srcNum, destNum)
+			return &resp, nil
+		}
 		return nil, err
 	}
 
