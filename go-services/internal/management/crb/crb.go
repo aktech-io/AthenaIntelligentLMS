@@ -27,12 +27,11 @@ type Record struct {
 	OutstandingPrincipal decimal.Decimal
 	OverdueAmount        decimal.Decimal // past-due unpaid installments as of period end
 	DaysPastDue          int
-	Classification       string // loan stage label (internal staging; CBK prudential
-	// classification is added with H-4's correctly-banded scheme)
-	AccountStatus   string
-	DisbursedAt     time.Time
-	MaturityDate    time.Time
-	LastPaymentDate *time.Time
+	Classification       string // CBK-correct prudential class derived from DPD
+	AccountStatus        string
+	DisbursedAt          time.Time
+	MaturityDate         time.Time
+	LastPaymentDate      *time.Time
 }
 
 // Mapper renders canonical records to a bureau-specific representation. The

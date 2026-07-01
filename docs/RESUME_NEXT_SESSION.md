@@ -31,8 +31,8 @@
   `GET /api/v1/loans/crb-feed?period=YYYY-MM` (ADMIN/MANAGER, CSV download). Unit-tested.
 - **CRB v1 follow-ups (open):** (a) select the concrete bureau template from the tenant's
   regulatory profile `CrbBureau` (v1 emits generic CSV); (b) borrower PII enrichment
-  (national ID / name) — held outside management, needed for bureau matching; (c) swap
-  `Classification` from internal stage to the CBK-correct bands (lands with H-4); (d) gate on
+  (national ID / name) — held outside management, needed for bureau matching; (c) ✅ DONE —
+  `Classification` now uses CBK-correct bands via `provisioning.ClassifyCBK`; (d) gate on
   `CrbEnabled` / schedule by `CrbSubmissionFrequency`.
 
 ## ✅ H-4a done & pushed (2026-07-01) — CBK provisioning computation

@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/athena-lms/go-services/internal/management/crb"
+	"github.com/athena-lms/go-services/internal/management/provisioning"
 )
 
 // PortfolioStats is a live aggregate of the loan book for a tenant.
@@ -302,7 +303,7 @@ func (r *Repository) GetCRBFeedRecords(ctx context.Context, tenantID string, per
 		       (l.outstanding_principal + l.outstanding_interest + l.outstanding_fees + l.outstanding_penalty) AS outstanding_balance,
 		       l.outstanding_principal,
 		       COALESCE(arr.overdue, 0) AS overdue_amount,
-		       l.dpd, l.stage, l.status, l.disbursed_at, l.maturity_date, l.last_repayment_date
+		       l.dpd, l.status, l.disbursed_at, l.maturity_date, l.last_repayment_date
 		FROM loans l
 		LEFT JOIN (
 		    SELECT loan_id, SUM(total_due - total_paid) AS overdue
@@ -327,11 +328,14 @@ func (r *Repository) GetCRBFeedRecords(ctx context.Context, tenantID string, per
 		if err := rows.Scan(
 			&rec.CustomerID, &rec.LoanAccountRef, &rec.Product, &rec.Currency,
 			&rec.DisbursedAmount, &rec.OutstandingBalance, &rec.OutstandingPrincipal,
-			&rec.OverdueAmount, &rec.DaysPastDue, &rec.Classification, &rec.AccountStatus,
+			&rec.OverdueAmount, &rec.DaysPastDue, &rec.AccountStatus,
 			&rec.DisbursedAt, &rec.MaturityDate, &last,
 		); err != nil {
 			return nil, fmt.Errorf("scan crb record: %w", err)
 		}
+		// Classification is the CBK-correct prudential class derived from DPD
+		// (not the internal loan stage), so the feed matches CBK reporting.
+		rec.Classification, _ = provisioning.ClassifyCBK(rec.DaysPastDue)
 		rec.LastPaymentDate = last
 		out = append(out, rec)
 	}
