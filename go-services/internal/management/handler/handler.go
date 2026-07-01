@@ -45,6 +45,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/par-report", h.GetPARReport)
 		r.Get("/ecl-provision", h.GetECLProvisionReport)
 		r.With(auth.RequireRole("ADMIN", "MANAGER")).Get("/crb-feed", h.GetCRBFeed)
+		r.Get("/cbk-provisioning", h.GetCBKProvisioning)
 		r.Post("/{id}/restructure", h.Restructure)
 	})
 	r.Route("/api/v1/repayments", func(r chi.Router) {
@@ -390,4 +391,19 @@ func parsePeriodEnd(period string) (time.Time, string, error) {
 	}
 	end := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0).Add(-time.Nanosecond)
 	return end, period, nil
+}
+
+// GetCBKProvisioning handles GET /api/v1/loans/cbk-provisioning — CBK PG/04
+// prudential provisioning reconciled against IFRS 9 ECL: the higher-of required
+// allowance, the P&L impairment charge (IFRS), and the statutory loan-loss reserve
+// (excess of CBK over IFRS). READ-ONLY (GL posting is H-4b). Uses the CBK-correct
+// DPD bands, distinct from the internal loan staging.
+func (h *Handler) GetCBKProvisioning(w http.ResponseWriter, r *http.Request) {
+	rep, err := h.svc.CBKProvisioningReport(r.Context(), auth.TenantIDOrDefault(r.Context()))
+	if err != nil {
+		h.logger.Error("cbk provisioning failed", zap.Error(err), zap.String("path", r.URL.Path))
+		httputil.WriteInternalError(w, "Could not build CBK provisioning report", r.URL.Path)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, rep)
 }

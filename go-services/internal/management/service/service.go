@@ -17,6 +17,7 @@ import (
 	"github.com/athena-lms/go-services/internal/management/crb"
 	"github.com/athena-lms/go-services/internal/management/event"
 	"github.com/athena-lms/go-services/internal/management/model"
+	"github.com/athena-lms/go-services/internal/management/provisioning"
 	"github.com/athena-lms/go-services/internal/management/repository"
 )
 
@@ -45,6 +46,26 @@ func New(repo *repository.Repository, schedGen *ScheduleGenerator, publisher *ev
 // selection/rendering is the caller's concern (v1 uses the generic CSV mapper).
 func (s *Service) CRBFeedRecords(ctx context.Context, tenantID string, periodEnd time.Time) ([]crb.Record, error) {
 	return s.repo.GetCRBFeedRecords(ctx, tenantID, periodEnd)
+}
+
+// CBKProvisioningReport reconciles CBK PG/04 prudential provisioning against the
+// IFRS 9 ECL for the tenant: the higher-of allowance, the P&L impairment charge
+// (IFRS), and the statutory loan-loss reserve (excess of CBK over IFRS). READ-ONLY
+// (H-4a computation; GL posting is H-4b).
+func (s *Service) CBKProvisioningReport(ctx context.Context, tenantID string) (*provisioning.Report, error) {
+	buckets, err := s.repo.GetCBKBuckets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	ecl, err := s.repo.GetECLProvisionReport(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	inputs := make([]provisioning.BucketInput, 0, len(buckets))
+	for _, b := range buckets {
+		inputs = append(inputs, provisioning.BucketInput{Class: b.Class, Loans: b.Loans, Outstanding: b.Outstanding})
+	}
+	return provisioning.BuildReport(time.Now().UTC().Format("2006-01-02"), inputs, ecl.TotalProvision), nil
 }
 
 // ---------------------------------------------------------------------------

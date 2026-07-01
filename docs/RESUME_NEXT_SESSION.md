@@ -35,7 +35,24 @@
   `Classification` from internal stage to the CBK-correct bands (lands with H-4); (d) gate on
   `CrbEnabled` / schedule by `CrbSubmissionFrequency`.
 
+## ✅ H-4a done & pushed (2026-07-01) — CBK provisioning computation
+- `internal/management/provisioning` — CORRECT CBK PG/04 5-bucket bands (Normal 0-30 1%,
+  Watch 31-90 3%, Substandard 91-180 20%, Doubtful 181-360 50%, Loss 360+ 100%), distinct from
+  internal staging. `BuildReport` reconciles CBK vs IFRS 9 ECL: higher-of required allowance,
+  P&L impairment = IFRS ECL, and statutory loan-loss reserve = max(0, CBK-IFRS) → equity.
+  `Repository.GetCBKBuckets`, `Service.CBKProvisioningReport`,
+  `GET /api/v1/loans/cbk-provisioning` (read). Pure functions unit-tested (both higher-of dirs).
+- Follow-ups: collateral netting on Substandard+ (v1 unsecured/conservative); confirm rates vs
+  current CBK/PG/04 (consts). This also supplies CRB-feed follow-up (c) the CBK-correct class.
+
 ## ▶️ NEXT — pick up here (in order)
+0. **H-4b — GL POSTING of the provision movement (accounting service).** The money-touching
+   half of H-4, deliberately deferred to its own careful increment. Post the **IFRS ECL
+   movement** (required ECL − current allowance balance on 1410) as DR impairment expense
+   (6000) / CR allowance (1410); true up the **statutory loan-loss reserve** in equity for the
+   excess of CBK over IFRS. Period-end, **maker-checker, balance-asserted, in DRAFT until
+   PD/LGD calibrated**, one entry per period per tenant (idempotent). Consumes
+   `management` `GET /api/v1/loans/cbk-provisioning` numbers. Do as a focused, well-tested push.
 3. **H-4 — CBK provisioning overlay (scoped, queued).** Post IFRS-9 **movement** (required ECL −
    current allowance) to P&L, stage-tagged, maker-checker, **DRAFT until PD/LGD calibrated**;
    book **excess of CBK provision over IFRS to a non-distributable Statutory Loan Loss Reserve

@@ -337,3 +337,44 @@ func (r *Repository) GetCRBFeedRecords(ctx context.Context, tenantID string, per
 	}
 	return out, rows.Err()
 }
+
+// CBKBucketAgg is the aggregated exposure in one CBK PG/04 classification bucket.
+type CBKBucketAgg struct {
+	Class       string
+	Loans       int
+	Outstanding decimal.Decimal
+}
+
+// GetCBKBuckets classifies the active loan book into the CBK PG/04 five buckets by
+// days-past-due (the CORRECT prudential bands, distinct from internal staging) and
+// sums gross outstanding principal per bucket.
+func (r *Repository) GetCBKBuckets(ctx context.Context, tenantID string) ([]CBKBucketAgg, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT
+		     CASE
+		         WHEN dpd <= 30  THEN 'NORMAL'
+		         WHEN dpd <= 90  THEN 'WATCH'
+		         WHEN dpd <= 180 THEN 'SUBSTANDARD'
+		         WHEN dpd <= 360 THEN 'DOUBTFUL'
+		         ELSE 'LOSS'
+		     END AS class,
+		     COUNT(*),
+		     COALESCE(SUM(outstanding_principal), 0)
+		 FROM loans
+		 WHERE tenant_id = $1 AND status IN ('ACTIVE','RESTRUCTURED')
+		 GROUP BY 1`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("query cbk buckets: %w", err)
+	}
+	defer rows.Close()
+
+	var out []CBKBucketAgg
+	for rows.Next() {
+		var b CBKBucketAgg
+		if err := rows.Scan(&b.Class, &b.Loans, &b.Outstanding); err != nil {
+			return nil, fmt.Errorf("scan cbk bucket: %w", err)
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
