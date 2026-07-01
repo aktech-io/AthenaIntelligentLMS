@@ -39,9 +39,11 @@ func TestTopologyConstants(t *testing.T) {
 	assert.Equal(t, "account.credit.received", AccountCreditKey)
 }
 
-// TestAllBindingsMatchJava verifies all queue-exchange bindings match the Java config.
-func TestAllBindingsMatchJava(t *testing.T) {
-	// Expected bindings from LmsRabbitMQConfig.java
+// TestAllBindings pins the canonical Go topology so binding changes are
+// deliberate. (Originally a parity check against the archived Java
+// LmsRabbitMQConfig.java; the Go topology has intentionally grown beyond it —
+// collections loan-lifecycle keys and the loan-mgmt write-off key.)
+func TestAllBindings(t *testing.T) {
 	expected := map[string][]string{
 		AccountingQueue: {
 			LoanRoutingPattern, PaymentRoutingPattern, FloatRoutingPattern,
@@ -49,6 +51,7 @@ func TestAllBindingsMatchJava(t *testing.T) {
 		},
 		CollectionsQueue: {
 			DPDRoutingPattern, StageRoutingPattern, OverdraftRoutingPattern,
+			LoanClosedKey, LoanWrittenOffKey, LoanRepaymentReceivedKey,
 		},
 		ComplianceQueue: {
 			AMLRoutingPattern, KYCRoutingPattern, CustomerRoutingPattern,
@@ -56,6 +59,7 @@ func TestAllBindingsMatchJava(t *testing.T) {
 		NotificationQueue: {WildcardPattern},
 		LoanMgmtQueue: {
 			PaymentCompletedKey, PaymentReversedKey, LoanDisbursedKey,
+			WriteOffApprovedKey,
 		},
 		ReportingQueue:       {WildcardPattern},
 		FloatQueue:           {AccountCreditKey},
@@ -72,7 +76,7 @@ func TestAllBindingsMatchJava(t *testing.T) {
 	for queue, expectedKeys := range expected {
 		t.Run(queue, func(t *testing.T) {
 			assert.ElementsMatch(t, expectedKeys, actual[queue],
-				"Bindings for queue %s don't match Java config", queue)
+				"Bindings for queue %s don't match the canonical topology", queue)
 		})
 	}
 

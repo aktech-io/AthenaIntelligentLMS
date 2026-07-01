@@ -27,6 +27,11 @@ const (
 	LoanClosed            = "loan.closed"
 	LoanWrittenOff        = "loan.written.off"
 	LoanModified          = "loan.modified"
+	LoanPenaltyAccrued    = "loan.penalty.accrued"
+	LoanFeeCharged        = "loan.fee.charged"
+
+	// Collections events
+	WriteOffApproved = "collection.writeoff.approved"
 
 	// Payment events
 	PaymentInitiated = "payment.initiated"

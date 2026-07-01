@@ -51,6 +51,7 @@ const (
 	LoanClosedKey            = "loan.closed"
 	LoanWrittenOffKey        = "loan.written.off"
 	LoanRepaymentReceivedKey = "loan.repayment.received"
+	WriteOffApprovedKey      = "collection.writeoff.approved"
 )
 
 // Binding represents a queue-to-exchange binding.
@@ -89,6 +90,7 @@ var AllBindings = []Binding{
 	{LoanMgmtQueue, PaymentCompletedKey},
 	{LoanMgmtQueue, PaymentReversedKey},
 	{LoanMgmtQueue, LoanDisbursedKey},
+	{LoanMgmtQueue, WriteOffApprovedKey},
 
 	// Reporting bindings (wildcard — receives everything)
 	{ReportingQueue, WildcardPattern},
