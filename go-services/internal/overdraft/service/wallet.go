@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
@@ -116,7 +118,116 @@ func (s *WalletService) ListWallets(ctx context.Context, tenantID string) ([]mod
 	return result, nil
 }
 
+// checkDepositAllowed enforces wallet status on the credit rail (BLOCKER-7).
+// Deposits onto a FROZEN/SUSPENDED wallet stay allowed because they only
+// reduce the lender's exposure; only CLOSED wallets reject deposits.
+func checkDepositAllowed(status string) error {
+	if status == "CLOSED" {
+		return errors.NewBusinessError("Wallet is CLOSED; deposits are not allowed")
+	}
+	return nil
+}
+
+// checkWithdrawAllowed enforces wallet status on the debit rail (BLOCKER-7):
+// only ACTIVE wallets may withdraw or draw on the overdraft, so fraud/AML
+// freezes (SUSPENDED/FROZEN/CLOSED) are effective on the wallet rail.
+func checkWithdrawAllowed(status string) error {
+	if status != "ACTIVE" {
+		return errors.NewBusinessError("Wallet is " + status + "; withdrawals are not allowed")
+	}
+	return nil
+}
+
+// isUniqueViolation reports whether err is a Postgres unique violation
+// (SQLSTATE 23505) — for wallet transactions, the (wallet_id, reference)
+// idempotency index added in migration 000004.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return stderrors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+// depositAllocation is the outcome of applying the repayment waterfall to a deposit.
+type depositAllocation struct {
+	FeesRepaid      decimal.Decimal
+	InterestRepaid  decimal.Decimal
+	PrincipalRepaid decimal.Decimal
+	BalanceAfter    decimal.Decimal
+	// PaidFees are the fees that received a payment in this allocation and
+	// must be persisted (AmountPaid/Status/ChargedAt mutated in place).
+	PaidFees []*model.OverdraftFee
+}
+
+// applyDepositWaterfall allocates a deposit in the order
+// fees -> accrued interest -> drawn principal, mutating facility and fees in
+// place, and returns the allocation.
+//
+// Correct accounting (BLOCKER-6): money used to settle fees and accrued
+// interest is income to the lender and must NOT raise the customer's balance:
+//
+//	balanceAfter = balanceBefore + (amount - feesRepaid - interestRepaid)
+//
+// Principal repayment needs no explicit deduction — the negative balance
+// rising toward zero IS the principal being repaid, mirrored by the same
+// reduction of facility.DrawnPrincipal.
+func applyDepositWaterfall(balanceBefore, amount decimal.Decimal, facility *model.OverdraftFacility, fees []model.OverdraftFee) depositAllocation {
+	alloc := depositAllocation{
+		FeesRepaid:      decimal.Zero,
+		InterestRepaid:  decimal.Zero,
+		PrincipalRepaid: decimal.Zero,
+	}
+	remaining := amount
+
+	// 1) Fees: allocate against the unpaid remainder of each pending fee.
+	// Partial payments accumulate in AmountPaid; the fee is only marked
+	// CHARGED once fully paid (BLOCKER-6 partial-fee fix).
+	for i := range fees {
+		if remaining.LessThanOrEqual(decimal.Zero) {
+			break
+		}
+		fee := &fees[i]
+		outstanding := fee.Outstanding()
+		if outstanding.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+		payment := decimal.Min(remaining, outstanding)
+		fee.AmountPaid = fee.AmountPaid.Add(payment)
+		if fee.AmountPaid.GreaterThanOrEqual(fee.Amount) {
+			fee.Status = "CHARGED"
+			now := time.Now()
+			fee.ChargedAt = &now
+		}
+		alloc.FeesRepaid = alloc.FeesRepaid.Add(payment)
+		alloc.PaidFees = append(alloc.PaidFees, fee)
+		remaining = remaining.Sub(payment)
+	}
+
+	// 2) Accrued interest
+	if remaining.GreaterThan(decimal.Zero) && facility.AccruedInterest.GreaterThan(decimal.Zero) {
+		payment := decimal.Min(remaining, facility.AccruedInterest)
+		alloc.InterestRepaid = payment
+		facility.AccruedInterest = facility.AccruedInterest.Sub(payment)
+		remaining = remaining.Sub(payment)
+	}
+
+	// 3) Drawn principal
+	if remaining.GreaterThan(decimal.Zero) && facility.DrawnPrincipal.GreaterThan(decimal.Zero) {
+		payment := decimal.Min(remaining, facility.DrawnPrincipal)
+		alloc.PrincipalRepaid = payment
+		facility.DrawnPrincipal = facility.DrawnPrincipal.Sub(payment)
+	}
+
+	facility.RecalculateDrawnAmount()
+
+	alloc.BalanceAfter = balanceBefore.Add(amount).Sub(alloc.FeesRepaid).Sub(alloc.InterestRepaid)
+	return alloc
+}
+
 // Deposit adds funds to a wallet and applies the repayment waterfall if overdraft is drawn.
+//
+// The whole operation runs in ONE DB transaction with the wallet, facility and
+// fee rows locked FOR UPDATE, and is idempotent on (walletId, reference): a
+// retried mobile-money callback returns the original transaction instead of
+// applying twice (BLOCKER-5).
 func (s *WalletService) Deposit(ctx context.Context, walletID uuid.UUID, req model.WalletTransactionRequest, tenantID string) (*model.WalletTransactionResponse, error) {
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
 		return nil, errors.BadRequest("amount must be > 0")
@@ -125,85 +236,77 @@ func (s *WalletService) Deposit(ctx context.Context, walletID uuid.UUID, req mod
 		return nil, errors.BadRequest("reference is required")
 	}
 
-	wallet, err := s.repo.FindWalletByTenantAndID(ctx, tenantID, walletID)
+	dbTx, err := s.repo.Pool().Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer dbTx.Rollback(ctx)
+
+	wallet, err := s.repo.FindWalletForUpdate(ctx, dbTx, tenantID, walletID)
 	if err != nil {
 		return nil, err
 	}
 	if wallet == nil {
 		return nil, errors.NotFound("Wallet not found: " + walletID.String())
 	}
+	if err := checkDepositAllowed(wallet.Status); err != nil {
+		return nil, err
+	}
 
-	balanceBefore := wallet.CurrentBalance
-	balanceAfter := balanceBefore.Add(req.Amount)
-	wallet.CurrentBalance = balanceAfter
+	// Idempotency pre-check: the wallet row lock serializes concurrent
+	// requests on this wallet, so a duplicate reference is reliably visible.
+	if existing, err := s.repo.FindTransactionByWalletAndReferenceTx(ctx, dbTx, walletID, req.Reference); err != nil {
+		return nil, err
+	} else if existing != nil {
+		if existing.TransactionType != "DEPOSIT" {
+			return nil, errors.Conflict("Reference already used by a " + existing.TransactionType + " transaction: " + req.Reference)
+		}
+		s.logger.Info("Duplicate deposit reference; returning existing transaction",
+			zap.String("walletId", walletID.String()), zap.String("reference", req.Reference))
+		return toTxResponse(existing), nil
+	}
 
-	interestRepaid := decimal.Zero
-	principalRepaid := decimal.Zero
-	feesRepaid := decimal.Zero
-
-	facility, err := s.repo.FindLatestFacilityByWallet(ctx, walletID)
+	facility, err := s.repo.FindLatestFacilityForUpdate(ctx, dbTx, walletID)
 	if err != nil {
 		return nil, err
 	}
 
-	if facility != nil && facility.Status == "ACTIVE" && facility.DrawnAmount.GreaterThan(decimal.Zero) {
-		remaining := decimal.Min(req.Amount, facility.DrawnAmount)
+	balanceBefore := wallet.CurrentBalance
 
-		// Waterfall: 1) Fees -> 2) Accrued Interest -> 3) Drawn Principal
-		// 1) Repay pending fees
-		pendingFees, err := s.repo.FindPendingFeesByFacility(ctx, facility.ID)
+	// Default when nothing is drawn: the full deposit credits the balance.
+	alloc := depositAllocation{
+		FeesRepaid:      decimal.Zero,
+		InterestRepaid:  decimal.Zero,
+		PrincipalRepaid: decimal.Zero,
+		BalanceAfter:    balanceBefore.Add(req.Amount),
+	}
+
+	if facility != nil && facility.Status == "ACTIVE" && facility.DrawnAmount.GreaterThan(decimal.Zero) {
+		pendingFees, err := s.repo.FindPendingFeesForUpdate(ctx, dbTx, facility.ID)
 		if err != nil {
 			return nil, err
 		}
-		for _, fee := range pendingFees {
-			if remaining.LessThanOrEqual(decimal.Zero) {
-				break
-			}
-			feePayment := decimal.Min(remaining, fee.Amount)
-			feesRepaid = feesRepaid.Add(feePayment)
-			remaining = remaining.Sub(feePayment)
-			if err := s.repo.UpdateFeeStatus(ctx, fee.ID, "CHARGED"); err != nil {
+
+		alloc = applyDepositWaterfall(balanceBefore, req.Amount, facility, pendingFees)
+
+		for _, fee := range alloc.PaidFees {
+			if err := s.repo.ApplyFeePaymentTx(ctx, dbTx, fee); err != nil {
 				return nil, err
 			}
 		}
-
-		// 2) Repay accrued interest
-		if remaining.GreaterThan(decimal.Zero) && facility.AccruedInterest.GreaterThan(decimal.Zero) {
-			intPayment := decimal.Min(remaining, facility.AccruedInterest)
-			interestRepaid = intPayment
-			facility.AccruedInterest = facility.AccruedInterest.Sub(intPayment)
-			remaining = remaining.Sub(intPayment)
-		}
-
-		// 3) Repay drawn principal
-		if remaining.GreaterThan(decimal.Zero) && facility.DrawnPrincipal.GreaterThan(decimal.Zero) {
-			princPayment := decimal.Min(remaining, facility.DrawnPrincipal)
-			principalRepaid = princPayment
-			facility.DrawnPrincipal = facility.DrawnPrincipal.Sub(princPayment)
-			remaining = remaining.Sub(princPayment)
-		}
-
-		facility.RecalculateDrawnAmount()
-		if err := s.repo.UpdateFacility(ctx, facility); err != nil {
+		if err := s.repo.UpdateFacilityTx(ctx, dbTx, facility); err != nil {
 			return nil, err
 		}
-
-		totalRepaid := feesRepaid.Add(interestRepaid).Add(principalRepaid)
-		if totalRepaid.GreaterThan(decimal.Zero) {
-			s.publisher.PublishOverdraftRepaidDetailed(ctx, walletID, wallet.CustomerID,
-				totalRepaid, interestRepaid, principalRepaid, feesRepaid, tenantID)
-		}
 	}
 
-	// Update available balance
+	wallet.CurrentBalance = alloc.BalanceAfter
 	if facility != nil && facility.Status == "ACTIVE" {
 		overdraftHeadroom := facility.ApprovedLimit.Sub(facility.DrawnAmount)
-		wallet.AvailableBalance = balanceAfter.Add(overdraftHeadroom)
+		wallet.AvailableBalance = alloc.BalanceAfter.Add(overdraftHeadroom)
 	} else {
-		wallet.AvailableBalance = balanceAfter
+		wallet.AvailableBalance = alloc.BalanceAfter
 	}
-
-	if err := s.repo.UpdateWallet(ctx, wallet); err != nil {
+	if err := s.repo.UpdateWalletTx(ctx, dbTx, wallet); err != nil {
 		return nil, err
 	}
 
@@ -215,23 +318,49 @@ func (s *WalletService) Deposit(ctx context.Context, walletID uuid.UUID, req mod
 		TransactionType: "DEPOSIT",
 		Amount:          req.Amount,
 		BalanceBefore:   balanceBefore,
-		BalanceAfter:    balanceAfter,
+		BalanceAfter:    alloc.BalanceAfter,
 		Reference:       &ref,
 		Description:     strPtr(desc),
 	}
-	if err := s.repo.CreateTransaction(ctx, tx); err != nil {
+	if err := s.repo.CreateTransactionTx(ctx, dbTx, tx); err != nil {
+		if isUniqueViolation(err) {
+			// Lost a duplicate race despite the pre-check: discard our work
+			// and return the winner's transaction (idempotent behaviour).
+			_ = dbTx.Rollback(ctx)
+			existing, ferr := s.repo.FindTransactionByWalletAndReference(ctx, walletID, req.Reference)
+			if ferr == nil && existing != nil && existing.TransactionType == "DEPOSIT" {
+				return toTxResponse(existing), nil
+			}
+			return nil, errors.Conflict("Duplicate transaction reference: " + req.Reference)
+		}
 		return nil, err
+	}
+
+	if err := dbTx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	// Post-commit: events and audit describe only durably committed state.
+	totalRepaid := alloc.FeesRepaid.Add(alloc.InterestRepaid).Add(alloc.PrincipalRepaid)
+	if totalRepaid.GreaterThan(decimal.Zero) {
+		s.publisher.PublishOverdraftRepaidDetailed(ctx, walletID, wallet.CustomerID,
+			totalRepaid, alloc.InterestRepaid, alloc.PrincipalRepaid, alloc.FeesRepaid, tenantID)
 	}
 
 	s.audit.Audit(ctx, tenantID, "WALLET", walletID, "DEPOSIT",
 		map[string]interface{}{"balance": balanceBefore},
-		map[string]interface{}{"balance": balanceAfter, "interestRepaid": interestRepaid, "principalRepaid": principalRepaid},
+		map[string]interface{}{"balance": alloc.BalanceAfter, "feesRepaid": alloc.FeesRepaid,
+			"interestRepaid": alloc.InterestRepaid, "principalRepaid": alloc.PrincipalRepaid},
 		map[string]interface{}{"amount": req.Amount, "reference": req.Reference})
 
 	return toTxResponse(tx), nil
 }
 
 // Withdraw removes funds from a wallet, potentially drawing on the overdraft.
+//
+// Runs in ONE DB transaction with the wallet and facility rows locked FOR
+// UPDATE so two concurrent withdrawals cannot both pass the available-balance
+// check (BLOCKER-5), and is idempotent on (walletId, reference).
 func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req model.WalletTransactionRequest, tenantID string) (*model.WalletTransactionResponse, error) {
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
 		return nil, errors.BadRequest("amount must be > 0")
@@ -240,12 +369,33 @@ func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req mo
 		return nil, errors.BadRequest("reference is required")
 	}
 
-	wallet, err := s.repo.FindWalletByTenantAndID(ctx, tenantID, walletID)
+	dbTx, err := s.repo.Pool().Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer dbTx.Rollback(ctx)
+
+	wallet, err := s.repo.FindWalletForUpdate(ctx, dbTx, tenantID, walletID)
 	if err != nil {
 		return nil, err
 	}
 	if wallet == nil {
 		return nil, errors.NotFound("Wallet not found: " + walletID.String())
+	}
+	if err := checkWithdrawAllowed(wallet.Status); err != nil {
+		return nil, err
+	}
+
+	// Idempotency pre-check (serialized by the wallet row lock).
+	if existing, err := s.repo.FindTransactionByWalletAndReferenceTx(ctx, dbTx, walletID, req.Reference); err != nil {
+		return nil, err
+	} else if existing != nil {
+		if existing.TransactionType != "WITHDRAWAL" && existing.TransactionType != "OVERDRAFT_DRAW" {
+			return nil, errors.Conflict("Reference already used by a " + existing.TransactionType + " transaction: " + req.Reference)
+		}
+		s.logger.Info("Duplicate withdrawal reference; returning existing transaction",
+			zap.String("walletId", walletID.String()), zap.String("reference", req.Reference))
+		return toTxResponse(existing), nil
 	}
 
 	if wallet.AvailableBalance.LessThan(req.Amount) {
@@ -264,7 +414,7 @@ func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req mo
 		txType = "OVERDRAFT_DRAW"
 	}
 
-	facility, err := s.repo.FindLatestFacilityByWallet(ctx, walletID)
+	facility, err := s.repo.FindLatestFacilityForUpdate(ctx, dbTx, walletID)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +426,7 @@ func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req mo
 			additionalDraw := newOverdraft.Sub(previousOverdraft)
 			facility.DrawnPrincipal = facility.DrawnPrincipal.Add(additionalDraw)
 			facility.RecalculateDrawnAmount()
-			if err := s.repo.UpdateFacility(ctx, facility); err != nil {
+			if err := s.repo.UpdateFacilityTx(ctx, dbTx, facility); err != nil {
 				return nil, err
 			}
 		}
@@ -286,7 +436,7 @@ func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req mo
 		wallet.AvailableBalance = balanceAfter
 	}
 
-	if err := s.repo.UpdateWallet(ctx, wallet); err != nil {
+	if err := s.repo.UpdateWalletTx(ctx, dbTx, wallet); err != nil {
 		return nil, err
 	}
 
@@ -302,10 +452,26 @@ func (s *WalletService) Withdraw(ctx context.Context, walletID uuid.UUID, req mo
 		Reference:       &ref,
 		Description:     strPtr(desc),
 	}
-	if err := s.repo.CreateTransaction(ctx, tx); err != nil {
+	if err := s.repo.CreateTransactionTx(ctx, dbTx, tx); err != nil {
+		if isUniqueViolation(err) {
+			// Lost a duplicate race despite the pre-check: discard our work
+			// and return the winner's transaction (idempotent behaviour).
+			_ = dbTx.Rollback(ctx)
+			existing, ferr := s.repo.FindTransactionByWalletAndReference(ctx, walletID, req.Reference)
+			if ferr == nil && existing != nil &&
+				(existing.TransactionType == "WITHDRAWAL" || existing.TransactionType == "OVERDRAFT_DRAW") {
+				return toTxResponse(existing), nil
+			}
+			return nil, errors.Conflict("Duplicate transaction reference: " + req.Reference)
+		}
 		return nil, err
 	}
 
+	if err := dbTx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	// Post-commit: events and audit describe only durably committed state.
 	if overdraftDrawn {
 		previousOverdraft := decimal.Max(balanceBefore.Neg(), decimal.Zero)
 		actualDraw := balanceAfter.Neg().Sub(previousOverdraft)
@@ -392,6 +558,13 @@ func toTxResponse(tx *model.WalletTransaction) *model.WalletTransactionResponse 
 // Fetches credit score, determines band, looks up band config, creates facility,
 // charges arrangement fee, updates wallet available balance, publishes events.
 func (s *WalletService) ApplyOverdraft(ctx context.Context, walletID uuid.UUID, tenantID string) (*model.OverdraftFacilityResponse, error) {
+	// HIGH-6: fail closed. An overdraft is a real credit decision, so a
+	// missing scoring dependency must reject the application — never fabricate
+	// a score and approve a facility on a misconfigured deployment.
+	if s.scoringClient == nil {
+		return nil, errors.NewBusinessError("Credit scoring is unavailable; cannot approve an overdraft facility")
+	}
+
 	wallet, err := s.repo.FindWalletByTenantAndID(ctx, tenantID, walletID)
 	if err != nil || wallet == nil {
 		return nil, errors.NotFoundResource("Wallet", walletID)
@@ -406,12 +579,12 @@ func (s *WalletService) ApplyOverdraft(ctx context.Context, walletID uuid.UUID, 
 		return nil, errors.NewBusinessError("Active overdraft facility already exists for this wallet")
 	}
 
-	// Get credit score (from AI scoring service or deterministic mock)
-	var scoreResult client.CreditScoreResult
-	if s.scoringClient != nil {
-		scoreResult = s.scoringClient.GetLatestScore(ctx, wallet.CustomerID)
-	} else {
-		scoreResult = client.CreditScoreResult{Score: 650, Band: "B"}
+	// Get credit score from the AI scoring service (fail closed on any error).
+	scoreResult, err := s.scoringClient.GetLatestScore(ctx, wallet.CustomerID)
+	if err != nil {
+		s.logger.Error("Credit scoring lookup failed; rejecting overdraft application",
+			zap.String("customerId", wallet.CustomerID), zap.Error(err))
+		return nil, errors.NewBusinessError("Credit scoring is unavailable; cannot approve an overdraft facility")
 	}
 
 	// Look up band configuration for this tenant

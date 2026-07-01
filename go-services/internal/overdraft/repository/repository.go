@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
@@ -22,6 +23,18 @@ type Repository struct {
 // New creates a new Repository.
 func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
+}
+
+// Pool exposes the underlying pgx pool so services can run multi-statement
+// money movements inside a single transaction (mirrors account/repository).
+func (r *Repository) Pool() *pgxpool.Pool { return r.pool }
+
+// querier is the subset of *pgxpool.Pool and pgx.Tx that shared query helpers
+// need, letting the same SQL run either on the pool or inside a transaction.
+type querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -62,6 +75,15 @@ func (r *Repository) FindWalletByTenantAndID(ctx context.Context, tenantID strin
 		 FROM customer_wallets WHERE tenant_id=$1 AND id=$2`, tenantID, id))
 }
 
+// FindWalletForUpdate loads a wallet inside the caller's transaction with a
+// row lock (SELECT ... FOR UPDATE) so concurrent deposits/withdrawals on the
+// same wallet serialize instead of double-spending (BLOCKER-5).
+func (r *Repository) FindWalletForUpdate(ctx context.Context, tx pgx.Tx, tenantID string, id uuid.UUID) (*model.CustomerWallet, error) {
+	return r.scanWallet(tx.QueryRow(ctx,
+		`SELECT id,tenant_id,customer_id,account_number,currency,current_balance,available_balance,status,created_at,updated_at
+		 FROM customer_wallets WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenantID, id))
+}
+
 func (r *Repository) FindWalletByID(ctx context.Context, id uuid.UUID) (*model.CustomerWallet, error) {
 	return r.scanWallet(r.pool.QueryRow(ctx,
 		`SELECT id,tenant_id,customer_id,account_number,currency,current_balance,available_balance,status,created_at,updated_at
@@ -89,8 +111,17 @@ func (r *Repository) ListWalletsByTenant(ctx context.Context, tenantID string) (
 }
 
 func (r *Repository) UpdateWallet(ctx context.Context, w *model.CustomerWallet) error {
+	return r.updateWallet(ctx, r.pool, w)
+}
+
+// UpdateWalletTx updates a wallet inside the caller's transaction.
+func (r *Repository) UpdateWalletTx(ctx context.Context, tx pgx.Tx, w *model.CustomerWallet) error {
+	return r.updateWallet(ctx, tx, w)
+}
+
+func (r *Repository) updateWallet(ctx context.Context, q querier, w *model.CustomerWallet) error {
 	w.UpdatedAt = time.Now()
-	_, err := r.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`UPDATE customer_wallets SET current_balance=$1, available_balance=$2, status=$3, updated_at=$4
 		 WHERE id=$5`,
 		w.CurrentBalance, w.AvailableBalance, w.Status, w.UpdatedAt, w.ID)
@@ -156,6 +187,15 @@ func (r *Repository) FindLatestFacilityByWallet(ctx context.Context, walletID uu
 		walletID))
 }
 
+// FindLatestFacilityForUpdate loads the wallet's latest facility inside the
+// caller's transaction with a row lock (SELECT ... FOR UPDATE) so waterfall
+// and draw updates cannot interleave (BLOCKER-5).
+func (r *Repository) FindLatestFacilityForUpdate(ctx context.Context, tx pgx.Tx, walletID uuid.UUID) (*model.OverdraftFacility, error) {
+	return r.scanFacility(tx.QueryRow(ctx,
+		fmt.Sprintf(`SELECT %s FROM overdraft_facilities WHERE wallet_id=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, facilityColumns),
+		walletID))
+}
+
 func (r *Repository) FindFacilityByID(ctx context.Context, id uuid.UUID) (*model.OverdraftFacility, error) {
 	return r.scanFacility(r.pool.QueryRow(ctx,
 		fmt.Sprintf(`SELECT %s FROM overdraft_facilities WHERE id=$1`, facilityColumns), id))
@@ -201,8 +241,17 @@ func (r *Repository) FindActiveDrawnFacilities(ctx context.Context) ([]model.Ove
 }
 
 func (r *Repository) UpdateFacility(ctx context.Context, f *model.OverdraftFacility) error {
+	return r.updateFacility(ctx, r.pool, f)
+}
+
+// UpdateFacilityTx updates a facility inside the caller's transaction.
+func (r *Repository) UpdateFacilityTx(ctx context.Context, tx pgx.Tx, f *model.OverdraftFacility) error {
+	return r.updateFacility(ctx, tx, f)
+}
+
+func (r *Repository) updateFacility(ctx context.Context, q querier, f *model.OverdraftFacility) error {
 	f.UpdatedAt = time.Now()
-	_, err := r.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`UPDATE overdraft_facilities SET drawn_amount=$1, drawn_principal=$2, accrued_interest=$3,
 		 interest_rate=$4, status=$5, dpd=$6, npl_stage=$7, credit_score=$8, credit_band=$9,
 		 approved_limit=$10, last_billing_date=$11, next_billing_date=$12, expiry_date=$13,
@@ -249,15 +298,54 @@ func (r *Repository) scanFacilityRow(rows pgx.Rows) (*model.OverdraftFacility, e
 // ──────────────────────────────────────────────────────────────────────────────
 
 func (r *Repository) CreateTransaction(ctx context.Context, tx *model.WalletTransaction) error {
+	return r.createTransaction(ctx, r.pool, tx)
+}
+
+// CreateTransactionTx inserts a wallet transaction inside the caller's
+// transaction. Returns the underlying error unwrapped so callers can detect a
+// unique violation on (wallet_id, reference) — the idempotency guard.
+func (r *Repository) CreateTransactionTx(ctx context.Context, dbTx pgx.Tx, tx *model.WalletTransaction) error {
+	return r.createTransaction(ctx, dbTx, tx)
+}
+
+func (r *Repository) createTransaction(ctx context.Context, q querier, tx *model.WalletTransaction) error {
 	tx.ID = uuid.New()
 	tx.CreatedAt = time.Now()
 
-	_, err := r.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`INSERT INTO wallet_transactions (id,tenant_id,wallet_id,transaction_type,amount,balance_before,balance_after,reference,description,created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 		tx.ID, tx.TenantID, tx.WalletID, tx.TransactionType, tx.Amount,
 		tx.BalanceBefore, tx.BalanceAfter, tx.Reference, tx.Description, tx.CreatedAt)
 	return err
+}
+
+// FindTransactionByWalletAndReference returns the wallet transaction with the
+// given reference, or nil if none exists (idempotency lookup, pool variant).
+func (r *Repository) FindTransactionByWalletAndReference(ctx context.Context, walletID uuid.UUID, reference string) (*model.WalletTransaction, error) {
+	return r.findTransactionByWalletAndReference(ctx, r.pool, walletID, reference)
+}
+
+// FindTransactionByWalletAndReferenceTx is the in-transaction variant; called
+// after the wallet row lock is held so duplicate submissions serialize.
+func (r *Repository) FindTransactionByWalletAndReferenceTx(ctx context.Context, tx pgx.Tx, walletID uuid.UUID, reference string) (*model.WalletTransaction, error) {
+	return r.findTransactionByWalletAndReference(ctx, tx, walletID, reference)
+}
+
+func (r *Repository) findTransactionByWalletAndReference(ctx context.Context, q querier, walletID uuid.UUID, reference string) (*model.WalletTransaction, error) {
+	var t model.WalletTransaction
+	err := q.QueryRow(ctx,
+		`SELECT id,tenant_id,wallet_id,transaction_type,amount,balance_before,balance_after,reference,description,created_at
+		 FROM wallet_transactions WHERE wallet_id=$1 AND reference=$2`,
+		walletID, reference).Scan(&t.ID, &t.TenantID, &t.WalletID, &t.TransactionType, &t.Amount,
+		&t.BalanceBefore, &t.BalanceAfter, &t.Reference, &t.Description, &t.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }
 
 func (r *Repository) ListTransactions(ctx context.Context, walletID uuid.UUID, tenantID string, limit, offset int) ([]model.WalletTransaction, int64, error) {
@@ -512,17 +600,30 @@ func (r *Repository) CreateFee(ctx context.Context, f *model.OverdraftFee) error
 	f.CreatedAt = time.Now()
 
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO overdraft_fees (id,tenant_id,facility_id,fee_type,amount,reference,status,charged_at,waived_at,waived_by,created_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-		f.ID, f.TenantID, f.FacilityID, f.FeeType, f.Amount, f.Reference,
+		`INSERT INTO overdraft_fees (id,tenant_id,facility_id,fee_type,amount,amount_paid,reference,status,charged_at,waived_at,waived_by,created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		f.ID, f.TenantID, f.FacilityID, f.FeeType, f.Amount, f.AmountPaid, f.Reference,
 		f.Status, f.ChargedAt, f.WaivedAt, f.WaivedBy, f.CreatedAt)
 	return err
 }
 
 func (r *Repository) FindPendingFeesByFacility(ctx context.Context, facilityID uuid.UUID) ([]model.OverdraftFee, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT id,tenant_id,facility_id,fee_type,amount,reference,status,charged_at,waived_at,waived_by,created_at
-		 FROM overdraft_fees WHERE facility_id=$1 AND status='PENDING' ORDER BY created_at`, facilityID)
+	return r.findPendingFees(ctx, r.pool, facilityID, false)
+}
+
+// FindPendingFeesForUpdate loads pending fees inside the caller's transaction
+// with row locks so concurrent deposits cannot both settle the same fee.
+func (r *Repository) FindPendingFeesForUpdate(ctx context.Context, tx pgx.Tx, facilityID uuid.UUID) ([]model.OverdraftFee, error) {
+	return r.findPendingFees(ctx, tx, facilityID, true)
+}
+
+func (r *Repository) findPendingFees(ctx context.Context, q querier, facilityID uuid.UUID, forUpdate bool) ([]model.OverdraftFee, error) {
+	query := `SELECT id,tenant_id,facility_id,fee_type,amount,amount_paid,reference,status,charged_at,waived_at,waived_by,created_at
+		 FROM overdraft_fees WHERE facility_id=$1 AND status='PENDING' ORDER BY created_at`
+	if forUpdate {
+		query += ` FOR UPDATE`
+	}
+	rows, err := q.Query(ctx, query, facilityID)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +632,7 @@ func (r *Repository) FindPendingFeesByFacility(ctx context.Context, facilityID u
 	var fees []model.OverdraftFee
 	for rows.Next() {
 		var f model.OverdraftFee
-		if err := rows.Scan(&f.ID, &f.TenantID, &f.FacilityID, &f.FeeType, &f.Amount,
+		if err := rows.Scan(&f.ID, &f.TenantID, &f.FacilityID, &f.FeeType, &f.Amount, &f.AmountPaid,
 			&f.Reference, &f.Status, &f.ChargedAt, &f.WaivedAt, &f.WaivedBy, &f.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -540,9 +641,13 @@ func (r *Repository) FindPendingFeesByFacility(ctx context.Context, facilityID u
 	return fees, rows.Err()
 }
 
-func (r *Repository) UpdateFeeStatus(ctx context.Context, id uuid.UUID, status string) error {
-	_, err := r.pool.Exec(ctx,
-		`UPDATE overdraft_fees SET status=$1 WHERE id=$2`, status, id)
+// ApplyFeePaymentTx persists a (possibly partial) payment against a fee inside
+// the caller's transaction: amount_paid accumulates and the fee only becomes
+// CHARGED once fully paid (BLOCKER-6).
+func (r *Repository) ApplyFeePaymentTx(ctx context.Context, tx pgx.Tx, f *model.OverdraftFee) error {
+	_, err := tx.Exec(ctx,
+		`UPDATE overdraft_fees SET amount_paid=$1, status=$2, charged_at=$3 WHERE id=$4`,
+		f.AmountPaid, f.Status, f.ChargedAt, f.ID)
 	return err
 }
 

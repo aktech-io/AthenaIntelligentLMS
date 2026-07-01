@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"go.uber.org/zap"
 
@@ -33,8 +32,12 @@ func NewScoringClient(baseURL, serviceKey string, logger *zap.Logger) *ScoringCl
 }
 
 // GetLatestScore fetches the latest credit score for a customer.
-// Falls back to a deterministic mock if the AI scoring service is unavailable.
-func (s *ScoringClient) GetLatestScore(ctx context.Context, customerID string) CreditScoreResult {
+//
+// It fails CLOSED (HIGH-6): any transport error, non-2xx response, or
+// incomplete payload returns an error so callers reject the credit decision.
+// It must never fabricate a score — a mocked score here would silently approve
+// real credit facilities whenever the scoring service is down or misconfigured.
+func (s *ScoringClient) GetLatestScore(ctx context.Context, customerID string) (CreditScoreResult, error) {
 	url := fmt.Sprintf("%s/api/v1/scoring/customers/%s/latest", s.baseURL, customerID)
 
 	var resp struct {
@@ -43,52 +46,20 @@ func (s *ScoringClient) GetLatestScore(ctx context.Context, customerID string) C
 	}
 
 	if err := s.client.Get(ctx, url, &resp); err != nil {
-		s.logger.Warn("AI scoring unavailable, using mock",
+		s.logger.Warn("AI scoring unavailable",
 			zap.String("customerId", customerID),
 			zap.Error(err))
-		return generateMockScore(customerID)
+		return CreditScoreResult{}, fmt.Errorf("fetch credit score for customer %s: %w", customerID, err)
 	}
 
-	if resp.FinalScore != nil && resp.ScoreBand != nil {
-		s.logger.Info("Got credit score",
-			zap.String("customerId", customerID),
-			zap.Int("score", *resp.FinalScore),
-			zap.String("band", *resp.ScoreBand))
-		return CreditScoreResult{Score: *resp.FinalScore, Band: *resp.ScoreBand}
+	if resp.FinalScore == nil || resp.ScoreBand == nil {
+		s.logger.Warn("Incomplete scoring response", zap.String("customerId", customerID))
+		return CreditScoreResult{}, fmt.Errorf("incomplete scoring response for customer %s", customerID)
 	}
 
-	s.logger.Warn("Incomplete scoring response, using mock", zap.String("customerId", customerID))
-	return generateMockScore(customerID)
-}
-
-// generateMockScore produces a deterministic score from the customer ID hash.
-func generateMockScore(customerID string) CreditScoreResult {
-	seed := int64(0)
-	for _, c := range customerID {
-		seed = seed*31 + int64(c)
-	}
-	seed = int64(math.Abs(float64(seed)))
-
-	baseScore := int(500 + (seed % 350))
-	finalScore := baseScore
-	if finalScore < 300 {
-		finalScore = 300
-	}
-	if finalScore > 900 {
-		finalScore = 900
-	}
-
-	var band string
-	switch {
-	case finalScore >= 750:
-		band = "A"
-	case finalScore >= 650:
-		band = "B"
-	case finalScore >= 550:
-		band = "C"
-	default:
-		band = "D"
-	}
-
-	return CreditScoreResult{Score: finalScore, Band: band}
+	s.logger.Info("Got credit score",
+		zap.String("customerId", customerID),
+		zap.Int("score", *resp.FinalScore),
+		zap.String("band", *resp.ScoreBand))
+	return CreditScoreResult{Score: *resp.FinalScore, Band: *resp.ScoreBand}, nil
 }

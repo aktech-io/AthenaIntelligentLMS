@@ -117,12 +117,15 @@ type CreditBandConfig struct {
 }
 
 // OverdraftFee records a fee charged against a facility.
+// AmountPaid accumulates (possibly partial) repayments; the fee is only marked
+// CHARGED once AmountPaid >= Amount (BLOCKER-6).
 type OverdraftFee struct {
 	ID         uuid.UUID       `json:"id" db:"id"`
 	TenantID   string          `json:"tenantId" db:"tenant_id"`
 	FacilityID uuid.UUID       `json:"facilityId" db:"facility_id"`
 	FeeType    string          `json:"feeType" db:"fee_type"`
 	Amount     decimal.Decimal `json:"amount" db:"amount"`
+	AmountPaid decimal.Decimal `json:"amountPaid" db:"amount_paid"`
 	Reference  *string         `json:"reference,omitempty" db:"reference"`
 	Status     string          `json:"status" db:"status"`
 	ChargedAt  *time.Time      `json:"chargedAt,omitempty" db:"charged_at"`
@@ -131,18 +134,23 @@ type OverdraftFee struct {
 	CreatedAt  time.Time       `json:"createdAt" db:"created_at"`
 }
 
+// Outstanding returns the unpaid remainder of the fee.
+func (f *OverdraftFee) Outstanding() decimal.Decimal {
+	return f.Amount.Sub(f.AmountPaid)
+}
+
 // OverdraftAuditLog records an audit trail entry.
 type OverdraftAuditLog struct {
-	ID              uuid.UUID              `json:"id" db:"id"`
-	TenantID        string                 `json:"tenantId" db:"tenant_id"`
-	EntityType      string                 `json:"entityType" db:"entity_type"`
-	EntityID        uuid.UUID              `json:"entityId" db:"entity_id"`
-	Action          string                 `json:"action" db:"action"`
-	Actor           string                 `json:"actor" db:"actor"`
-	BeforeSnapshot  map[string]interface{} `json:"beforeSnapshot,omitempty" db:"before_snapshot"`
-	AfterSnapshot   map[string]interface{} `json:"afterSnapshot,omitempty" db:"after_snapshot"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty" db:"metadata"`
-	CreatedAt       time.Time              `json:"createdAt" db:"created_at"`
+	ID             uuid.UUID              `json:"id" db:"id"`
+	TenantID       string                 `json:"tenantId" db:"tenant_id"`
+	EntityType     string                 `json:"entityType" db:"entity_type"`
+	EntityID       uuid.UUID              `json:"entityId" db:"entity_id"`
+	Action         string                 `json:"action" db:"action"`
+	Actor          string                 `json:"actor" db:"actor"`
+	BeforeSnapshot map[string]interface{} `json:"beforeSnapshot,omitempty" db:"before_snapshot"`
+	AfterSnapshot  map[string]interface{} `json:"afterSnapshot,omitempty" db:"after_snapshot"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty" db:"metadata"`
+	CreatedAt      time.Time              `json:"createdAt" db:"created_at"`
 }
 
 // --- Request DTOs ---
@@ -204,24 +212,24 @@ type WalletTransactionResponse struct {
 
 // OverdraftFacilityResponse is the API response for a facility.
 type OverdraftFacilityResponse struct {
-	ID                uuid.UUID       `json:"id"`
-	TenantID          string          `json:"tenantId"`
-	WalletID          uuid.UUID       `json:"walletId"`
-	CustomerID        string          `json:"customerId"`
-	CreditScore       int             `json:"creditScore"`
-	CreditBand        string          `json:"creditBand"`
-	ApprovedLimit     decimal.Decimal `json:"approvedLimit"`
-	DrawnAmount       decimal.Decimal `json:"drawnAmount"`
+	ID                 uuid.UUID       `json:"id"`
+	TenantID           string          `json:"tenantId"`
+	WalletID           uuid.UUID       `json:"walletId"`
+	CustomerID         string          `json:"customerId"`
+	CreditScore        int             `json:"creditScore"`
+	CreditBand         string          `json:"creditBand"`
+	ApprovedLimit      decimal.Decimal `json:"approvedLimit"`
+	DrawnAmount        decimal.Decimal `json:"drawnAmount"`
 	AvailableOverdraft decimal.Decimal `json:"availableOverdraft"`
-	InterestRate      decimal.Decimal `json:"interestRate"`
-	DrawnPrincipal    decimal.Decimal `json:"drawnPrincipal"`
-	AccruedInterest   decimal.Decimal `json:"accruedInterest"`
-	Status            string          `json:"status"`
-	DPD               int             `json:"dpd"`
-	NPLStage          string          `json:"nplStage"`
-	AppliedAt         time.Time       `json:"appliedAt"`
-	ApprovedAt        *time.Time      `json:"approvedAt,omitempty"`
-	CreatedAt         time.Time       `json:"createdAt"`
+	InterestRate       decimal.Decimal `json:"interestRate"`
+	DrawnPrincipal     decimal.Decimal `json:"drawnPrincipal"`
+	AccruedInterest    decimal.Decimal `json:"accruedInterest"`
+	Status             string          `json:"status"`
+	DPD                int             `json:"dpd"`
+	NPLStage           string          `json:"nplStage"`
+	AppliedAt          time.Time       `json:"appliedAt"`
+	ApprovedAt         *time.Time      `json:"approvedAt,omitempty"`
+	CreatedAt          time.Time       `json:"createdAt"`
 }
 
 // InterestChargeResponse is the API response for an interest charge record.
@@ -238,27 +246,27 @@ type InterestChargeResponse struct {
 
 // OverdraftSummaryResponse is the API response for the admin summary.
 type OverdraftSummaryResponse struct {
-	TotalFacilities       int64                      `json:"totalFacilities"`
-	ActiveFacilities      int64                      `json:"activeFacilities"`
-	TotalApprovedLimit    decimal.Decimal            `json:"totalApprovedLimit"`
-	TotalDrawnAmount      decimal.Decimal            `json:"totalDrawnAmount"`
-	TotalAvailableOverdraft decimal.Decimal          `json:"totalAvailableOverdraft"`
-	FacilitiesByBand      map[string]int64           `json:"facilitiesByBand"`
-	DrawnByBand           map[string]decimal.Decimal `json:"drawnByBand"`
+	TotalFacilities         int64                      `json:"totalFacilities"`
+	ActiveFacilities        int64                      `json:"activeFacilities"`
+	TotalApprovedLimit      decimal.Decimal            `json:"totalApprovedLimit"`
+	TotalDrawnAmount        decimal.Decimal            `json:"totalDrawnAmount"`
+	TotalAvailableOverdraft decimal.Decimal            `json:"totalAvailableOverdraft"`
+	FacilitiesByBand        map[string]int64           `json:"facilitiesByBand"`
+	DrawnByBand             map[string]decimal.Decimal `json:"drawnByBand"`
 }
 
 // AuditLogResponse is the API response for an audit log entry.
 type AuditLogResponse struct {
-	ID              uuid.UUID              `json:"id"`
-	TenantID        string                 `json:"tenantId"`
-	EntityType      string                 `json:"entityType"`
-	EntityID        uuid.UUID              `json:"entityId"`
-	Action          string                 `json:"action"`
-	Actor           string                 `json:"actor"`
-	BeforeSnapshot  map[string]interface{} `json:"beforeSnapshot,omitempty"`
-	AfterSnapshot   map[string]interface{} `json:"afterSnapshot,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt       time.Time              `json:"createdAt"`
+	ID             uuid.UUID              `json:"id"`
+	TenantID       string                 `json:"tenantId"`
+	EntityType     string                 `json:"entityType"`
+	EntityID       uuid.UUID              `json:"entityId"`
+	Action         string                 `json:"action"`
+	Actor          string                 `json:"actor"`
+	BeforeSnapshot map[string]interface{} `json:"beforeSnapshot,omitempty"`
+	AfterSnapshot  map[string]interface{} `json:"afterSnapshot,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt      time.Time              `json:"createdAt"`
 }
 
 // CreditBandConfigResponse is the API response for a credit band config.
