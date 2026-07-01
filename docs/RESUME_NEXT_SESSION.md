@@ -23,12 +23,19 @@
   event date preserved in the description), fail-closed if no open period in 24mo. Pure
   `resolveOpenPostingDate` helper unit-tested. Year-end's own posting path left untouched.
 
+## ✅ CRB feed v1 done & pushed (2026-07-01)
+- **CRB borrower-performance feed** in the **management** service: `internal/management/crb`
+  (canonical bureau-agnostic `Record` + `Mapper` interface + generic `CSVMapper`),
+  `Repository.GetCRBFeedRecords` (loans active as of period end + real overdue aggregated from
+  past-due unpaid schedule installments), `Service.CRBFeedRecords`, and
+  `GET /api/v1/loans/crb-feed?period=YYYY-MM` (ADMIN/MANAGER, CSV download). Unit-tested.
+- **CRB v1 follow-ups (open):** (a) select the concrete bureau template from the tenant's
+  regulatory profile `CrbBureau` (v1 emits generic CSV); (b) borrower PII enrichment
+  (national ID / name) — held outside management, needed for bureau matching; (c) swap
+  `Classification` from internal stage to the CBK-correct bands (lands with H-4); (d) gate on
+  `CrbEnabled` / schedule by `CrbSubmissionFrequency`.
+
 ## ▶️ NEXT — pick up here (in order)
-1. **CRB borrower feed** (go-live blocker, mandatory) — reads the new regulatory profile.
-   **Bureau-agnostic, config-driven** generator (pluggable output mapper;
-   Metropol/TransUnion/Creditinfo per-tenant config). Monthly borrower performance export.
-   Consume the profile via `regulatory/service.GetOrCreateForTenant` (CrbBureau / CrbEnabled /
-   CrbSubmissionFrequency / ReportSet).
 3. **H-4 — CBK provisioning overlay (scoped, queued).** Post IFRS-9 **movement** (required ECL −
    current allowance) to P&L, stage-tagged, maker-checker, **DRAFT until PD/LGD calibrated**;
    book **excess of CBK provision over IFRS to a non-distributable Statutory Loan Loss Reserve

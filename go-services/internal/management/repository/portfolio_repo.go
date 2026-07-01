@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
+
+	"github.com/athena-lms/go-services/internal/management/crb"
 )
 
 // PortfolioStats is a live aggregate of the loan book for a tenant.
@@ -282,4 +285,55 @@ func (r *Repository) GetECLProvisionReport(ctx context.Context, tenantID string)
 		rep.CoverageRatio = cov
 	}
 	return rep, nil
+}
+
+// GetCRBFeedRecords returns one canonical CRB borrower-performance record per loan
+// that was active as of periodEnd (disbursed on/before it and not closed before
+// it). OverdueAmount is aggregated from past-due unpaid schedule installments
+// (due on/before periodEnd, still PENDING/PARTIAL). Ordered by customer for a
+// stable feed. Product is the product_id reference (product metadata lives in the
+// product service); Classification is the internal loan stage (the CBK prudential
+// classification is added with H-4). Borrower PII enrichment (national ID/name,
+// held outside this service) is a documented follow-up.
+func (r *Repository) GetCRBFeedRecords(ctx context.Context, tenantID string, periodEnd time.Time) ([]crb.Record, error) {
+	const q = `
+		SELECT l.customer_id, l.id::text, l.product_id::text, l.currency,
+		       l.disbursed_amount,
+		       (l.outstanding_principal + l.outstanding_interest + l.outstanding_fees + l.outstanding_penalty) AS outstanding_balance,
+		       l.outstanding_principal,
+		       COALESCE(arr.overdue, 0) AS overdue_amount,
+		       l.dpd, l.stage, l.status, l.disbursed_at, l.maturity_date, l.last_repayment_date
+		FROM loans l
+		LEFT JOIN (
+		    SELECT loan_id, SUM(total_due - total_paid) AS overdue
+		    FROM loan_schedules
+		    WHERE due_date <= $2 AND status IN ('PENDING','PARTIAL')
+		    GROUP BY loan_id
+		) arr ON arr.loan_id = l.id
+		WHERE l.tenant_id = $1
+		  AND l.disbursed_at <= $2
+		  AND (l.closed_at IS NULL OR l.closed_at > $2)
+		ORDER BY l.customer_id, l.disbursed_at`
+	rows, err := r.pool.Query(ctx, q, tenantID, periodEnd)
+	if err != nil {
+		return nil, fmt.Errorf("query crb feed: %w", err)
+	}
+	defer rows.Close()
+
+	var out []crb.Record
+	for rows.Next() {
+		var rec crb.Record
+		var last *time.Time
+		if err := rows.Scan(
+			&rec.CustomerID, &rec.LoanAccountRef, &rec.Product, &rec.Currency,
+			&rec.DisbursedAmount, &rec.OutstandingBalance, &rec.OutstandingPrincipal,
+			&rec.OverdueAmount, &rec.DaysPastDue, &rec.Classification, &rec.AccountStatus,
+			&rec.DisbursedAt, &rec.MaturityDate, &last,
+		); err != nil {
+			return nil, fmt.Errorf("scan crb record: %w", err)
+		}
+		rec.LastPaymentDate = last
+		out = append(out, rec)
+	}
+	return out, rows.Err()
 }

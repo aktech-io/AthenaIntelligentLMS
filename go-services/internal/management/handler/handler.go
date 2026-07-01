@@ -2,9 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/auth"
 	cerrors "github.com/athena-lms/go-services/internal/common/errors"
 	"github.com/athena-lms/go-services/internal/common/httputil"
+	"github.com/athena-lms/go-services/internal/management/crb"
 	"github.com/athena-lms/go-services/internal/management/model"
 	"github.com/athena-lms/go-services/internal/management/service"
 )
@@ -41,6 +44,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/portfolio-stats", h.GetPortfolioStats)
 		r.Get("/par-report", h.GetPARReport)
 		r.Get("/ecl-provision", h.GetECLProvisionReport)
+		r.With(auth.RequireRole("ADMIN", "MANAGER")).Get("/crb-feed", h.GetCRBFeed)
 		r.Post("/{id}/restructure", h.Restructure)
 	})
 	r.Route("/api/v1/repayments", func(r chi.Router) {
@@ -342,4 +346,48 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error)
 		h.logger.Error("Internal error", zap.Error(err), zap.String("path", r.URL.Path))
 		httputil.WriteInternalError(w, "Internal server error", r.URL.Path)
 	}
+}
+
+// GetCRBFeed handles GET /api/v1/loans/crb-feed?period=YYYY-MM — the Credit
+// Reference Bureau borrower-performance feed for a reporting period. ADMIN/MANAGER
+// only (it contains borrower PII). v1 renders the generic, bureau-agnostic CSV;
+// the tenant's regulatory profile will select the concrete bureau template in a
+// follow-up.
+func (h *Handler) GetCRBFeed(w http.ResponseWriter, r *http.Request) {
+	periodEnd, label, err := parsePeriodEnd(r.URL.Query().Get("period"))
+	if err != nil {
+		httputil.WriteErrorJSON(w, http.StatusBadRequest, "Bad Request", err.Error(), r.URL.Path)
+		return
+	}
+	records, err := h.svc.CRBFeedRecords(r.Context(), auth.TenantIDOrDefault(r.Context()), periodEnd)
+	if err != nil {
+		h.logger.Error("crb feed query failed", zap.Error(err), zap.String("path", r.URL.Path))
+		httputil.WriteInternalError(w, "Could not build CRB feed", r.URL.Path)
+		return
+	}
+	data, err := crb.CSVMapper{}.Render(records)
+	if err != nil {
+		h.logger.Error("crb feed render failed", zap.Error(err), zap.String("path", r.URL.Path))
+		httputil.WriteInternalError(w, "Could not render CRB feed", r.URL.Path)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=crb-feed-%s.csv", label))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
+// parsePeriodEnd parses a YYYY-MM period into its inclusive end instant (end of
+// that month). An empty period defaults to the current month. Returns the end
+// instant and the YYYY-MM label.
+func parsePeriodEnd(period string) (time.Time, string, error) {
+	if period == "" {
+		period = time.Now().UTC().Format("2006-01")
+	}
+	t, err := time.Parse("2006-01", period)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("invalid period %q, expected YYYY-MM", period)
+	}
+	end := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0).Add(-time.Nanosecond)
+	return end, period, nil
 }

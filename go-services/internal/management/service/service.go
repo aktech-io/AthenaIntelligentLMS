@@ -14,6 +14,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/management/crb"
 	"github.com/athena-lms/go-services/internal/management/event"
 	"github.com/athena-lms/go-services/internal/management/model"
 	"github.com/athena-lms/go-services/internal/management/repository"
@@ -37,6 +38,13 @@ func New(repo *repository.Repository, schedGen *ScheduleGenerator, publisher *ev
 		logger:    logger,
 		auditor:   audit.New(repo, logger),
 	}
+}
+
+// CRBFeedRecords returns the tenant's Credit Reference Bureau borrower-performance
+// records as of the given period end (see internal/management/crb). Bureau
+// selection/rendering is the caller's concern (v1 uses the generic CSV mapper).
+func (s *Service) CRBFeedRecords(ctx context.Context, tenantID string, periodEnd time.Time) ([]crb.Record, error) {
+	return s.repo.GetCRBFeedRecords(ctx, tenantID, periodEnd)
 }
 
 // ---------------------------------------------------------------------------
