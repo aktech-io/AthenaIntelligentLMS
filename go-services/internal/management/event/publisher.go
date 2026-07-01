@@ -11,7 +11,10 @@ import (
 	"github.com/athena-lms/go-services/internal/management/model"
 )
 
-const serviceName = "loan-management-service"
+// ServiceName is stamped as the Source on every event this service publishes.
+// Exported because the management consumer uses it to skip self-published
+// payment.completed events (it must only apply payment-service payments).
+const ServiceName = "loan-management-service"
 
 // ManagementPublisher publishes loan management domain events.
 type ManagementPublisher struct {
@@ -88,7 +91,14 @@ func (p *ManagementPublisher) PublishRepaymentCompleted(ctx context.Context, loa
 }
 
 func (p *ManagementPublisher) publish(ctx context.Context, eventType, tenantID, correlationID string, payload map[string]any) {
-	evt, err := commonEvent.NewDomainEvent(eventType, serviceName, tenantID, correlationID, payload)
+	if p.pub == nil {
+		// No broker wired (unit tests): events are best-effort, drop silently.
+		p.logger.Debug("Event publisher not configured; dropping event",
+			zap.String("type", eventType))
+		return
+	}
+
+	evt, err := commonEvent.NewDomainEvent(eventType, ServiceName, tenantID, correlationID, payload)
 	if err != nil {
 		p.logger.Error("Failed to create domain event",
 			zap.String("type", eventType),

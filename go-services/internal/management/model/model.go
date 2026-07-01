@@ -121,11 +121,14 @@ type LoanRepayment struct {
 	FeeApplied       decimal.Decimal `json:"feeApplied"`
 	InterestApplied  decimal.Decimal `json:"interestApplied"`
 	PrincipalApplied decimal.Decimal `json:"principalApplied"`
-	PaymentReference sql.NullString  `json:"paymentReference"`
-	PaymentMethod    sql.NullString  `json:"paymentMethod"`
-	PaymentDate      time.Time       `json:"paymentDate"`
-	CreatedAt        time.Time       `json:"createdAt"`
-	CreatedBy        sql.NullString  `json:"createdBy"`
+	// UnallocatedAmount is any surplus left after allocating to every
+	// installment and to loan-level outstanding principal (overpayment).
+	UnallocatedAmount decimal.Decimal `json:"unallocatedAmount"`
+	PaymentReference  sql.NullString  `json:"paymentReference"`
+	PaymentMethod     sql.NullString  `json:"paymentMethod"`
+	PaymentDate       time.Time       `json:"paymentDate"`
+	CreatedAt         time.Time       `json:"createdAt"`
+	CreatedBy         sql.NullString  `json:"createdBy"`
 }
 
 // LoanDpdHistory maps to the "loan_dpd_history" table.
@@ -154,10 +157,10 @@ type RepaymentRequest struct {
 
 // RestructureRequest is the inbound DTO for restructuring a loan.
 type RestructureRequest struct {
-	NewTenorMonths  int              `json:"newTenorMonths"`
-	NewInterestRate decimal.Decimal  `json:"newInterestRate"`
-	NewFrequency    *string          `json:"newFrequency,omitempty"` // optional override
-	Reason          string           `json:"reason"`
+	NewTenorMonths  int             `json:"newTenorMonths"`
+	NewInterestRate decimal.Decimal `json:"newInterestRate"`
+	NewFrequency    *string         `json:"newFrequency,omitempty"` // optional override
+	Reason          string          `json:"reason"`
 }
 
 // LoanResponse is the outbound DTO for a loan.
@@ -219,10 +222,13 @@ type RepaymentResponse struct {
 	FeeApplied       decimal.Decimal `json:"feeApplied"`
 	InterestApplied  decimal.Decimal `json:"interestApplied"`
 	PrincipalApplied decimal.Decimal `json:"principalApplied"`
-	PaymentReference string          `json:"paymentReference"`
-	PaymentMethod    string          `json:"paymentMethod"`
-	PaymentDate      string          `json:"paymentDate"`
-	CreatedAt        time.Time       `json:"createdAt"`
+	// UnallocatedAmount surfaces any overpayment surplus that could not be
+	// allocated to the loan, so it is visible instead of silently swallowed.
+	UnallocatedAmount decimal.Decimal `json:"unallocatedAmount"`
+	PaymentReference  string          `json:"paymentReference"`
+	PaymentMethod     string          `json:"paymentMethod"`
+	PaymentDate       string          `json:"paymentDate"`
+	CreatedAt         time.Time       `json:"createdAt"`
 }
 
 // DpdResponse is the outbound DTO for DPD info.
@@ -340,17 +346,18 @@ func ToInstallmentResponse(s *LoanSchedule) InstallmentResponse {
 // ToRepaymentResponse converts a LoanRepayment entity to RepaymentResponse DTO.
 func ToRepaymentResponse(r *LoanRepayment) RepaymentResponse {
 	return RepaymentResponse{
-		ID:               r.ID,
-		Status:           "COMPLETED",
-		Amount:           r.Amount,
-		Currency:         r.Currency,
-		PenaltyApplied:   r.PenaltyApplied,
-		FeeApplied:       r.FeeApplied,
-		InterestApplied:  r.InterestApplied,
-		PrincipalApplied: r.PrincipalApplied,
-		PaymentReference: r.PaymentReference.String,
-		PaymentMethod:    r.PaymentMethod.String,
-		PaymentDate:      r.PaymentDate.Format("2006-01-02"),
-		CreatedAt:        r.CreatedAt,
+		ID:                r.ID,
+		Status:            "COMPLETED",
+		Amount:            r.Amount,
+		Currency:          r.Currency,
+		PenaltyApplied:    r.PenaltyApplied,
+		FeeApplied:        r.FeeApplied,
+		InterestApplied:   r.InterestApplied,
+		PrincipalApplied:  r.PrincipalApplied,
+		UnallocatedAmount: r.UnallocatedAmount,
+		PaymentReference:  r.PaymentReference.String,
+		PaymentMethod:     r.PaymentMethod.String,
+		PaymentDate:       r.PaymentDate.Format("2006-01-02"),
+		CreatedAt:         r.CreatedAt,
 	}
 }

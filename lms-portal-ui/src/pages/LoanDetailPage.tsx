@@ -281,7 +281,12 @@ const LoanDetailPage = () => {
                         <TableRow key={tx.id} className="table-row-hover">
                           <TableCell className="text-xs font-mono text-info">{tx.id?.slice(0, 8) ?? "—"}</TableCell>
                           <TableCell className="text-xs font-sans">{tx.paymentDate?.split("T")[0] ?? tx.createdAt?.split("T")[0] ?? "—"}</TableCell>
-                          <TableCell className="text-xs font-mono text-right font-semibold">{formatKES(tx.amount)}</TableCell>
+                          <TableCell className="text-xs font-mono text-right font-semibold">
+                            {formatKES(tx.amount)}
+                            {(tx.unallocatedAmount ?? 0) > 0 && (
+                              <div className="text-[9px] font-sans font-normal text-warning">{formatKES(tx.unallocatedAmount!)} unallocated</div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-xs font-sans">{tx.paymentMethod ?? "—"}</TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{tx.reference ?? "—"}</TableCell>
                           <TableCell>

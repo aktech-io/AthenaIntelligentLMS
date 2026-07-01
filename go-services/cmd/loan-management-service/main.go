@@ -53,7 +53,7 @@ func main() {
 
 	// Run migrations
 	if cfg.MigrateOnStartup {
-		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/loan-management", logger); err != nil {
+		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/loans", logger); err != nil {
 			logger.Warn("Migration failed (may be first run)", zap.Error(err))
 		}
 	}

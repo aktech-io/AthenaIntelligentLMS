@@ -37,6 +37,7 @@ export interface Repayment {
   id: string;
   loanId: string;
   amount: number;
+  unallocatedAmount?: number;
   paymentDate: string;
   paymentMethod?: string;
   reference?: string;

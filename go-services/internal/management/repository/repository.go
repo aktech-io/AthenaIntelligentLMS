@@ -112,6 +112,15 @@ func (r *Repository) GetLoanByID(ctx context.Context, id uuid.UUID) (*model.Loan
 	return scanLoan(r.pool.QueryRow(ctx, query, id))
 }
 
+// GetLoanByIDAndTenantTx returns a loan by ID scoped to a tenant, locked with
+// SELECT ... FOR UPDATE inside the transaction so concurrent money-path
+// operations (e.g. two repayments against the same loan) serialize instead of
+// interleaving on a stale read.
+func (r *Repository) GetLoanByIDAndTenantTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, tenantID string) (*model.Loan, error) {
+	query := `SELECT ` + loanColumns + ` FROM loans WHERE id = $1 AND tenant_id = $2 FOR UPDATE`
+	return scanLoan(tx.QueryRow(ctx, query, id, tenantID))
+}
+
 // UpdateLoan updates all mutable fields of a loan.
 func (r *Repository) UpdateLoan(ctx context.Context, l *model.Loan) error {
 	query := `UPDATE loans SET
@@ -320,14 +329,16 @@ func (r *Repository) DeleteSchedulesByLoanID(ctx context.Context, loanID uuid.UU
 
 const repaymentColumns = `id, loan_id, tenant_id, amount, currency,
 	penalty_applied, fee_applied, interest_applied, principal_applied,
-	payment_reference, payment_method, payment_date, created_at, created_by`
+	unallocated_amount, payment_reference, payment_method, payment_date,
+	created_at, created_by`
 
 func scanRepayment(row pgx.Row) (*model.LoanRepayment, error) {
 	var r model.LoanRepayment
 	err := row.Scan(
 		&r.ID, &r.LoanID, &r.TenantID, &r.Amount, &r.Currency,
 		&r.PenaltyApplied, &r.FeeApplied, &r.InterestApplied, &r.PrincipalApplied,
-		&r.PaymentReference, &r.PaymentMethod, &r.PaymentDate, &r.CreatedAt, &r.CreatedBy,
+		&r.UnallocatedAmount, &r.PaymentReference, &r.PaymentMethod, &r.PaymentDate,
+		&r.CreatedAt, &r.CreatedBy,
 	)
 	if err != nil {
 		return nil, err
@@ -340,15 +351,30 @@ func (r *Repository) InsertRepayment(ctx context.Context, rep *model.LoanRepayme
 	query := `INSERT INTO loan_repayments (
 		loan_id, tenant_id, amount, currency,
 		penalty_applied, fee_applied, interest_applied, principal_applied,
-		payment_reference, payment_method, payment_date, created_by
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		unallocated_amount, payment_reference, payment_method, payment_date, created_by
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	RETURNING ` + repaymentColumns
 
 	return scanRepayment(r.pool.QueryRow(ctx, query,
 		rep.LoanID, rep.TenantID, rep.Amount, rep.Currency,
 		rep.PenaltyApplied, rep.FeeApplied, rep.InterestApplied, rep.PrincipalApplied,
-		rep.PaymentReference, rep.PaymentMethod, rep.PaymentDate, rep.CreatedBy,
+		rep.UnallocatedAmount, rep.PaymentReference, rep.PaymentMethod, rep.PaymentDate, rep.CreatedBy,
 	))
+}
+
+// GetRepaymentByLoanAndReference returns the repayment already recorded for a
+// (loan, payment reference) pair, or pgx.ErrNoRows if none exists. Used to make
+// ApplyRepayment idempotent on PaymentReference.
+func (r *Repository) GetRepaymentByLoanAndReference(ctx context.Context, loanID uuid.UUID, reference string) (*model.LoanRepayment, error) {
+	query := `SELECT ` + repaymentColumns + ` FROM loan_repayments WHERE loan_id = $1 AND payment_reference = $2`
+	return scanRepayment(r.pool.QueryRow(ctx, query, loanID, reference))
+}
+
+// GetRepaymentByLoanAndReferenceTx is GetRepaymentByLoanAndReference within a
+// transaction (checked under the loan's FOR UPDATE lock).
+func (r *Repository) GetRepaymentByLoanAndReferenceTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID, reference string) (*model.LoanRepayment, error) {
+	query := `SELECT ` + repaymentColumns + ` FROM loan_repayments WHERE loan_id = $1 AND payment_reference = $2`
+	return scanRepayment(tx.QueryRow(ctx, query, loanID, reference))
 }
 
 // GetRepaymentsByLoanID returns all repayments for a loan ordered by payment date desc.
@@ -366,7 +392,8 @@ func (r *Repository) GetRepaymentsByLoanID(ctx context.Context, loanID uuid.UUID
 		err := rows.Scan(
 			&rep.ID, &rep.LoanID, &rep.TenantID, &rep.Amount, &rep.Currency,
 			&rep.PenaltyApplied, &rep.FeeApplied, &rep.InterestApplied, &rep.PrincipalApplied,
-			&rep.PaymentReference, &rep.PaymentMethod, &rep.PaymentDate, &rep.CreatedAt, &rep.CreatedBy,
+			&rep.UnallocatedAmount, &rep.PaymentReference, &rep.PaymentMethod, &rep.PaymentDate,
+			&rep.CreatedAt, &rep.CreatedBy,
 		)
 		if err != nil {
 			return nil, err
@@ -480,14 +507,14 @@ func (r *Repository) InsertRepaymentTx(ctx context.Context, tx pgx.Tx, rep *mode
 	query := `INSERT INTO loan_repayments (
 		loan_id, tenant_id, amount, currency,
 		penalty_applied, fee_applied, interest_applied, principal_applied,
-		payment_reference, payment_method, payment_date, created_by
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		unallocated_amount, payment_reference, payment_method, payment_date, created_by
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	RETURNING ` + repaymentColumns
 
 	return scanRepayment(tx.QueryRow(ctx, query,
 		rep.LoanID, rep.TenantID, rep.Amount, rep.Currency,
 		rep.PenaltyApplied, rep.FeeApplied, rep.InterestApplied, rep.PrincipalApplied,
-		rep.PaymentReference, rep.PaymentMethod, rep.PaymentDate, rep.CreatedBy,
+		rep.UnallocatedAmount, rep.PaymentReference, rep.PaymentMethod, rep.PaymentDate, rep.CreatedBy,
 	))
 }
 

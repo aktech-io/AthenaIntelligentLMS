@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
@@ -21,9 +24,26 @@ import (
 	"github.com/athena-lms/go-services/internal/management/repository"
 )
 
+// repaymentStore is the slice of *repository.Repository the repayment money
+// path depends on, expressed as an interface so ApplyRepayment is unit-testable
+// without a database (see service_test.go). *repository.Repository satisfies it.
+type repaymentStore interface {
+	BeginTx(ctx context.Context) (pgx.Tx, error)
+	GetLoanByIDAndTenantTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, tenantID string) (*model.Loan, error)
+	GetRepaymentByLoanAndReference(ctx context.Context, loanID uuid.UUID, reference string) (*model.LoanRepayment, error)
+	GetRepaymentByLoanAndReferenceTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID, reference string) (*model.LoanRepayment, error)
+	GetPendingSchedulesTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID) ([]*model.LoanSchedule, error)
+	UpdateScheduleTx(ctx context.Context, tx pgx.Tx, s *model.LoanSchedule) error
+	UpdateLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan) error
+	InsertRepaymentTx(ctx context.Context, tx pgx.Tx, rep *model.LoanRepayment) (*model.LoanRepayment, error)
+}
+
+var _ repaymentStore = (*repository.Repository)(nil)
+
 // Service contains the loan management business logic.
 type Service struct {
 	repo      *repository.Repository
+	store     repaymentStore // same object as repo; narrow seam for ApplyRepayment
 	schedGen  *ScheduleGenerator
 	publisher *event.ManagementPublisher
 	logger    *zap.Logger
@@ -34,6 +54,7 @@ type Service struct {
 func New(repo *repository.Repository, schedGen *ScheduleGenerator, publisher *event.ManagementPublisher, logger *zap.Logger) *Service {
 	return &Service{
 		repo:      repo,
+		store:     repo,
 		schedGen:  schedGen,
 		publisher: publisher,
 		logger:    logger,
@@ -262,14 +283,31 @@ func (s *Service) ListByCustomer(ctx context.Context, customerID, tenantID strin
 
 // ApplyRepayment applies a repayment using schedule-based waterfall allocation:
 // per-installment penalty -> fee -> interest -> principal (oldest first).
+//
+// Hardened against the HIGH-1 edge cases:
+//   - the amount must be strictly positive (400 otherwise);
+//   - the loan row is locked with SELECT ... FOR UPDATE inside the transaction
+//     so concurrent repayments serialize instead of double-allocating;
+//   - a non-empty PaymentReference is idempotent per loan: replaying the same
+//     reference returns the originally recorded repayment (backstopped by the
+//     partial unique index uq_repayments_loan_payment_ref, with the
+//     check-then-insert race resolved by re-fetching the winner);
+//   - any surplus beyond all installments and outstanding principal is recorded
+//     on the repayment as UnallocatedAmount instead of being silently swallowed.
 func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *model.RepaymentRequest, tenantID, userID string) (*model.RepaymentResponse, error) {
-	tx, err := s.repo.BeginTx(ctx)
+	if req.Amount.LessThanOrEqual(decimal.Zero) {
+		return nil, errors.BadRequest("Repayment amount must be greater than zero")
+	}
+
+	tx, err := s.store.BeginTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	loan, err := s.repo.GetLoanByIDAndTenant(ctx, loanID, tenantID)
+	// Lock the loan for the duration of the transaction: concurrent repayments
+	// against the same loan queue up here instead of reading stale balances.
+	loan, err := s.store.GetLoanByIDAndTenantTx(ctx, tx, loanID, tenantID)
 	if err != nil {
 		return nil, errors.NotFoundResource("Loan", loanID)
 	}
@@ -278,8 +316,26 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 		return nil, errors.NewBusinessError("Loan is not in an active state")
 	}
 
+	// Idempotency: under the loan lock, a replayed payment reference returns
+	// the already-recorded repayment instead of re-applying it.
+	if req.PaymentReference != "" {
+		existing, lookupErr := s.store.GetRepaymentByLoanAndReferenceTx(ctx, tx, loan.ID, req.PaymentReference)
+		if lookupErr == nil {
+			s.logger.Info("Duplicate payment reference; returning existing repayment",
+				zap.String("loanId", loan.ID.String()),
+				zap.String("paymentReference", req.PaymentReference),
+				zap.String("repaymentId", existing.ID.String()),
+			)
+			resp := model.ToRepaymentResponse(existing)
+			return &resp, nil
+		}
+		if !stderrors.Is(lookupErr, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("check payment reference: %w", lookupErr)
+		}
+	}
+
 	remaining := req.Amount
-	pending, err := s.repo.GetPendingSchedulesTx(ctx, tx, loan.ID)
+	pending, err := s.store.GetPendingSchedulesTx(ctx, tx, loan.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get pending schedules: %w", err)
 	}
@@ -323,7 +379,7 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 			inst.Status = model.InstallmentPartial
 		}
 
-		if err := s.repo.UpdateScheduleTx(ctx, tx, inst); err != nil {
+		if err := s.store.UpdateScheduleTx(ctx, tx, inst); err != nil {
 			return nil, fmt.Errorf("update schedule: %w", err)
 		}
 
@@ -337,6 +393,20 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 	if remaining.GreaterThan(decimal.Zero) {
 		extraPrincipal := applyAmount(remaining, loan.OutstandingPrincipal.Sub(principalApplied))
 		principalApplied = principalApplied.Add(extraPrincipal)
+		remaining = remaining.Sub(extraPrincipal)
+	}
+
+	// Whatever still remains could not be allocated anywhere on the loan:
+	// record it on the repayment (unallocated_amount) so the surplus is
+	// visible for refund/credit handling instead of silently vanishing.
+	unallocated := decimal.Zero
+	if remaining.GreaterThan(decimal.Zero) {
+		unallocated = remaining
+		s.logger.Warn("Repayment exceeds total outstanding; recording surplus as unallocated",
+			zap.String("loanId", loan.ID.String()),
+			zap.String("amount", req.Amount.String()),
+			zap.String("unallocatedAmount", unallocated.String()),
+		)
 	}
 
 	// Update loan-level outstanding amounts
@@ -367,7 +437,7 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 		loan.ClosedAt = &now
 	}
 
-	if err := s.repo.UpdateLoanTx(ctx, tx, loan); err != nil {
+	if err := s.store.UpdateLoanTx(ctx, tx, loan); err != nil {
 		return nil, fmt.Errorf("update loan: %w", err)
 	}
 
@@ -377,22 +447,40 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 	}
 
 	repayment := &model.LoanRepayment{
-		LoanID:           loan.ID,
-		TenantID:         tenantID,
-		Amount:           req.Amount,
-		Currency:         currency,
-		PenaltyApplied:   penaltyApplied,
-		FeeApplied:       feeApplied,
-		InterestApplied:  interestApplied,
-		PrincipalApplied: principalApplied,
-		PaymentReference: sql.NullString{String: req.PaymentReference, Valid: req.PaymentReference != ""},
-		PaymentMethod:    sql.NullString{String: req.PaymentMethod, Valid: req.PaymentMethod != ""},
-		PaymentDate:      payDate,
-		CreatedBy:        sql.NullString{String: userID, Valid: userID != ""},
+		LoanID:            loan.ID,
+		TenantID:          tenantID,
+		Amount:            req.Amount,
+		Currency:          currency,
+		PenaltyApplied:    penaltyApplied,
+		FeeApplied:        feeApplied,
+		InterestApplied:   interestApplied,
+		PrincipalApplied:  principalApplied,
+		UnallocatedAmount: unallocated,
+		PaymentReference:  sql.NullString{String: req.PaymentReference, Valid: req.PaymentReference != ""},
+		PaymentMethod:     sql.NullString{String: req.PaymentMethod, Valid: req.PaymentMethod != ""},
+		PaymentDate:       payDate,
+		CreatedBy:         sql.NullString{String: userID, Valid: userID != ""},
 	}
 
-	repayment, err = s.repo.InsertRepaymentTx(ctx, tx, repayment)
+	repayment, err = s.store.InsertRepaymentTx(ctx, tx, repayment)
 	if err != nil {
+		if req.PaymentReference != "" && isUniqueViolation(err) {
+			// Lost a check-then-insert race: a concurrent request recorded this
+			// payment reference after our in-tx check. Abort our allocation and
+			// return the winner's repayment — the payment was applied exactly once.
+			_ = tx.Rollback(ctx)
+			existing, lookupErr := s.store.GetRepaymentByLoanAndReference(ctx, loan.ID, req.PaymentReference)
+			if lookupErr != nil {
+				return nil, fmt.Errorf("re-fetch repayment after unique violation: %w", lookupErr)
+			}
+			s.logger.Info("Concurrent duplicate payment reference; returning existing repayment",
+				zap.String("loanId", loan.ID.String()),
+				zap.String("paymentReference", req.PaymentReference),
+				zap.String("repaymentId", existing.ID.String()),
+			)
+			resp := model.ToRepaymentResponse(existing)
+			return &resp, nil
+		}
 		return nil, fmt.Errorf("insert repayment: %w", err)
 	}
 
@@ -402,15 +490,17 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 
 	s.auditor.Record(ctx, "LOAN_REPAYMENT", "LOAN", loan.ID.String(), nil, nil,
 		map[string]any{
-			"repaymentId":      repayment.ID,
-			"amount":           req.Amount,
-			"principalApplied": principalApplied,
-			"interestApplied":  interestApplied,
-			"feeApplied":       feeApplied,
-			"penaltyApplied":   penaltyApplied,
-			"outstandingAfter": totalOutstanding,
-			"paymentMethod":    req.PaymentMethod,
-			"loanClosed":       loan.Status == model.LoanStatusClosed,
+			"repaymentId":       repayment.ID,
+			"amount":            req.Amount,
+			"principalApplied":  principalApplied,
+			"interestApplied":   interestApplied,
+			"feeApplied":        feeApplied,
+			"penaltyApplied":    penaltyApplied,
+			"unallocatedAmount": unallocated,
+			"outstandingAfter":  totalOutstanding,
+			"paymentReference":  req.PaymentReference,
+			"paymentMethod":     req.PaymentMethod,
+			"loanClosed":        loan.Status == model.LoanStatusClosed,
 		})
 
 	// Publish events (non-transactional, best-effort)
@@ -628,6 +718,13 @@ func resolveRepaymentFrequency(s string) model.RepaymentFrequency {
 	default:
 		return model.FrequencyMonthly
 	}
+}
+
+// isUniqueViolation reports whether err is a Postgres unique_violation (23505),
+// e.g. from the uq_repayments_loan_payment_ref partial unique index.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return stderrors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // applyAmount returns min(available, outstanding), clamped to zero.

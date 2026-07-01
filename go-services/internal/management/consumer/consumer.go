@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -9,9 +10,12 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	commonErrors "github.com/athena-lms/go-services/internal/common/errors"
 	commonEvent "github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/common/idempotency"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
+	mgmtevent "github.com/athena-lms/go-services/internal/management/event"
+	"github.com/athena-lms/go-services/internal/management/model"
 	"github.com/athena-lms/go-services/internal/management/service"
 )
 
@@ -28,19 +32,64 @@ type LoanDisbursedPayload struct {
 	RepaymentFrequency string          `json:"repaymentFrequency"`
 }
 
-// LoanDisbursedConsumer consumes loan.disbursed events and activates loans.
+// PaymentCompletedPayload mirrors the payment.completed payload built by the
+// payment service (internal/payment/event.(*Publisher).BuildCompleted).
+type PaymentCompletedPayload struct {
+	PaymentID         string          `json:"paymentId"`
+	CustomerID        string          `json:"customerId"`
+	LoanID            string          `json:"loanId"`
+	ApplicationID     string          `json:"applicationId"`
+	PaymentType       string          `json:"paymentType"`
+	PaymentChannel    string          `json:"paymentChannel"`
+	Amount            decimal.Decimal `json:"amount"`
+	Currency          string          `json:"currency"`
+	InternalReference string          `json:"internalReference"`
+	ExternalReference string          `json:"externalReference"`
+	TenantID          string          `json:"tenantId"`
+}
+
+// repaymentPaymentTypes are the payment types that settle a borrower's loan
+// obligations and therefore must be applied to the loan (BLOCKER-1). The
+// repayment waterfall allocates penalty -> fee -> interest -> principal per
+// installment, so PENALTY and FEE payments land on their bucket first.
+// LOAN_DISBURSEMENT and FLOAT_TRANSFER move money in the other direction and
+// OTHER is too ambiguous to book against a loan, so they are ignored.
+// (Values from internal/payment/model.PaymentType.)
+var repaymentPaymentTypes = map[string]bool{
+	"LOAN_REPAYMENT": true,
+	"PENALTY":        true,
+	"FEE":            true,
+}
+
+// LoanService is the slice of the management service this consumer drives.
+// *service.Service satisfies it; tests substitute an in-memory fake.
+type LoanService interface {
+	ActivateLoan(ctx context.Context, applicationID uuid.UUID, customerID string,
+		productID uuid.UUID, tenantID string, amount, interestRate decimal.Decimal,
+		tenorMonths int, scheduleTypeStr, repaymentFreqStr string) error
+	ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *model.RepaymentRequest,
+		tenantID, userID string) (*model.RepaymentResponse, error)
+}
+
+var _ LoanService = (*service.Service)(nil)
+
+// LoanDisbursedConsumer consumes the loan management queue: it activates loans
+// on loan.disbursed and applies repayments on payment.completed.
 type LoanDisbursedConsumer struct {
 	consumer *commonEvent.Consumer
-	svc      *service.Service
+	svc      LoanService
 	logger   *zap.Logger
 }
 
 // NewLoanDisbursedConsumer creates a consumer for the loan management queue.
 //
-// The handler is wrapped with idempotency.Wrap so a redelivered loan.disbursed
-// event (delivery is at-least-once) is acked-and-skipped rather than activating
-// the same loan twice. pool backs the processed_events guard table.
-func NewLoanDisbursedConsumer(conn *rabbitmq.Connection, pool *pgxpool.Pool, svc *service.Service, logger *zap.Logger) *LoanDisbursedConsumer {
+// The handler is wrapped with idempotency.Wrap so a redelivered event (delivery
+// is at-least-once) is acked-and-skipped rather than processed twice: the guard
+// dedups on the DomainEvent ID via the processed_events table, so a replayed
+// loan.disbursed cannot activate the same loan twice and a replayed
+// payment.completed cannot double-apply a repayment. pool backs the
+// processed_events guard table.
+func NewLoanDisbursedConsumer(conn *rabbitmq.Connection, pool *pgxpool.Pool, svc LoanService, logger *zap.Logger) *LoanDisbursedConsumer {
 	c := &LoanDisbursedConsumer{
 		svc:    svc,
 		logger: logger,
@@ -56,11 +105,18 @@ func (c *LoanDisbursedConsumer) Start(ctx context.Context) error {
 }
 
 func (c *LoanDisbursedConsumer) handle(ctx context.Context, evt *commonEvent.DomainEvent) error {
-	if evt.Type != commonEvent.LoanDisbursed {
+	switch evt.Type {
+	case commonEvent.LoanDisbursed:
+		return c.handleLoanDisbursed(ctx, evt)
+	case commonEvent.PaymentCompleted:
+		return c.handlePaymentCompleted(ctx, evt)
+	default:
 		c.logger.Debug("Ignoring event type", zap.String("type", evt.Type))
 		return nil
 	}
+}
 
+func (c *LoanDisbursedConsumer) handleLoanDisbursed(ctx context.Context, evt *commonEvent.DomainEvent) error {
 	c.logger.Info("Received loan.disbursed event", zap.String("id", evt.ID))
 
 	var payload LoanDisbursedPayload
@@ -105,5 +161,103 @@ func (c *LoanDisbursedConsumer) handle(ctx context.Context, evt *commonEvent.Dom
 		return fmt.Errorf("activate loan: %w", err)
 	}
 
+	return nil
+}
+
+// handlePaymentCompleted applies a completed loan payment to its loan
+// (BLOCKER-1: payment.completed was routed to this queue but never handled, so
+// paid borrowers stayed delinquent).
+//
+// Malformed events — no/invalid loanId, non-positive amount — are logged and
+// acked, never requeued. Business rejections (loan not found / not active) are
+// also acked: retrying can never succeed and would wedge the queue. Only
+// infrastructure errors are returned, which nacks + requeues the delivery.
+//
+// The management service itself publishes with the payment.completed routing
+// key after applying a repayment (for accounting); those self-sourced events
+// are skipped to avoid a feedback loop.
+func (c *LoanDisbursedConsumer) handlePaymentCompleted(ctx context.Context, evt *commonEvent.DomainEvent) error {
+	if evt.Source == mgmtevent.ServiceName {
+		c.logger.Debug("Skipping self-published payment.completed event", zap.String("id", evt.ID))
+		return nil
+	}
+
+	c.logger.Info("Received payment.completed event", zap.String("id", evt.ID))
+
+	var payload PaymentCompletedPayload
+	if err := evt.UnmarshalPayload(&payload); err != nil {
+		c.logger.Error("Failed to unmarshal payment.completed payload", zap.Error(err))
+		return nil // don't retry malformed messages
+	}
+
+	if !repaymentPaymentTypes[payload.PaymentType] {
+		c.logger.Debug("Ignoring payment.completed with non-repayment type",
+			zap.String("id", evt.ID),
+			zap.String("paymentType", payload.PaymentType))
+		return nil
+	}
+
+	if payload.LoanID == "" {
+		c.logger.Info("payment.completed has no loanId; nothing to apply",
+			zap.String("id", evt.ID),
+			zap.String("paymentId", payload.PaymentID))
+		return nil
+	}
+	loanID, err := uuid.Parse(payload.LoanID)
+	if err != nil {
+		c.logger.Error("Invalid loanId on payment.completed; skipping",
+			zap.String("value", payload.LoanID), zap.Error(err))
+		return nil
+	}
+
+	if payload.Amount.LessThanOrEqual(decimal.Zero) {
+		c.logger.Error("Non-positive amount on payment.completed; skipping",
+			zap.String("id", evt.ID),
+			zap.String("amount", payload.Amount.String()))
+		return nil
+	}
+
+	// Use tenant from envelope if payload doesn't have it
+	tenantID := payload.TenantID
+	if tenantID == "" {
+		tenantID = evt.TenantID
+	}
+
+	// Dedup key for ApplyRepayment's (loan_id, payment_reference) idempotency:
+	// the payment's internal reference, falling back to the payment id.
+	reference := payload.InternalReference
+	if reference == "" {
+		reference = payload.PaymentID
+	}
+
+	req := &model.RepaymentRequest{
+		Amount:           payload.Amount,
+		PaymentReference: reference,
+		PaymentMethod:    payload.PaymentChannel,
+		Currency:         payload.Currency,
+	}
+
+	resp, err := c.svc.ApplyRepayment(ctx, loanID, req, tenantID, evt.Source)
+	if err != nil {
+		var bizErr *commonErrors.BusinessError
+		var nfErr *commonErrors.NotFoundError
+		if stderrors.As(err, &bizErr) || stderrors.As(err, &nfErr) {
+			// Terminal for this event: the loan is missing, closed or the
+			// request is invalid. Requeueing can never succeed — ack and alert.
+			c.logger.Error("payment.completed could not be applied to loan; skipping",
+				zap.String("id", evt.ID),
+				zap.String("loanId", loanID.String()),
+				zap.String("paymentReference", reference),
+				zap.Error(err))
+			return nil
+		}
+		return fmt.Errorf("apply repayment: %w", err)
+	}
+
+	c.logger.Info("Applied repayment from payment.completed",
+		zap.String("loanId", loanID.String()),
+		zap.String("repaymentId", resp.ID.String()),
+		zap.String("paymentReference", reference),
+		zap.String("amount", payload.Amount.String()))
 	return nil
 }
