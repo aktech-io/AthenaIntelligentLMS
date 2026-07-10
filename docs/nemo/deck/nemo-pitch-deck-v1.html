@@ -1,0 +1,428 @@
+<title>Nemo — Neobank in a Box</title>
+<style>
+  :root{
+    --abyss:#06222B;
+    --water:#0C3541;
+    --water-2:#0F4050;
+    --coral:#FF6A3D;
+    --coral-deep:#E04E22;
+    --stripe:#F2F7F5;
+    --aqua:#5BC4B4;
+    --glass:#8FAEAB;
+    --line:rgba(143,174,171,.22);
+    --display:"Futura","Avenir Next","Century Gothic","Trebuchet MS",system-ui,sans-serif;
+    --body:system-ui,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  }
+  /* One deliberate visual world: a deck presented on deep water, both viewer themes. */
+  html{scroll-snap-type:y proximity;}
+  body{
+    background:var(--abyss);
+    color:var(--stripe);
+    font-family:var(--body);
+    line-height:1.55;
+    margin:0;
+  }
+  .slide{
+    min-height:100vh;
+    box-sizing:border-box;
+    padding:6vh 6vw;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    scroll-snap-align:start;
+    position:relative;
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+  }
+  .slide-inner{max-width:1080px;width:100%;margin:0 auto;position:relative;z-index:2;}
+  .slide-no{
+    position:absolute;bottom:3.2vh;right:6vw;z-index:3;
+    font-family:var(--display);font-size:.8rem;letter-spacing:.18em;
+    color:var(--glass);font-variant-numeric:tabular-nums;
+  }
+  .eyebrow{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:.24em;
+    font-size:.82rem;
+    color:var(--coral);
+    margin:0 0 1.1rem;
+    display:flex;align-items:center;gap:.9rem;
+  }
+  /* the clownfish three-stripe device */
+  .stripes{display:inline-flex;gap:4px;}
+  .stripes i{display:block;width:5px;height:16px;background:var(--coral);border-radius:1px;}
+  .stripes i:nth-child(2){background:var(--stripe);height:20px;margin-top:-2px;}
+  .stripes i:nth-child(3){background:var(--coral);opacity:.55;}
+  h1,h2{
+    font-family:var(--display);
+    font-weight:700;
+    line-height:1.06;
+    letter-spacing:-.015em;
+    text-wrap:balance;
+    margin:0 0 1.4rem;
+  }
+  h1{font-size:clamp(3rem,8.5vw,7rem);}
+  h2{font-size:clamp(1.9rem,4.2vw,3.3rem);}
+  h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.02em;margin:0 0 .5rem;color:var(--stripe);}
+  p{max-width:62ch;}
+  .lede{font-size:clamp(1.05rem,1.6vw,1.3rem);color:var(--stripe);}
+  .muted{color:var(--glass);}
+  .accent{color:var(--coral);}
+  .aqua{color:var(--aqua);}
+  a{color:var(--aqua);}
+
+  /* ---------- title slide ---------- */
+  .title-slide{background:
+    radial-gradient(1200px 700px at 78% 110%, rgba(91,196,180,.10), transparent 60%),
+    radial-gradient(900px 500px at 90% -10%, rgba(255,106,61,.08), transparent 55%),
+    var(--abyss);}
+  .wordmark{display:flex;align-items:baseline;gap:1.6rem;flex-wrap:wrap;}
+  .big-stripes{display:flex;gap:10px;align-self:stretch;align-items:center;}
+  .big-stripes i{display:block;width:14px;height:72%;background:var(--coral);border-radius:2px;}
+  .big-stripes i:nth-child(2){background:var(--stripe);height:88%;}
+  .big-stripes i:nth-child(3){background:var(--coral);opacity:.5;height:58%;}
+  .subtitle{font-size:clamp(1.15rem,2.1vw,1.6rem);color:var(--glass);max-width:34ch;margin-top:.4rem;}
+  .subtitle b{color:var(--stripe);font-weight:600;}
+  .title-foot{margin-top:9vh;display:flex;gap:2.5rem;flex-wrap:wrap;color:var(--glass);
+    font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:.78rem;}
+
+  /* ---------- generic components ---------- */
+  .grid{display:grid;gap:1.1rem;margin-top:2.2rem;}
+  .cols-2{grid-template-columns:repeat(2,1fr);}
+  .cols-3{grid-template-columns:repeat(3,1fr);}
+  .cols-4{grid-template-columns:repeat(4,1fr);}
+  @media(max-width:860px){.cols-3,.cols-4{grid-template-columns:repeat(2,1fr);} .cols-2{grid-template-columns:1fr;}}
+  @media(max-width:560px){.cols-3,.cols-4{grid-template-columns:1fr;}}
+  .card{
+    background:var(--water);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:1.35rem 1.4rem;
+  }
+  .card p{font-size:.95rem;color:var(--glass);margin:.35rem 0 0;max-width:none;}
+  .card .k{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:var(--aqua);display:block;margin-bottom:.55rem;}
+
+  .bignum{font-family:var(--display);font-weight:700;font-size:clamp(2.6rem,5vw,4.2rem);
+    line-height:1;color:var(--stripe);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .bignum .accent{color:var(--coral);}
+  .bignum-label{color:var(--glass);font-size:.95rem;margin-top:.6rem;max-width:26ch;}
+  .bignum-src{color:var(--glass);opacity:.65;font-size:.78rem;margin-top:.35rem;}
+
+  ul.tight{margin:.4rem 0 0;padding-left:1.15rem;}
+  ul.tight li{margin:.45rem 0;color:var(--glass);}
+  ul.tight li b, ul.tight li strong{color:var(--stripe);font-weight:600;}
+
+  /* ---------- symbiosis diagram ---------- */
+  .symbiosis{display:flex;align-items:stretch;gap:0;margin-top:2.4rem;flex-wrap:wrap;}
+  .sym-box{flex:1 1 240px;border:1px solid var(--line);background:var(--water);border-radius:6px;padding:1.3rem 1.4rem;}
+  .sym-join{display:flex;align-items:center;padding:0 .6rem;color:var(--coral);font-family:var(--display);font-size:1.6rem;}
+  .sym-box .k{font-family:var(--display);text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:var(--coral);display:block;margin-bottom:.5rem;}
+  .sym-box p{font-size:.93rem;color:var(--glass);margin:.3rem 0 0;}
+  .tenant-tree{margin-top:1.6rem;border-left:2px solid var(--coral);padding:.2rem 0 .2rem 1.4rem;}
+  .tenant-tree p{margin:.5rem 0;color:var(--glass);font-size:.97rem;max-width:none;}
+  .tenant-tree p b{color:var(--stripe);}
+
+  /* ---------- table ---------- */
+  .tablewrap{overflow-x:auto;margin-top:2rem;border:1px solid var(--line);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;min-width:680px;font-size:.92rem;}
+  th,td{padding:.75rem .95rem;text-align:left;border-bottom:1px solid var(--line);}
+  thead th{font-family:var(--display);text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--aqua);background:var(--water);}
+  td{color:var(--glass);}
+  td:first-child{color:var(--stripe);font-weight:600;}
+  tbody tr:last-child td{border-bottom:none;}
+  td .yes{color:var(--coral);font-weight:700;}
+  td .no{opacity:.5;}
+  col.nemo-col{background:rgba(255,106,61,.07);}
+
+  /* ---------- roadmap ---------- */
+  .phases{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;margin-top:2.2rem;}
+  @media(max-width:860px){.phases{grid-template-columns:1fr;}}
+  .phase{border-top:4px solid var(--coral);background:var(--water);border-radius:0 0 6px 6px;padding:1.3rem 1.4rem;}
+  .phase:nth-child(2){border-top-color:var(--stripe);}
+  .phase:nth-child(3){border-top-color:var(--aqua);}
+  .phase .when{font-family:var(--display);letter-spacing:.16em;text-transform:uppercase;font-size:.72rem;color:var(--glass);}
+  .phase h3{margin:.5rem 0 .4rem;}
+  .phase ul{margin:.5rem 0 0;padding-left:1.1rem;font-size:.92rem;color:var(--glass);}
+  .phase ul li{margin:.35rem 0;}
+
+  /* quiet emphasis rule */
+  .rule{border:none;border-top:1px solid var(--line);margin:2.4rem 0;}
+
+  .closing{background:
+    radial-gradient(1000px 600px at 20% 120%, rgba(255,106,61,.10), transparent 60%),
+    var(--abyss);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .slide-inner{animation:rise .5s ease-out both;}
+    @keyframes rise{from{opacity:.001;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  }
+  :focus-visible{outline:2px solid var(--coral);outline-offset:3px;}
+</style>
+
+<!-- 1 · TITLE -->
+<section class="slide title-slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Confidential · July 2026</p>
+    <div class="wordmark">
+      <h1>NEMO</h1>
+      <span class="big-stripes" aria-hidden="true"><i></i><i></i><i></i></span>
+    </div>
+    <p class="subtitle"><b>Neobank in a box.</b> Everything needed to launch and run a digital bank — deployed in a day, on any cloud or on-premise, operated by AI.</p>
+    <div class="title-foot">
+      <span>Core banking</span><span>Lending</span><span>Payments</span><span>Cards</span><span>Compliance</span><span>AI operations</span>
+    </div>
+  </div>
+  <span class="slide-no">01 / 12</span>
+</section>
+
+<!-- 2 · PROBLEM -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> The problem</p>
+    <h2>Launching a digital bank still takes years and tens of millions — <span class="accent">especially where it's needed most.</span></h2>
+    <div class="grid cols-3">
+      <div class="card">
+        <span class="k">Build it yourself</span>
+        <h3>3–5 years, $10M+</h3>
+        <p>Core ledger, compliance, fraud, apps — before the first customer. Most attempts die in integration.</p>
+      </div>
+      <div class="card">
+        <span class="k">Buy a SaaS core</span>
+        <h3>A core is not a bank</h3>
+        <p>Mambu-class platforms ship a ledger, then hand you to system integrators for 6–18 months. No app, no ops, no market fit.</p>
+      </div>
+      <div class="card">
+        <span class="k">Emerging-market reality</span>
+        <h3>Global stacks don't fit</h3>
+        <p>Mobile money rails, credit bureaus, local regulators and data-residency law are afterthoughts in Western platforms.</p>
+      </div>
+    </div>
+  </div>
+  <span class="slide-no">02 / 12</span>
+</section>
+
+<!-- 3 · PROOF OF MODEL -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> The model is proven</p>
+    <h2>Credit-led neobanks work in emerging markets. <span class="aqua">Nobody sells the box.</span></h2>
+    <p class="lede muted">Fintech Farm (Leobank, Liobank, Simbank, Roarbank) proved the formula across six markets: partner with a licensed local bank, ship an app customers love, grow on AI-underwritten credit. But they <em>operate</em> each neobank themselves — the playbook doesn't scale beyond their own ventures.</p>
+    <div class="grid cols-3">
+      <div class="card"><div class="bignum">1M<span class="accent">+</span></div><p class="bignum-label">customers on Liobank Vietnam within two years of launch</p><p class="bignum-src">fintech-farm.com</p></div>
+      <div class="card"><div class="bignum">6</div><p class="bignum-label">markets launched on one repeatable stack — Azerbaijan to Morocco</p><p class="bignum-src">fintech-farm.com</p></div>
+      <div class="card"><div class="bignum accent">0</div><p class="bignum-label">vendors offering that full stack as a product an operator can run themselves</p><p class="bignum-src">the gap Nemo fills</p></div>
+    </div>
+  </div>
+  <span class="slide-no">03 / 12</span>
+</section>
+
+<!-- 4 · PRODUCT -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> The product</p>
+    <h2>Nemo is the whole bank, <span class="accent">in one box.</span></h2>
+    <div class="grid cols-4">
+      <div class="card"><span class="k">Core</span><p>Current, savings, wallet &amp; term deposit accounts with interest engines and a full double-entry general ledger (IFRS 9, maker-checker, tamper-evident audit).</p></div>
+      <div class="card"><span class="k">Credit</span><p>Product factory → origination → schedules, penalties, collections, write-off. Overdrafts and BNPL included.</p></div>
+      <div class="card"><span class="k">Payments</span><p>Mobile-money-native transfers, P2P by phone number, bills &amp; airtime, cards via issuer processors.</p></div>
+      <div class="card"><span class="k">Risk &amp; AI</span><p>AI credit scoring, ML fraud detection with case management, AML monitoring and SAR workflows.</p></div>
+      <div class="card"><span class="k">Compliance</span><p>Regulatory reporting shipped per market — central-bank returns, credit-bureau submissions, data protection.</p></div>
+      <div class="card"><span class="k">Channels</span><p>White-label customer mobile app, web banking, USSD and agent network, plus the staff back-office console.</p></div>
+      <div class="card"><span class="k">Treasury</span><p>Float management, reconciliation against every rail, settlement with the partner bank.</p></div>
+      <div class="card"><span class="k">Operations</span><p>Monitoring, alerting and AI ops agents at every level — infrastructure to ledger integrity.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.6rem">16 event-driven microservices, one platform. The regulated back half is <b class="accent" style="font-weight:600">built and hardened today</b> — audited money paths, 230+ automated API tests, live-grade Kenya deployment.</p>
+  </div>
+  <span class="slide-no">04 / 12</span>
+</section>
+
+<!-- 5 · HOW IT WORKS -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> How it works</p>
+    <h2>Symbiosis by design: <span class="aqua">the clownfish and the anemone.</span></h2>
+    <p class="lede muted">A clownfish thrives inside the anemone's protection; the anemone thrives on what the clownfish brings. Nemo runs the same way: the digital bank lives inside a licensed partner's regulatory shelter, and brings it customers, deposits and lending income.</p>
+    <div class="symbiosis">
+      <div class="sym-box">
+        <span class="k">The anemone — licence holder</span>
+        <h3>Partner bank / MFI / DCP</h3>
+        <p>Holds the licence, the prudential capital and the settlement accounts. Keeps its core of record if it wants.</p>
+      </div>
+      <div class="sym-join" aria-hidden="true">⇄</div>
+      <div class="sym-box">
+        <span class="k">The clownfish — Nemo tenant</span>
+        <h3>One tenant = one neobank</h3>
+        <p>Its own customers, products, ledgers, brand and reports — isolated on a shared platform. One installation runs many banks.</p>
+      </div>
+    </div>
+    <div class="tenant-tree">
+      <p><b>Launching a neobank is configuration, not a project:</b></p>
+      <p>1 · Provision tenant &nbsp;→&nbsp; 2 · Pick a <b>market pack</b> (currency, rails, KYC, tax, regulator) &nbsp;→&nbsp; 3 · Configure products &nbsp;→&nbsp; 4 · Apply <b>brand pack</b> &nbsp;→&nbsp; <b class="accent" style="font-weight:700">a running, compliant bank.</b></p>
+    </div>
+  </div>
+  <span class="slide-no">05 / 12</span>
+</section>
+
+<!-- 6 · DEPLOY ANYWHERE -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Deploy anywhere</p>
+    <h2>One click to a bank — <span class="accent">on our cloud, your cloud, or your basement.</span></h2>
+    <div class="grid cols-3">
+      <div class="card"><span class="k">One-command install</span><p>The entire platform — services, databases, event bus, observability — ships as a single Kubernetes package with sane defaults. Sandbox bank in under an hour.</p></div>
+      <div class="card"><span class="k">On-premise &amp; air-gapped</span><p>Data-residency laws in our markets make on-prem a feature, not a compromise. Offline bundles, licence activation, no phone-home required.</p></div>
+      <div class="card"><span class="k">Day-2 automated</span><p>Zero-downtime upgrades, gated migrations, backups with tested recovery objectives, multi-node HA. Banks don't take maintenance windows.</p></div>
+    </div>
+    <hr class="rule">
+    <p class="muted"><b style="color:var(--stripe)">Config over code — the iron rule.</b> A new country is a market pack; a new savings product is product-factory data; a new brand is a theme. Nothing a regulator or product manager changes requires an engineer.</p>
+  </div>
+  <span class="slide-no">06 / 12</span>
+</section>
+
+<!-- 7 · AI AT THE CORE -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> AI at the core</p>
+    <h2>The bank mostly <span class="aqua">runs itself.</span> Humans set policy and review by exception.</h2>
+    <div class="grid cols-2">
+      <div class="card">
+        <span class="k">AI decides the money</span>
+        <ul class="tight">
+          <li><b>Straight-through credit</b> — apply → score → disburse with zero human touch for in-policy cases, explainable declines for regulators</li>
+          <li><b>Fraud &amp; AML</b> — ML detection with AI triage that drafts cases and SARs for officer sign-off</li>
+          <li><b>Collections</b> — risk-based strategy, best time &amp; channel to contact, hardship detection</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="k">AI runs the system</span>
+        <ul class="tight">
+          <li><b>Ops agents</b> — watch telemetry and business metrics, diagnose event lag and reconciliation breaks, execute runbooks behind approval gates</li>
+          <li><b>Customer AI</b> — support chat with real banking actions, personalised nudges, churn prediction</li>
+          <li><b>Governed</b> — every model registered, monitored for drift, bias-tested, overridable, with a kill switch</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:1.6rem">One decision engine logs every automated call the bank makes, with its reasons — <b style="color:var(--stripe)">automation a bank's risk committee can sign.</b></p>
+  </div>
+  <span class="slide-no">07 / 12</span>
+</section>
+
+<!-- 8 · WHY US / TRACTION -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Why us</p>
+    <h2>We're not starting — <span class="accent">the hard half is built.</span></h2>
+    <p class="lede muted">Most neobank stacks begin with the app and hit the wall at the ledger. Nemo grew the other way: it began as a bank-grade lending &amp; deposits platform under a real regulator, and the app is the last mile.</p>
+    <div class="grid cols-4">
+      <div class="card"><div class="bignum">16</div><p class="bignum-label">event-driven microservices, one Go monorepo</p></div>
+      <div class="card"><div class="bignum">2<span class="accent">×</span></div><p class="bignum-label">entry accounting — every shilling balanced, IFRS 9 provisioned, audit-trailed</p></div>
+      <div class="card"><div class="bignum">230<span class="accent">+</span></div><p class="bignum-label">automated API tests over the money paths, plus UI test suites</p></div>
+      <div class="card"><div class="bignum">1<span class="aqua">st</span></div><p class="bignum-label">market live-grade: Kenya — CBK &amp; credit-bureau reporting built in</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.6rem">Battle scars included: hardened through functional and go-live audits of the money paths — idempotent events, tenant isolation, maker-checker controls. <b style="color:var(--stripe)">That discipline is the product.</b></p>
+  </div>
+  <span class="slide-no">08 / 12</span>
+</section>
+
+<!-- 9 · MARKET -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> The market</p>
+    <h2>Where banking is <span class="aqua">mobile-first and underserved.</span></h2>
+    <div class="grid cols-3">
+      <div class="card"><div class="bignum">~1.4B</div><p class="bignum-label">adults worldwide still unbanked — concentrated in our target band</p><p class="bignum-src">World Bank Findex</p></div>
+      <div class="card"><div class="bignum">$1T<span class="accent">+</span></div><p class="bignum-label">annual mobile-money transaction value, majority in Sub-Saharan Africa</p><p class="bignum-src">GSMA State of the Industry</p></div>
+      <div class="card"><div class="bignum">6</div><p class="bignum-label">markets already validated for the credit-led neobank model by the reference operator</p><p class="bignum-src">fintech-farm.com</p></div>
+    </div>
+    <hr class="rule">
+    <p class="muted"><b style="color:var(--stripe)">Beachhead: East Africa.</b> Kenya is live-grade today; Ethiopia — a banking market of 120M people just opening to digital finance — is the first market-pack expansion. Then the proven emerging-market band: West Africa, MENA, Central &amp; Southeast Asia.</p>
+    <p class="muted"><b style="color:var(--stripe)">Buyers:</b> tier-2/3 banks going digital · MFIs and digital credit providers upgrading to bank-grade · licensed fintechs &amp; telcos · neobank venture operators who want the box without building it.</p>
+  </div>
+  <span class="slide-no">09 / 12</span>
+</section>
+
+<!-- 10 · BUSINESS MODEL & COMPETITION -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Business model &amp; landscape</p>
+    <h2>Licence the box. <span class="accent">Share the upside.</span></h2>
+    <p class="muted" style="max-width:70ch">Per-tenant platform licence (cloud subscription or on-prem term), metered by active customers and modules — with an optional revenue-share on lending income that aligns us with the operator, the way the reference model aligns with its partner banks.</p>
+    <div class="tablewrap">
+      <table>
+        <colgroup><col><col class="nemo-col"><col><col><col></colgroup>
+        <thead><tr><th></th><th>Nemo</th><th>Fintech Farm</th><th>SaaS cores</th><th>Legacy cores</th></tr></thead>
+        <tbody>
+          <tr><td>Full stack incl. consumer app</td><td><span class="yes">✔</span></td><td>✔ self-operated only</td><td><span class="no">✖ core only + SI</span></td><td><span class="no">partial</span></td></tr>
+          <tr><td>On-premise / data residency</td><td><span class="yes">✔</span></td><td><span class="no">✖</span></td><td><span class="no">limited</span></td><td>✔ heavy</td></tr>
+          <tr><td>Time to launch</td><td><span class="yes">days–weeks</span></td><td>months, theirs to run</td><td>6–18 months</td><td>18 months+</td></tr>
+          <tr><td>AI-native operations</td><td><span class="yes">✔ core design</span></td><td>credit only</td><td><span class="no">✖</span></td><td><span class="no">✖</span></td></tr>
+          <tr><td>Emerging-market packs</td><td><span class="yes">✔ built in</span></td><td>✔ bespoke</td><td><span class="no">per-project</span></td><td><span class="no">✖</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:1.4rem"><b style="color:var(--stripe)">The wedge:</b> the only neobank-complete platform an emerging-market operator can run themselves, on their own infrastructure, with AI doing the operational heavy lifting.</p>
+  </div>
+  <span class="slide-no">10 / 12</span>
+</section>
+
+<!-- 11 · ROADMAP -->
+<section class="slide">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Roadmap</p>
+    <h2>Package it. Show it. <span class="aqua">Let it run itself.</span></h2>
+    <div class="phases">
+      <div class="phase">
+        <span class="when">Phase 1 · this quarter</span>
+        <h3>Package</h3>
+        <ul>
+          <li>One-command Kubernetes install</li>
+          <li>Tenant provisioning: "create neobank" end-to-end</li>
+          <li>Market-pack framework — Kenya extracted as pack #1</li>
+          <li>Full-stack observability: tracing, business-metric alerting, SLOs</li>
+          <li>Self-service eKYC onboarding APIs</li>
+          <li>Unified, explainable decision engine v1</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <span class="when">Phase 2 · quarters 2–3</span>
+        <h3>The visible neobank</h3>
+        <ul>
+          <li>White-label customer app: accounts, P2P, bills, loans</li>
+          <li>Virtual cards via issuer processor</li>
+          <li>Savings pots, scheduled payments, deposit lifecycle</li>
+          <li>Reconciliation engine across all rails</li>
+          <li>Straight-through credit + model governance</li>
+          <li>On-prem installer, zero-downtime upgrades, HA/DR</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <span class="when">Phase 3 · quarter 4+</span>
+        <h3>AI-operated &amp; ecosystem</h3>
+        <ul>
+          <li>Ops agents: diagnose &amp; remediate behind approval gates</li>
+          <li>AI collections, AML copilot, customer AI with actions</li>
+          <li>USSD + agent network channel</li>
+          <li>Market pack #2: Ethiopia — proving config-over-code</li>
+          <li>Public API platform &amp; developer portal</li>
+          <li>Tenant metering &amp; platform billing</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:1.5rem">Standing tracks throughout: money-path audits · security posture · PCI-DSS → ISO 27001 → SOC 2 certification programme.</p>
+  </div>
+  <span class="slide-no">11 / 12</span>
+</section>
+
+<!-- 12 · CLOSE -->
+<section class="slide closing">
+  <div class="slide-inner">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Nemo</p>
+    <h2 style="font-size:clamp(2.4rem,5.5vw,4.5rem)">Every market that needs a bank<br>should be <span class="accent">one click away</span> from one.</h2>
+    <p class="lede muted" style="margin-top:1.2rem">The regulated core is built. The model is proven. What remains is packaging and the last mile to the customer's hand — and that is exactly what the next three quarters deliver.</p>
+    <div class="title-foot" style="margin-top:7vh">
+      <span>Nemo · Neobank in a box</span><span>Nairobi · July 2026</span>
+    </div>
+  </div>
+  <span class="slide-no">12 / 12</span>
+</section>

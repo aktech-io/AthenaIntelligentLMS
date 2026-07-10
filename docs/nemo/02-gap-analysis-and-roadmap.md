@@ -57,6 +57,7 @@ layer, and depth of automation.
 | B8 | Lending depth: top-ups, refinancing, restructuring flows, group lending, credit lines | E | Some exists; needs product-factory coverage. |
 | B9 | SME/merchant banking: business accounts, invoicing, bulk payouts/payroll, QR acquiring | D | Phase 3+; big revenue expansion. |
 | B10 | Rewards/cashback/gamification engine | D | Credit-led growth lever from the reference model. |
+| B11 | **Crypto / virtual-asset wallet**: custodial BTC/ETH/stablecoin (USDT/USDC) balances via a regulated custody+rails provider (Fireblocks/Circle class), buy–sell–hold, on-chain send/receive, KES on/off-ramp | D | Integration play, not a chain build — the account service already models multi-type balances; add a VIRTUAL_ASSET account type and a custody connector. Gated on licensing (Kenya VASP Act — CBK/CMA), Travel Rule (FATF R.16) messaging, segregated custody, and blockchain analytics screening (Chainalysis class) wired into the existing AML stack. Stablecoin remittances + inflation-hedge savings are the killer emerging-market use cases; volatile-asset credit exposure stays out of scope. |
 
 ### C. Platform packaging — tenant, market, product configuration
 
