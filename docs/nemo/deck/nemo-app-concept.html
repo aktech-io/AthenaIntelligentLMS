@@ -1,0 +1,692 @@
+<title>Nemo App — Concept Designs</title>
+<style>
+  :root{
+    --abyss:#06222B; --water:#0C3541; --water-2:#10424F;
+    --coral:#FF6A3D; --coral-deep:#E04E22; --stripe:#F2F7F5;
+    --aqua:#5BC4B4; --glass:#8FAEAB; --line:rgba(143,174,171,.22);
+    --good:#5BC4B4; --bad:#FF7A6B;
+    --display:"Futura","Avenir Next","Century Gothic","Trebuchet MS",system-ui,sans-serif;
+    --body:system-ui,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+  }
+  /* Single deliberate visual world: the Nemo deep-water brand. */
+  body{background:var(--abyss);color:var(--stripe);font-family:var(--body);line-height:1.55;margin:0;}
+  .wrap{max-width:1240px;margin:0 auto;padding:9vh 5vw 12vh;}
+  header.hero{margin-bottom:8vh;}
+  .eyebrow{font-family:var(--display);text-transform:uppercase;letter-spacing:.24em;font-size:.8rem;
+    color:var(--coral);display:flex;align-items:center;gap:.9rem;margin:0 0 1rem;}
+  .stripes{display:inline-flex;gap:4px;}
+  .stripes i{display:block;width:5px;height:16px;background:var(--coral);border-radius:1px;}
+  .stripes i:nth-child(2){background:var(--stripe);height:20px;margin-top:-2px;}
+  .stripes i:nth-child(3){background:var(--coral);opacity:.55;}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(2.4rem,5.5vw,4.2rem);
+    line-height:1.05;letter-spacing:-.015em;text-wrap:balance;margin:0 0 1.2rem;}
+  h2{font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,3vw,2.2rem);
+    letter-spacing:-.01em;text-wrap:balance;margin:0 0 .6rem;}
+  .accent{color:var(--coral);} .aqua{color:var(--aqua);}
+  .lede{color:var(--glass);max-width:64ch;font-size:1.05rem;}
+  section.feat{margin:9vh 0;padding-top:5vh;border-top:1px solid var(--line);}
+  .feat-head{max-width:70ch;margin-bottom:1rem;}
+  .feat-head p{color:var(--glass);margin:.4rem 0 0;}
+  .tags{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem;}
+  .tags span{font-family:var(--display);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--aqua);border:1px solid rgba(91,196,180,.35);border-radius:999px;padding:.28rem .7rem;}
+  .row{display:flex;flex-wrap:wrap;gap:3.2rem 3.5vw;justify-content:center;margin-top:3.2rem;}
+  .shot{display:flex;flex-direction:column;align-items:center;}
+  .caption{font-family:var(--display);font-size:.75rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--glass);margin-top:1.2rem;text-align:center;max-width:30ch;}
+
+  /* ============ PHONE ============ */
+  .phone{width:296px;aspect-ratio:9/19;position:relative;flex:none;
+    background:linear-gradient(160deg,#27505c 0%,#0a2a33 30%,#02161d 70%);
+    border-radius:44px;border:1px solid rgba(242,247,245,.28);
+    box-shadow:inset 0 1px 0 rgba(242,247,245,.35),inset 0 0 0 7px #0a1418,
+      0 46px 90px -28px rgba(0,0,0,.8),0 0 100px rgba(255,106,61,.12),0 0 50px rgba(91,196,180,.08);
+    padding:10px;box-sizing:border-box;}
+  .phone::after{content:"";position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    width:86px;height:22px;border-radius:12px;background:#0a1418;z-index:6;
+    box-shadow:inset 0 0 0 1px rgba(242,247,245,.06);}
+  .screen{position:absolute;inset:10px;border-radius:35px;overflow:hidden;
+    background:
+      radial-gradient(340px 260px at 88% -6%, rgba(255,106,61,.20), transparent 62%),
+      radial-gradient(300px 240px at -12% 22%, rgba(91,196,180,.18), transparent 60%),
+      linear-gradient(180deg,#0A2E39 0%, #072530 55%, #05202a 100%);
+    display:flex;flex-direction:column;font-size:12.5px;line-height:1.4;color:var(--stripe);}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:5;
+    background:linear-gradient(112deg, transparent 34%, rgba(242,247,245,.07) 42%, rgba(242,247,245,.02) 50%, transparent 58%);}
+  .pad{padding:0 15px;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;
+    padding:14px 22px 4px;font-family:var(--display);font-size:11px;letter-spacing:.06em;color:var(--glass);}
+  .statusbar b{color:var(--stripe);font-variant-numeric:tabular-nums;}
+  .sig{display:inline-flex;gap:2px;align-items:flex-end;height:9px;}
+  .sig i{width:3px;background:var(--glass);border-radius:1px;display:block;}
+  .sig i:nth-child(1){height:4px}.sig i:nth-child(2){height:6px}
+  .sig i:nth-child(3){height:8px}.sig i:nth-child(4){height:9px;background:var(--stripe)}
+  .titlebar{display:flex;justify-content:space-between;align-items:center;margin:10px 0 12px;}
+  .titlebar .t{font-family:var(--display);font-size:15px;font-weight:700;}
+  .titlebar .t small{display:block;font-family:var(--body);font-weight:400;font-size:10.5px;color:var(--glass);}
+  .avatar{width:30px;height:30px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 35% 30%, var(--aqua), #2c7c72);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:12px;color:#04292f;}
+  .back{width:26px;height:26px;border-radius:9px;background:var(--water-2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--glass);font-size:13px;}
+  .navbar{margin-top:auto;display:grid;grid-template-columns:repeat(5,1fr);
+    padding:9px 8px 14px;border-top:1px solid rgba(143,174,171,.15);background:rgba(2,22,29,.6);}
+  .navbar span{text-align:center;font-size:8.5px;color:var(--glass);letter-spacing:.03em;}
+  .navbar span.on{color:var(--coral);font-weight:600;}
+  .navbar span::before{content:"";display:block;width:14px;height:3px;border-radius:2px;margin:0 auto 5px;background:transparent;}
+  .navbar span.on::before{background:var(--coral);}
+  svg.ic{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* shared cards */
+  .balcard{border-radius:18px;padding:13px 14px 12px;position:relative;overflow:hidden;
+    background:radial-gradient(120px 90px at 85% 0%, rgba(255,214,170,.5), transparent 70%),
+      radial-gradient(160px 130px at -10% 110%, rgba(140,26,0,.5), transparent 70%),
+      linear-gradient(135deg,#FF8A55 0%, var(--coral) 42%, var(--coral-deep) 100%);
+    color:#fff;box-shadow:0 16px 32px -14px rgba(224,78,34,.6), inset 0 1px 0 rgba(255,255,255,.35);}
+  .balcard .k{font-family:var(--display);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;}
+  .balcard .amt{font-family:var(--display);font-weight:700;font-size:23px;margin:3px 0 2px;font-variant-numeric:tabular-nums;}
+  .balcard .amt small{font-size:13px;opacity:.85;}
+  .balcard .acct{font-size:9.5px;opacity:.85;}
+  .balcard .spark{position:absolute;right:11px;bottom:10px;width:70px;height:24px;opacity:.9;}
+  .balcard .spark path{fill:none;stroke:rgba(255,255,255,.85);stroke-width:2;stroke-linecap:round;}
+  .balcard .spark circle{fill:#fff;}
+  .glasscard{background:rgba(16,66,79,.55);border:1px solid var(--line);border-radius:14px;padding:11px 12px;}
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0;}
+  .act{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9.5px;color:var(--glass);}
+  .act b{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    background:var(--water-2);border:1px solid var(--line);color:var(--aqua);font-weight:400;}
+  .act.hot b{background:rgba(255,106,61,.16);border-color:rgba(255,106,61,.4);color:var(--coral);}
+  .listrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid rgba(143,174,171,.12);}
+  .listrow:first-child{border-top:none;}
+  .listrow b{width:30px;height:30px;flex:none;border-radius:11px;background:var(--water-2);
+    display:flex;align-items:center;justify-content:center;color:var(--aqua);font-weight:400;font-size:12px;}
+  .listrow .w{flex:1;min-width:0;}
+  .listrow .t{font-size:11px;color:var(--stripe);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .listrow .s{font-size:9px;color:var(--glass);}
+  .listrow .amt{font-family:var(--display);font-size:11px;font-variant-numeric:tabular-nums;color:var(--glass);text-align:right;}
+  .listrow .amt em{display:block;font-style:normal;font-size:8.5px;}
+  .up{color:var(--good)!important;} .down{color:var(--bad)!important;}
+  .h6{font-family:var(--display);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--glass);margin:12px 0 6px;}
+  .cta{border-radius:14px;padding:11px;text-align:center;background:linear-gradient(135deg,var(--coral),var(--coral-deep));
+    color:#fff;font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.04em;
+    box-shadow:0 12px 26px -10px rgba(224,78,34,.55);}
+  .cta.ghost{background:transparent;border:1px solid rgba(91,196,180,.4);color:var(--aqua);box-shadow:none;}
+  .pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:8.5px;
+    font-family:var(--display);letter-spacing:.06em;}
+  .pill.good{background:rgba(91,196,180,.15);color:var(--good);border:1px solid rgba(91,196,180,.3);}
+  .pill.badp{background:rgba(255,122,107,.12);color:var(--bad);border:1px solid rgba(255,122,107,.3);}
+
+  /* AI chip + chat */
+  .ai-chip{display:flex;gap:9px;align-items:flex-start;border-radius:14px;padding:10px 12px;margin-top:11px;
+    background:linear-gradient(120deg, rgba(91,196,180,.14), rgba(91,196,180,.05));
+    border:1px solid rgba(91,196,180,.35);}
+  .ai-chip .orb{width:22px;height:22px;flex:none;border-radius:50%;
+    background:conic-gradient(from 200deg, var(--aqua), #7fdccd, var(--coral), var(--aqua));
+    box-shadow:0 0 12px rgba(91,196,180,.5);}
+  .ai-chip .tx{font-size:10px;color:var(--stripe);}
+  .ai-chip .tx b{color:var(--aqua);font-family:var(--display);font-size:9px;letter-spacing:.12em;display:block;margin-bottom:2px;}
+  .bubble{max-width:82%;border-radius:14px;padding:9px 11px;font-size:10.5px;margin:5px 0;}
+  .bubble.nia{background:var(--water);border:1px solid var(--line);border-bottom-left-radius:4px;}
+  .bubble.me{background:linear-gradient(135deg,var(--coral),var(--coral-deep));color:#fff;
+    margin-left:auto;border-bottom-right-radius:4px;}
+  .action-card{border:1px solid rgba(91,196,180,.35);border-radius:12px;padding:9px 11px;margin:6px 0;background:rgba(16,66,79,.5);}
+  .action-card .t{font-size:10px;color:var(--stripe);margin-bottom:7px;}
+  .btnrow{display:flex;gap:7px;}
+  .btn-s{flex:1;text-align:center;border-radius:9px;padding:6px;font-family:var(--display);font-size:9.5px;font-weight:700;}
+  .btn-s.y{background:var(--coral);color:#fff;}
+  .btn-s.n{border:1px solid var(--line);color:var(--glass);}
+  .suggest{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .suggest span{font-size:8.5px;color:var(--aqua);border:1px solid rgba(91,196,180,.3);border-radius:999px;padding:3px 8px;}
+
+  /* pay hub */
+  .search{display:flex;align-items:center;gap:7px;background:var(--water);border:1px solid var(--line);
+    border-radius:12px;padding:8px 11px;color:var(--glass);font-size:10.5px;}
+  .peeps{display:flex;gap:10px;margin:12px 0 2px;}
+  .peep{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:8.5px;color:var(--glass);}
+  .peep i{width:38px;height:38px;border-radius:50%;font-style:normal;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:12px;color:#04292f;}
+  .peep:nth-child(1) i{background:radial-gradient(circle at 35% 30%,#FFB08A,#d96a3c);}
+  .peep:nth-child(2) i{background:radial-gradient(circle at 35% 30%,var(--aqua),#2c7c72);}
+  .peep:nth-child(3) i{background:radial-gradient(circle at 35% 30%,#F2D6A2,#b9995b);}
+  .peep:nth-child(4) i{background:radial-gradient(circle at 35% 30%,#9AC4F2,#5b7cb9);}
+  .peep:nth-child(5) i{border:1px dashed rgba(143,174,171,.5);color:var(--glass);background:transparent;}
+  .billgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .bill{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:8.5px;color:var(--glass);
+    background:var(--water);border:1px solid var(--line);border-radius:12px;padding:9px 4px;}
+  .bill b{font-family:var(--display);font-size:11px;color:var(--stripe);}
+  .qr{display:flex;align-items:center;gap:10px;border-radius:14px;padding:11px 12px;margin-top:12px;
+    background:linear-gradient(120deg, rgba(255,106,61,.14), rgba(255,106,61,.04));border:1px solid rgba(255,106,61,.35);}
+  .qr .box{width:34px;height:34px;border-radius:8px;flex:none;background:
+    conic-gradient(var(--stripe) 25%, transparent 0 50%, var(--stripe) 0 75%, transparent 0) 0 0/12px 12px,
+    var(--water-2);border:1px solid var(--line);}
+  .qr .tx{font-size:10px;color:var(--stripe);} .qr .tx small{display:block;color:var(--glass);font-size:8.5px;}
+
+  /* send flow */
+  .to-chip{display:flex;align-items:center;gap:8px;background:var(--water);border:1px solid var(--line);
+    border-radius:999px;padding:6px 12px 6px 6px;width:fit-content;margin:0 auto;}
+  .to-chip i{width:24px;height:24px;border-radius:50%;font-style:normal;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 35% 30%,#FFB08A,#d96a3c);font-family:var(--display);font-size:10px;font-weight:700;color:#3d1503;}
+  .to-chip span{font-size:10px;}
+  .bigamt{text-align:center;margin:14px 0 2px;font-family:var(--display);font-weight:700;font-size:34px;
+    font-variant-numeric:tabular-nums;}
+  .bigamt small{font-size:14px;color:var(--glass);font-weight:400;}
+  .feeline{text-align:center;font-size:9px;color:var(--glass);margin-bottom:8px;}
+  .feeline em{color:var(--aqua);font-style:normal;}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0;}
+  .keypad span{text-align:center;padding:9px 0;border-radius:11px;background:rgba(16,66,79,.5);
+    border:1px solid rgba(143,174,171,.14);font-family:var(--display);font-size:15px;color:var(--stripe);}
+
+  /* pots */
+  .potcard{border-radius:14px;padding:11px 12px;background:var(--water);border:1px solid var(--line);
+    display:flex;gap:11px;align-items:center;margin-bottom:9px;}
+  .ring{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-size:10px;font-weight:700;color:var(--stripe);
+    background:conic-gradient(var(--aqua) calc(var(--p)*1%), rgba(143,174,171,.18) 0);position:relative;}
+  .ring::before{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--water);}
+  .ring span{position:relative;}
+  .ring.hot{background:conic-gradient(var(--coral) calc(var(--p)*1%), rgba(143,174,171,.18) 0);}
+  .potcard .w{flex:1;} .potcard .t{font-size:11.5px;font-weight:600;}
+  .potcard .s{font-size:9px;color:var(--glass);} .potcard .s em{color:var(--aqua);font-style:normal;}
+  .rule-row{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;font-size:10.5px;color:var(--stripe);
+    border-top:1px solid rgba(143,174,171,.12);}
+  .rule-row small{display:block;font-size:8.5px;color:var(--glass);}
+  .toggle{width:32px;height:19px;border-radius:12px;background:var(--aqua);position:relative;flex:none;}
+  .toggle::after{content:"";position:absolute;right:2.5px;top:2.5px;width:14px;height:14px;border-radius:50%;background:#04292f;}
+  .toggle.off{background:rgba(143,174,171,.3);} .toggle.off::after{right:auto;left:2.5px;background:var(--glass);}
+
+  /* insights */
+  .donutwrap{display:flex;gap:13px;align-items:center;margin:6px 0 4px;}
+  .donut{width:96px;height:96px;flex:none;}
+  .legend{flex:1;font-size:9.5px;color:var(--glass);}
+  .legend div{display:flex;align-items:center;gap:6px;margin:4px 0;}
+  .legend i{width:8px;height:8px;border-radius:2px;flex:none;}
+  .legend b{margin-left:auto;color:var(--stripe);font-family:var(--display);font-size:10px;}
+  .budget{margin:8px 0;} .budget .lb{display:flex;justify-content:space-between;font-size:9.5px;color:var(--glass);margin-bottom:4px;}
+  .budget .bar{height:5px;border-radius:3px;background:rgba(143,174,171,.18);overflow:hidden;}
+  .budget .bar i{display:block;height:100%;border-radius:3px;background:var(--aqua);}
+  .budget.warn .bar i{background:var(--coral);}
+
+  /* cards */
+  .vcard{border-radius:16px;aspect-ratio:1.586;padding:13px 14px;box-sizing:border-box;position:relative;overflow:hidden;
+    background:radial-gradient(160px 110px at 82% -10%, rgba(91,196,180,.35), transparent 65%),
+      linear-gradient(140deg,#134b5c 0%, #0a3140 45%, #061e27 100%);
+    border:1px solid rgba(91,196,180,.35);display:flex;flex-direction:column;justify-content:space-between;
+    box-shadow:inset 0 1px 0 rgba(242,247,245,.2),0 14px 30px -14px rgba(0,0,0,.6);}
+  .vcard::after{content:"";position:absolute;left:-20px;bottom:-46px;width:130px;height:130px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,106,61,.28),transparent 70%);}
+  .vcard .brand{display:flex;justify-content:space-between;align-items:center;}
+  .vcard .brand .nm{font-family:var(--display);font-weight:700;letter-spacing:.08em;font-size:12px;}
+  .vcard .num{font-family:var(--display);font-size:13.5px;letter-spacing:.16em;font-variant-numeric:tabular-nums;}
+  .vcard .meta{display:flex;justify-content:space-between;font-size:8.5px;color:var(--glass);}
+  .chip{width:26px;height:18px;border-radius:4px;background:linear-gradient(135deg,#e9c46a,#b98a3b);}
+
+  /* loans */
+  .offer{background:var(--water);border:1px solid rgba(255,106,61,.4);border-radius:16px;padding:12px 13px;text-align:center;}
+  .offer .k{font-family:var(--display);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--aqua);}
+  .offer .amt{font-family:var(--display);font-weight:700;font-size:24px;margin:3px 0 2px;font-variant-numeric:tabular-nums;}
+  .offer .sub{font-size:9.5px;color:var(--glass);}
+  .slider{margin:13px 4px 4px;}
+  .slider .rail{height:5px;border-radius:3px;background:rgba(143,174,171,.2);position:relative;}
+  .slider .rail i{position:absolute;left:0;top:0;height:100%;width:55%;border-radius:3px;background:var(--coral);}
+  .slider .rail em{position:absolute;left:55%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;
+    border-radius:50%;background:var(--stripe);box-shadow:0 2px 8px rgba(0,0,0,.5);}
+  .slider .lbl{display:flex;justify-content:space-between;font-size:8.5px;color:var(--glass);margin-top:7px;font-variant-numeric:tabular-nums;}
+  .terms{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;}
+  .term{background:var(--water);border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
+  .term .k{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--glass);font-family:var(--display);}
+  .term .v{font-family:var(--display);font-weight:700;font-size:12.5px;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .fineprint{text-align:center;font-size:8px;color:var(--glass);margin-top:7px;}
+  .timeline{margin:4px 0 0;padding-left:16px;position:relative;}
+  .timeline::before{content:"";position:absolute;left:4px;top:6px;bottom:8px;width:2px;background:rgba(143,174,171,.2);}
+  .tl{position:relative;padding:5px 0 5px 6px;font-size:10px;color:var(--glass);}
+  .tl::before{content:"";position:absolute;left:-16px;top:10px;width:9px;height:9px;border-radius:50%;
+    background:var(--aqua);border:2px solid #072530;}
+  .tl.due::before{background:var(--coral);box-shadow:0 0 8px rgba(255,106,61,.6);}
+  .tl.next::before{background:transparent;border:2px solid var(--glass);}
+  .tl b{color:var(--stripe);font-weight:600;} .tl span{float:right;font-family:var(--display);font-variant-numeric:tabular-nums;}
+
+  /* crypto */
+  .cryptohead{border-radius:18px;padding:13px 14px;position:relative;overflow:hidden;
+    background:radial-gradient(140px 100px at 80% -10%, rgba(91,196,180,.4), transparent 70%),
+      linear-gradient(135deg,#0f4a4a 0%, #0a3440 55%, #062028 100%);
+    border:1px solid rgba(91,196,180,.4);box-shadow:inset 0 1px 0 rgba(242,247,245,.2);}
+  .cryptohead .k{font-family:var(--display);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--aqua);}
+  .cryptohead .amt{font-family:var(--display);font-weight:700;font-size:23px;margin:3px 0 1px;font-variant-numeric:tabular-nums;}
+  .cryptohead .sub{font-size:9px;color:var(--glass);}
+  .coin{width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:13px;color:#04202a;}
+  .coin.usdt{background:radial-gradient(circle at 35% 30%,#7fdccd,#2ea08d);}
+  .coin.usdc{background:radial-gradient(circle at 35% 30%,#9AC4F2,#4a7cc9);}
+  .coin.btc{background:radial-gradient(circle at 35% 30%,#FFC27A,#e08a1e);}
+  .coin.eth{background:radial-gradient(circle at 35% 30%,#C9CFF2,#7a86c9);}
+  .msp{width:56px;height:18px;flex:none;}
+  .msp path{fill:none;stroke-width:1.6;stroke-linecap:round;}
+  .netpill{display:flex;justify-content:space-between;font-size:9px;color:var(--glass);padding:7px 2px 0;}
+  .netpill b{color:var(--stripe);font-family:var(--display);}
+  .swap{border-radius:14px;background:var(--water);border:1px solid var(--line);padding:10px 12px;margin-bottom:8px;}
+  .swap .lb{font-size:8.5px;color:var(--glass);font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;}
+  .swap .in{display:flex;justify-content:space-between;align-items:baseline;margin-top:3px;}
+  .swap .in b{font-family:var(--display);font-size:17px;font-variant-numeric:tabular-nums;}
+  .swap .in span{font-size:10px;color:var(--aqua);font-family:var(--display);}
+  .swapicon{width:28px;height:28px;margin:-4px auto;position:relative;z-index:2;border-radius:50%;
+    background:var(--coral);display:flex;align-items:center;justify-content:center;color:#fff;
+    box-shadow:0 6px 14px -4px rgba(224,78,34,.6);}
+
+  /* onboarding */
+  .steps{display:flex;gap:5px;margin:10px 0 14px;}
+  .steps i{flex:1;height:3px;border-radius:2px;background:rgba(143,174,171,.25);}
+  .steps i.on{background:var(--coral);}
+  .selfie{width:150px;height:150px;margin:12px auto;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 50% 42%, var(--water-2), #051d25 75%);
+    border:2px dashed rgba(91,196,180,.55);display:flex;align-items:center;justify-content:center;}
+  .selfie::before{content:"";width:56px;height:56px;border-radius:50%;background:rgba(143,174,171,.3);
+    position:absolute;top:32px;}
+  .selfie::after{content:"";width:88px;height:52px;border-radius:44px 44px 6px 6px;background:rgba(143,174,171,.3);
+    position:absolute;bottom:14px;}
+  .check{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--stripe);padding:6px 0;}
+  .check i{width:17px;height:17px;flex:none;border-radius:50%;background:rgba(91,196,180,.18);
+    border:1px solid rgba(91,196,180,.5);color:var(--aqua);display:flex;align-items:center;justify-content:center;
+    font-style:normal;font-size:10px;}
+  .check.todo i{background:transparent;border-color:rgba(143,174,171,.4);color:transparent;}
+  .check.todo{color:var(--glass);}
+
+  footer{margin-top:10vh;padding-top:4vh;border-top:1px solid var(--line);color:var(--glass);font-size:.85rem;
+    display:flex;gap:2rem;flex-wrap:wrap;font-family:var(--display);letter-spacing:.12em;text-transform:uppercase;}
+  @media (prefers-reduced-motion: no-preference){
+    section.feat{animation:rise .5s ease-out both;}
+    @keyframes rise{from{opacity:.001;transform:translateY(12px);}to{opacity:1;transform:none;}}
+  }
+  :focus-visible{outline:2px solid var(--coral);outline-offset:3px;}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> Nemo · App concept · July 2026</p>
+  <h1>The Nemo app, <span class="accent">screen by screen.</span></h1>
+  <p class="lede">Concept designs for the white-label customer app — every planned capability rendered as a customer would meet it, including the ones still being defined (crypto, AI assistant). Each tenant re-skins this with their brand pack; the flows and platform underneath stay the same.</p>
+</header>
+
+<!-- EVERYDAY MONEY -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 01 · Everyday money</p>
+    <h2>Home, pay anyone, <span class="aqua">zero friction.</span></h2>
+    <p>The home screen answers "how much do I have and what can I do" in one glance. Payments are alias-first: a phone number is an account. Nia, the in-app AI, surfaces one useful insight at a time — never a feed.</p>
+    <div class="tags"><span>Accounts</span><span>P2P by phone №</span><span>QR pay</span><span>Bills & airtime</span><span>M-Pesa rails</span><span>AI insights</span></div>
+  </div>
+  <div class="row">
+    <!-- HOME -->
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Habari, Amina<small>Nairobi · KES</small></div><div class="avatar">A</div></div>
+          <div class="balcard">
+            <span class="k">Main account</span>
+            <div class="amt">KES 48,250<small>.75</small></div>
+            <div class="acct">Nemo Current ·· 4417</div>
+            <svg class="spark" viewBox="0 0 70 24"><path d="M2 18 11 15 20 17 29 10 38 12 47 6 56 8 68 3"/><circle cx="68" cy="3" r="2.5"/></svg>
+          </div>
+          <div class="actions">
+            <span class="act hot"><b><svg class="ic" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></b>Send</span>
+            <span class="act"><b><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2.2-3 2.2-3-2.2L6 21V3z"/><path d="M9.5 8.5h5M9.5 12h5"/></svg></b>Pay</span>
+            <span class="act"><b><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/></svg></b>Save</span>
+            <span class="act"><b><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2L12 3z"/></svg></b>Borrow</span>
+          </div>
+          <div class="ai-chip"><span class="orb"></span><span class="tx"><b>NIA · INSIGHT</b>Rent is due Friday. Move KES 18,000 to bills now and you'll still clear your Boda goal this month.</span></div>
+          <p class="h6">Today</p>
+          <div class="listrow"><b><svg class="ic" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></b><div class="w"><div class="t">M-Pesa top-up</div><div class="s">Mobile money · 09:12</div></div><span class="amt up">+2,000.00</span></div>
+          <div class="listrow"><b><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2.2-3 2.2-3-2.2L6 21V3z"/></svg></b><div class="w"><div class="t">Nairobi Water</div><div class="s">Bill · autopay</div></div><span class="amt">−850.00</span></div>
+        </div>
+        <div class="navbar"><span class="on">Home</span><span>Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Home — one glance, one insight</p>
+    </div>
+    <!-- PAY HUB -->
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Pay<small>anyone, anything</small></div><div class="avatar">A</div></div>
+          <div class="search"><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Name, phone number or till…</div>
+          <p class="h6">Recent</p>
+          <div class="peeps">
+            <span class="peep"><i>W</i>Wanjiru</span>
+            <span class="peep"><i>K</i>Kip</span>
+            <span class="peep"><i>M</i>Mama</span>
+            <span class="peep"><i>J</i>Juma</span>
+            <span class="peep"><i>+</i>New</span>
+          </div>
+          <div class="qr"><span class="box"></span><span class="tx">Scan &amp; pay<small>Till, QR or request-to-pay</small></span></div>
+          <p class="h6">Bills &amp; airtime</p>
+          <div class="billgrid">
+            <span class="bill"><b>K</b>KPLC</span>
+            <span class="bill"><b>W</b>Water</span>
+            <span class="bill"><b>D</b>DStv</span>
+            <span class="bill"><b>A</b>Airtime</span>
+          </div>
+          <p class="h6">Scheduled</p>
+          <div class="listrow"><b><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l2.5 2.5"/></svg></b><div class="w"><div class="t">Rent · Kilimani Apts</div><div class="s">Standing order · 1st monthly</div></div><span class="amt">18,000.00</span></div>
+        </div>
+        <div class="navbar"><span>Home</span><span class="on">Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Pay hub — people, tills, bills</p>
+    </div>
+    <!-- SEND FLOW -->
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center">Send money</div><span style="width:26px"></span></div>
+          <div class="to-chip"><i>W</i><span>Wanjiru Njeri · 07•• ••• 214</span></div>
+          <div class="bigamt">KES 3,500<small>.00</small></div>
+          <p class="feeline">Fee KES 0 inside Nemo · <em>arrives instantly</em></p>
+          <div class="keypad">
+            <span>1</span><span>2</span><span>3</span>
+            <span>4</span><span>5</span><span>6</span>
+            <span>7</span><span>8</span><span>9</span>
+            <span>.</span><span>0</span><span>⌫</span>
+          </div>
+          <div class="cta">Slide to send</div>
+          <p class="fineprint">Protected by device binding &amp; transaction signing</p>
+        </div>
+        <div class="navbar"><span>Home</span><span class="on">Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Send — instant, fee-transparent</p>
+    </div>
+  </div>
+</section>
+
+<!-- SAVE & GROW -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 02 · Save &amp; grow</p>
+    <h2>Pots that fill themselves, <span class="aqua">money that explains itself.</span></h2>
+    <p>Goal-based pots with round-ups and auto-save rules earn interest from the deposit engine. Insights turn the transaction history into budgets a customer actually keeps.</p>
+    <div class="tags"><span>Savings pots</span><span>Round-ups</span><span>Auto-save rules</span><span>Term deposits</span><span>Spending insights</span><span>Budgets</span></div>
+  </div>
+  <div class="row">
+    <!-- POTS -->
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Pots<small>KES 61,400 saved · earning 7.5%</small></div><div class="avatar">A</div></div>
+          <div class="potcard"><span class="ring" style="--p:64"><span>64%</span></span><div class="w"><div class="t">Boda fund</div><div class="s">KES 32,000 of 50,000 · <em>+KES 410 interest</em></div></div></div>
+          <div class="potcard"><span class="ring hot" style="--p:31"><span>31%</span></span><div class="w"><div class="t">Emergency</div><div class="s">KES 15,400 of 50,000 · locked pot</div></div></div>
+          <div class="potcard"><span class="ring" style="--p:88"><span>88%</span></span><div class="w"><div class="t">December shags trip</div><div class="s">KES 14,000 of 16,000 · ends 20 Dec</div></div></div>
+          <p class="h6">Rules</p>
+          <div class="rule-row"><span>Round up every purchase<small>to Boda fund · KES 384 this month</small></span><span class="toggle"></span></div>
+          <div class="rule-row"><span>Auto-save on payday<small>KES 2,000 → Emergency, every 28th</small></span><span class="toggle"></span></div>
+          <div class="rule-row"><span>Sweep idle balance<small>Nia suggests when balance > KES 60k</small></span><span class="toggle off"></span></div>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span class="on">Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Pots — goals, round-ups, rules</p>
+    </div>
+    <!-- INSIGHTS -->
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center">July insights</div><span style="width:26px"></span></div>
+          <div class="glasscard">
+            <div class="donutwrap">
+              <svg class="donut" viewBox="0 0 42 42">
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(143,174,171,.15)" stroke-width="6"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#FF6A3D" stroke-width="6" stroke-dasharray="38 62" stroke-dashoffset="25" stroke-linecap="butt"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#5BC4B4" stroke-width="6" stroke-dasharray="27 73" stroke-dashoffset="-13" stroke-linecap="butt"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#F2D6A2" stroke-width="6" stroke-dasharray="19 81" stroke-dashoffset="-40" stroke-linecap="butt"/>
+                <text x="21" y="20" text-anchor="middle" fill="#F2F7F5" font-size="6.5" font-weight="700" font-family="Century Gothic,sans-serif">36,2k</text>
+                <text x="21" y="26.5" text-anchor="middle" fill="#8FAEAB" font-size="3.4">spent of 45k</text>
+              </svg>
+              <div class="legend">
+                <div><i style="background:#FF6A3D"></i>Home &amp; rent<b>18,000</b></div>
+                <div><i style="background:#5BC4B4"></i>Food &amp; transport<b>9,700</b></div>
+                <div><i style="background:#F2D6A2"></i>Family<b>5,300</b></div>
+                <div><i style="background:rgba(143,174,171,.5)"></i>Everything else<b>3,200</b></div>
+              </div>
+            </div>
+          </div>
+          <p class="h6">Budgets</p>
+          <div class="budget"><div class="lb"><span>Food &amp; transport</span><span>9,700 / 12,000</span></div><div class="bar"><i style="width:81%"></i></div></div>
+          <div class="budget warn"><div class="lb"><span>Eating out</span><span>4,850 / 4,000 · over</span></div><div class="bar"><i style="width:100%"></i></div></div>
+          <div class="budget"><div class="lb"><span>Airtime &amp; data</span><span>1,150 / 2,000</span></div><div class="bar"><i style="width:58%"></i></div></div>
+          <div class="ai-chip"><span class="orb"></span><span class="tx"><b>NIA · HEADS-UP</b>Eating out is 21% over budget. Cap it at KES 150/day and you're back on track by the 24th.</span></div>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span class="on">Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Insights — spend, budgets, nudges</p>
+    </div>
+  </div>
+</section>
+
+<!-- CARDS -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 03 · Cards</p>
+    <h2>A card in the wallet <span class="aqua">before the coffee is cold.</span></h2>
+    <p>Virtual debit card issued at onboarding, physical optional. Freeze, limits, online toggle and 3-D Secure live one tap deep — disputes start from the transaction itself.</p>
+    <div class="tags"><span>Virtual-first issuing</span><span>Freeze / unfreeze</span><span>Per-channel limits</span><span>3-D Secure</span><span>Disputes in-app</span></div>
+  </div>
+  <div class="row">
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Cards<small>1 virtual · tap to reveal details</small></div><div class="avatar">A</div></div>
+          <div class="vcard">
+            <div class="brand"><span class="nm">NEMO</span><span class="chip"></span></div>
+            <div class="num">••••&nbsp;••••&nbsp;••••&nbsp;4417</div>
+            <div class="meta"><span>AMINA W. OTIENO</span><span>EXP 07/29</span></div>
+          </div>
+          <div class="rule-row" style="margin-top:10px"><span>Card active<small>freeze instantly, unfreeze any time</small></span><span class="toggle"></span></div>
+          <div class="rule-row"><span>Online payments<small>3-D Secure enabled</small></span><span class="toggle"></span></div>
+          <div class="rule-row"><span>Daily limit<small>KES 20,000 · adjust with a slider</small></span><span style="font-family:var(--display);font-size:11px;color:var(--stripe)">Edit</span></div>
+          <p class="h6">Card activity</p>
+          <div class="listrow"><b>N</b><div class="w"><div class="t">Naivas Supermarket</div><div class="s">Today 08:42 · POS</div></div><span class="amt">−2,314.00</span></div>
+          <div class="listrow"><b>S</b><div class="w"><div class="t">Showmax</div><div class="s">Yesterday · online · <span style="color:var(--coral)">dispute?</span></div></div><span class="amt">−650.00</span></div>
+        </div>
+        <div class="navbar"><span>Home</span><span class="on">Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Cards — control at the surface</p>
+    </div>
+  </div>
+</section>
+
+<!-- CREDIT -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 04 · Credit</p>
+    <h2>Scored, priced and paid out <span class="accent">before the queue would have moved.</span></h2>
+    <p>Straight-through lending: Nia's decision engine pre-approves in-policy customers, the slider makes cost transparent, disbursement is instant, and the schedule lives where the borrower can see it. Every decision logged and explainable.</p>
+    <div class="tags"><span>Pre-approved offers</span><span>Instant disbursement</span><span>Transparent pricing</span><span>Schedule & early repay</span><span>Explainable AI decisions</span></div>
+  </div>
+  <div class="row">
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Instant credit<small>pre-approved by Nia</small></div><div class="avatar">A</div></div>
+          <div class="offer">
+            <span class="k">You can borrow up to</span>
+            <div class="amt">KES 25,000</div>
+            <div class="sub">decision in seconds · no paperwork</div>
+          </div>
+          <div class="slider">
+            <div class="rail"><i></i><em></em></div>
+            <div class="lbl"><span>5,000</span><span style="color:var(--stripe)">13,750</span><span>25,000</span></div>
+          </div>
+          <div class="terms">
+            <div class="term"><span class="k">Term</span><div class="v">30 days</div></div>
+            <div class="term"><span class="k">Fee</span><div class="v">KES 495</div></div>
+            <div class="term"><span class="k">Repay</span><div class="v">14,245</div></div>
+            <div class="term"><span class="k">Due</span><div class="v">9 Aug</div></div>
+          </div>
+          <div class="cta" style="margin-top:12px">Get the money</div>
+          <p class="fineprint">Why this limit? Nia explains every decision →</p>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span>Save</span><span class="on">Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Offer — cost you can see</p>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center">Boda loan</div><span style="width:26px"></span></div>
+          <div class="glasscard" style="text-align:center">
+            <span class="h6" style="margin:0">Outstanding</span>
+            <div style="font-family:var(--display);font-weight:700;font-size:24px;margin:2px 0">KES 41,300</div>
+            <span class="pill good">on track · 2 of 6 paid</span>
+          </div>
+          <p class="h6">Next instalment</p>
+          <div class="glasscard" style="display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-size:11.5px;font-weight:600">KES 10,610 · 28 July</div><div style="font-size:9px;color:var(--glass)">auto-debit from Main account</div></div>
+            <span class="pill good">funds ready</span>
+          </div>
+          <p class="h6">Schedule</p>
+          <div class="timeline">
+            <div class="tl"><b>May · June</b> paid on time <span class="up">✓ 21,220</span></div>
+            <div class="tl due"><b>28 July</b> upcoming <span>10,610</span></div>
+            <div class="tl next">28 Aug · 28 Sep · 28 Oct <span>31,830</span></div>
+          </div>
+          <div class="cta ghost" style="margin-top:10px">Repay early — save KES 1,140</div>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span>Save</span><span class="on">Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Active loan — no surprises</p>
+    </div>
+  </div>
+</section>
+
+<!-- CRYPTO -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 05 · Crypto <span style="color:var(--glass);letter-spacing:.1em">· planned</span></p>
+    <h2>Dollars that live in the same app <span class="aqua">as the shillings.</span></h2>
+    <p>Custodial stablecoin-first wallet: hold USDT/USDC as inflation-proof savings, send across borders for cents, cash in and out through M-Pesa. BTC/ETH as hold-and-transfer. Switched on per market as VASP licensing allows — and screened by the same AML engine as every other shilling.</p>
+    <div class="tags"><span>USDT / USDC first</span><span>M-Pesa on/off-ramp</span><span>Cross-border for cents</span><span>Custody partner</span><span>Travel-Rule compliant</span><span>Per-market flag</span></div>
+  </div>
+  <div class="row">
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><div class="t">Crypto<small>custodial · insured custody</small></div><div class="avatar">A</div></div>
+          <div class="cryptohead">
+            <span class="k">Portfolio value</span>
+            <div class="amt">KES 91,240</div>
+            <div class="sub">≈ $706 · <span style="color:var(--good)">+1.8% this week</span></div>
+          </div>
+          <div class="actions" style="grid-template-columns:repeat(3,1fr)">
+            <span class="act hot"><b><svg class="ic" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></b>Buy</span>
+            <span class="act"><b><svg class="ic" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></b>Send</span>
+            <span class="act"><b><svg class="ic" viewBox="0 0 24 24"><path d="M17 7 7 17M15 17H7V9"/></svg></b>Receive</span>
+          </div>
+          <p class="h6">Assets</p>
+          <div class="listrow"><span class="coin usdt">₮</span><div class="w"><div class="t">Tether USD</div><div class="s">520.00 USDT</div></div><svg class="msp" viewBox="0 0 56 18"><path stroke="#5BC4B4" d="M2 9 12 9.2 22 8.8 32 9 42 8.9 54 9"/></svg><span class="amt">67,180<em class="up">+0.1%</em></span></div>
+          <div class="listrow"><span class="coin usdc">$</span><div class="w"><div class="t">USD Coin</div><div class="s">120.00 USDC</div></div><svg class="msp" viewBox="0 0 56 18"><path stroke="#5BC4B4" d="M2 9 12 8.9 22 9.1 32 9 42 9 54 9"/></svg><span class="amt">15,500<em class="up">0.0%</em></span></div>
+          <div class="listrow"><span class="coin btc">₿</span><div class="w"><div class="t">Bitcoin</div><div class="s">0.00061 BTC</div></div><svg class="msp" viewBox="0 0 56 18"><path stroke="#FFC27A" d="M2 14 10 12 18 13 26 8 34 10 42 5 54 3"/></svg><span class="amt">6,940<em class="up">+3.2%</em></span></div>
+          <div class="listrow"><span class="coin eth">Ξ</span><div class="w"><div class="t">Ethereum</div><div class="s">0.0071 ETH</div></div><svg class="msp" viewBox="0 0 56 18"><path stroke="#C9CFF2" d="M2 10 10 12 18 9 26 11 34 7 42 9 54 6"/></svg><span class="amt">1,620<em class="down">−1.1%</em></span></div>
+          <p class="fineprint" style="text-align:left">Held with a regulated custodian · not lending collateral</p>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span>Save</span><span>Borrow</span><span class="on">Crypto</span></div>
+      </div></div>
+      <p class="caption">Wallet — stablecoins lead</p>
+    </div>
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center">Buy USDT</div><span style="width:26px"></span></div>
+          <div class="swap">
+            <span class="lb">You pay</span>
+            <div class="in"><b>KES 13,000</b><span>Main account</span></div>
+          </div>
+          <div class="swapicon"><svg class="ic" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M12 5v14m0 0-5-5m5 5 5-5"/></svg></div>
+          <div class="swap">
+            <span class="lb">You receive</span>
+            <div class="in"><b>100.31 USDT</b><span>Crypto wallet</span></div>
+          </div>
+          <div class="netpill"><span>Rate</span><b>1 USDT = KES 129.20</b></div>
+          <div class="netpill"><span>Fee (0.4%)</span><b>KES 52</b></div>
+          <div class="netpill"><span>Network</span><b>Internal — instant, no gas</b></div>
+          <div class="ai-chip"><span class="orb"></span><span class="tx"><b>NIA · CONTEXT</b>You're paying school fees in Kampala Friday. Sending USDT saves ≈ KES 1,890 vs bank transfer.</span></div>
+          <div class="cta" style="margin-top:10px">Confirm purchase</div>
+          <p class="fineprint">Screened on-chain (Travel Rule) · CBK/CMA VASP framework</p>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span>Save</span><span>Borrow</span><span class="on">Crypto</span></div>
+      </div></div>
+      <p class="caption">Buy — shillings to dollars in a tap</p>
+    </div>
+  </div>
+</section>
+
+<!-- NIA -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 06 · Nia, the AI banker</p>
+    <h2>Support that <span class="accent">does things,</span> not a chatbot that apologises.</h2>
+    <p>Nia holds real banking permissions behind confirmation gates: block a card, trace a payment, raise a dispute, move money between pots. Sensitive actions always show a confirm step; everything is logged to the same audit trail as a branch officer.</p>
+    <div class="tags"><span>Banking actions</span><span>Confirmation gates</span><span>Payment tracing</span><span>Swahili & English</span><span>Full audit trail</span></div>
+  </div>
+  <div class="row">
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad" style="display:flex;flex-direction:column;flex:1">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center;display:flex;align-items:center;gap:6px;justify-content:center"><span class="ai-chip" style="margin:0;padding:0;border:none;background:none"><span class="orb" style="width:16px;height:16px"></span></span>Nia</div><span style="width:26px"></span></div>
+          <div class="bubble me">I don't recognise this Showmax charge from yesterday</div>
+          <div class="bubble nia">Found it — KES 650, charged online yesterday 21:14 to your virtual card. You've paid Showmax 3 times before, but this one came from a new device in a new location.</div>
+          <div class="action-card">
+            <div class="t">Recommended: freeze the card and raise a dispute. I'll reissue a new virtual card instantly.</div>
+            <div class="btnrow"><span class="btn-s y">Freeze &amp; dispute</span><span class="btn-s n">Not now</span></div>
+          </div>
+          <div class="bubble me">Freeze & dispute</div>
+          <div class="bubble nia">Done ✓ Card frozen, dispute #D-4471 opened, new card in your wallet. Provisional credit lands within 48h under your card scheme's rules.</div>
+          <div class="suggest"><span>Track my Kampala transfer</span><span>Why was my loan limit 25k?</span><span>Weka 500 kwa Boda fund</span></div>
+        </div>
+        <div class="navbar"><span>Home</span><span>Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">Nia — acts, confirms, logs</p>
+    </div>
+  </div>
+</section>
+
+<!-- ONBOARDING -->
+<section class="feat">
+  <div class="feat-head">
+    <p class="eyebrow"><span class="stripes"><i></i><i></i><i></i></span> 07 · Onboarding</p>
+    <h2>Phone to bank account in <span class="aqua">under five minutes.</span></h2>
+    <p>Self-service eKYC: ID capture with OCR, selfie liveness, sanctions screening — risk-tiered so low-risk customers are approved with zero human touch, and the account (plus virtual card) is live before the customer puts the phone down.</p>
+    <div class="tags"><span>ID OCR</span><span>Selfie liveness</span><span>Sanctions/PEP screening</span><span>Risk-tiered auto-approve</span><span>Instant virtual card</span></div>
+  </div>
+  <div class="row">
+    <div class="shot">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><b>9:41</b><span class="sig"><i></i><i></i><i></i><i></i></span></div>
+        <div class="pad">
+          <div class="titlebar"><span class="back">‹</span><div class="t" style="text-align:center">Verify it's you</div><span style="width:26px"></span></div>
+          <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+          <div class="selfie"></div>
+          <p style="text-align:center;font-size:10.5px;color:var(--glass);margin:4px 0 10px">Look straight at the camera and blink once</p>
+          <div class="check"><i>✓</i>Phone number verified</div>
+          <div class="check"><i>✓</i>National ID captured &amp; matched</div>
+          <div class="check todo"><i>·</i>Selfie liveness</div>
+          <div class="check todo"><i>·</i>Account &amp; card issued</div>
+          <div class="cta" style="margin-top:12px">I'm ready</div>
+          <p class="fineprint">Approved in ~2 min for most customers · Nia reviews the rest</p>
+        </div>
+        <div class="navbar"><span class="on">Home</span><span>Pay</span><span>Save</span><span>Borrow</span><span>Crypto</span></div>
+      </div></div>
+      <p class="caption">eKYC — zero-touch for most</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Nemo · Neobank in a box</span><span>White-label · brand-packed per tenant</span><span>Concept v1 · July 2026</span>
+</footer>
+</div>

@@ -15,6 +15,7 @@ documents define the concept and the path from "lending platform" to "neobank in
 | [02-gap-analysis-and-roadmap.md](02-gap-analysis-and-roadmap.md) | What exists today, every capability gap to close, and the phased roadmap |
 | [Pitch deck v1](https://claude.ai/code/artifact/0e8de1e3-2879-4840-8313-f3d6b6754911) | 12-slide investor/partner deck (Claude artifact, private until shared) |
 | [Pitch deck v2](https://claude.ai/code/artifact/2da0adb6-9eca-4173-85e7-8223bd700023) | v2 with mobile-app mockup imagery — the preferred version |
+| [App concept](https://claude.ai/code/artifact/143549e3-548b-4613-be57-947778abb3d6) | 12 high-fidelity customer-app screens across 7 feature areas incl. crypto & AI banker (source: deck/nemo-app-concept.html) |
 | [deck/](deck/) | Deck HTML sources + `build_nemo_pptx.py` (regenerates the .pptx) |
 | [exports/](exports/) | `nemo-pitch-deck.pptx` (editable PowerPoint) and `nemo-pitch-deck.pdf` (pixel-faithful render of v2) |
 
