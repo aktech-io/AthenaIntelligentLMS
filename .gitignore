@@ -49,3 +49,4 @@ go-services/vendor/
 
 # Real k8s secrets (never commit)
 deploy/k8s/lms-secrets.yaml
+.~lock.*#
