@@ -39,6 +39,7 @@ const loanColumns = `id, tenant_id, application_id, customer_id, product_id,
 	tenor_months, repayment_frequency, schedule_type, disbursed_at,
 	first_repayment_date, maturity_date, status, stage, dpd,
 	last_repayment_date, last_repayment_amount, closed_at,
+	penalty_rate, penalty_grace_days, last_penalty_accrual_date, written_off_at,
 	created_at, updated_at`
 
 func scanLoan(row pgx.Row) (*model.Loan, error) {
@@ -50,6 +51,7 @@ func scanLoan(row pgx.Row) (*model.Loan, error) {
 		&l.TenorMonths, &l.RepaymentFrequency, &l.ScheduleType, &l.DisbursedAt,
 		&l.FirstRepaymentDate, &l.MaturityDate, &l.Status, &l.Stage, &l.DPD,
 		&l.LastRepaymentDate, &l.LastRepaymentAmount, &l.ClosedAt,
+		&l.PenaltyRate, &l.PenaltyGraceDays, &l.LastPenaltyAccrualDate, &l.WrittenOffAt,
 		&l.CreatedAt, &l.UpdatedAt,
 	)
 	if err != nil {
@@ -69,6 +71,7 @@ func scanLoans(rows pgx.Rows) ([]*model.Loan, error) {
 			&l.TenorMonths, &l.RepaymentFrequency, &l.ScheduleType, &l.DisbursedAt,
 			&l.FirstRepaymentDate, &l.MaturityDate, &l.Status, &l.Stage, &l.DPD,
 			&l.LastRepaymentDate, &l.LastRepaymentAmount, &l.ClosedAt,
+			&l.PenaltyRate, &l.PenaltyGraceDays, &l.LastPenaltyAccrualDate, &l.WrittenOffAt,
 			&l.CreatedAt, &l.UpdatedAt,
 		)
 		if err != nil {
@@ -86,8 +89,9 @@ func (r *Repository) InsertLoan(ctx context.Context, l *model.Loan) (*model.Loan
 		disbursed_amount, outstanding_principal, outstanding_interest,
 		outstanding_fees, outstanding_penalty, currency, interest_rate,
 		tenor_months, repayment_frequency, schedule_type, disbursed_at,
-		first_repayment_date, maturity_date, status, stage, dpd
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+		first_repayment_date, maturity_date, status, stage, dpd,
+		penalty_rate, penalty_grace_days
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
 	RETURNING ` + loanColumns
 
 	row := r.pool.QueryRow(ctx, query,
@@ -96,6 +100,7 @@ func (r *Repository) InsertLoan(ctx context.Context, l *model.Loan) (*model.Loan
 		l.OutstandingFees, l.OutstandingPenalty, l.Currency, l.InterestRate,
 		l.TenorMonths, l.RepaymentFrequency, l.ScheduleType, l.DisbursedAt,
 		l.FirstRepaymentDate, l.MaturityDate, l.Status, l.Stage, l.DPD,
+		l.PenaltyRate, l.PenaltyGraceDays,
 	)
 	return scanLoan(row)
 }
@@ -121,6 +126,15 @@ func (r *Repository) GetLoanByIDAndTenantTx(ctx context.Context, tx pgx.Tx, id u
 	return scanLoan(tx.QueryRow(ctx, query, id, tenantID))
 }
 
+// GetLoanByIDTx returns a loan by ID (no tenant filter — internal, event-driven
+// use), locked with SELECT ... FOR UPDATE inside the transaction. Used by the
+// penalty accrual job and the write-off consumer so they serialize against
+// concurrent repayments on the same loan row.
+func (r *Repository) GetLoanByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*model.Loan, error) {
+	query := `SELECT ` + loanColumns + ` FROM loans WHERE id = $1 FOR UPDATE`
+	return scanLoan(tx.QueryRow(ctx, query, id))
+}
+
 // UpdateLoan updates all mutable fields of a loan.
 func (r *Repository) UpdateLoan(ctx context.Context, l *model.Loan) error {
 	query := `UPDATE loans SET
@@ -130,8 +144,9 @@ func (r *Repository) UpdateLoan(ctx context.Context, l *model.Loan) error {
 		disbursed_amount = $8, first_repayment_date = $9, maturity_date = $10,
 		status = $11, stage = $12, dpd = $13,
 		last_repayment_date = $14, last_repayment_amount = $15,
-		closed_at = $16, updated_at = NOW()
-		WHERE id = $17`
+		closed_at = $16, penalty_rate = $17, penalty_grace_days = $18,
+		last_penalty_accrual_date = $19, written_off_at = $20, updated_at = NOW()
+		WHERE id = $21`
 	_, err := r.pool.Exec(ctx, query,
 		l.OutstandingPrincipal, l.OutstandingInterest,
 		l.OutstandingFees, l.OutstandingPenalty,
@@ -139,7 +154,8 @@ func (r *Repository) UpdateLoan(ctx context.Context, l *model.Loan) error {
 		l.DisbursedAmount, l.FirstRepaymentDate, l.MaturityDate,
 		l.Status, l.Stage, l.DPD,
 		l.LastRepaymentDate, l.LastRepaymentAmount,
-		l.ClosedAt, l.ID,
+		l.ClosedAt, l.PenaltyRate, l.PenaltyGraceDays,
+		l.LastPenaltyAccrualDate, l.WrittenOffAt, l.ID,
 	)
 	return err
 }
@@ -433,8 +449,9 @@ func (r *Repository) InsertLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan)
 		disbursed_amount, outstanding_principal, outstanding_interest,
 		outstanding_fees, outstanding_penalty, currency, interest_rate,
 		tenor_months, repayment_frequency, schedule_type, disbursed_at,
-		first_repayment_date, maturity_date, status, stage, dpd
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+		first_repayment_date, maturity_date, status, stage, dpd,
+		penalty_rate, penalty_grace_days
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
 	RETURNING ` + loanColumns
 
 	row := tx.QueryRow(ctx, query,
@@ -443,6 +460,7 @@ func (r *Repository) InsertLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan)
 		l.OutstandingFees, l.OutstandingPenalty, l.Currency, l.InterestRate,
 		l.TenorMonths, l.RepaymentFrequency, l.ScheduleType, l.DisbursedAt,
 		l.FirstRepaymentDate, l.MaturityDate, l.Status, l.Stage, l.DPD,
+		l.PenaltyRate, l.PenaltyGraceDays,
 	)
 	return scanLoan(row)
 }
@@ -474,8 +492,9 @@ func (r *Repository) UpdateLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan)
 		disbursed_amount = $8, first_repayment_date = $9, maturity_date = $10,
 		status = $11, stage = $12, dpd = $13,
 		last_repayment_date = $14, last_repayment_amount = $15,
-		closed_at = $16, updated_at = NOW()
-		WHERE id = $17`
+		closed_at = $16, penalty_rate = $17, penalty_grace_days = $18,
+		last_penalty_accrual_date = $19, written_off_at = $20, updated_at = NOW()
+		WHERE id = $21`
 	_, err := tx.Exec(ctx, query,
 		l.OutstandingPrincipal, l.OutstandingInterest,
 		l.OutstandingFees, l.OutstandingPenalty,
@@ -483,7 +502,8 @@ func (r *Repository) UpdateLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan)
 		l.DisbursedAmount, l.FirstRepaymentDate, l.MaturityDate,
 		l.Status, l.Stage, l.DPD,
 		l.LastRepaymentDate, l.LastRepaymentAmount,
-		l.ClosedAt, l.ID,
+		l.ClosedAt, l.PenaltyRate, l.PenaltyGraceDays,
+		l.LastPenaltyAccrualDate, l.WrittenOffAt, l.ID,
 	)
 	return err
 }
@@ -521,6 +541,19 @@ func (r *Repository) InsertRepaymentTx(ctx context.Context, tx pgx.Tx, rep *mode
 // DeleteSchedulesByLoanIDTx deletes all schedules for a loan within a transaction.
 func (r *Repository) DeleteSchedulesByLoanIDTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID) error {
 	_, err := tx.Exec(ctx, `DELETE FROM loan_schedules WHERE loan_id = $1`, loanID)
+	return err
+}
+
+// AddSchedulePenaltyTx atomically adds a penalty accrual to an installment's
+// penalty_due and total_due (total_due must grow too, otherwise the installment
+// could be marked PAID while accrued penalty is still owed). Done as a relative
+// UPDATE so the accrual never clobbers a concurrent repayment's writes.
+func (r *Repository) AddSchedulePenaltyTx(ctx context.Context, tx pgx.Tx, scheduleID uuid.UUID, amount decimal.Decimal) error {
+	query := `UPDATE loan_schedules SET
+		penalty_due = penalty_due + $1,
+		total_due = total_due + $1
+		WHERE id = $2`
+	_, err := tx.Exec(ctx, query, amount, scheduleID)
 	return err
 }
 

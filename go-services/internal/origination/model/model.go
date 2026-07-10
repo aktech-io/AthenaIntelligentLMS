@@ -143,6 +143,21 @@ type ApplicationStatusHistory struct {
 	ChangedAt     *time.Time `json:"changedAt"`
 }
 
+// DisbursementFee is one fee charged (netted off) at disbursement — the
+// persisted breakdown behind the loan.fee.charged events (BLOCKER-3).
+type DisbursementFee struct {
+	ID              uuid.UUID       `json:"id"`
+	ApplicationID   uuid.UUID       `json:"applicationId"`
+	TenantID        string          `json:"tenantId"`
+	FeeName         string          `json:"feeName"`
+	FeeType         string          `json:"feeType"`
+	CalculationType string          `json:"calculationType"`
+	Amount          decimal.Decimal `json:"amount"`
+	Currency        string          `json:"currency"`
+	Reference       string          `json:"reference"`
+	CreatedAt       *time.Time      `json:"createdAt"`
+}
+
 // ---- Request DTOs ----
 
 // CreateApplicationRequest is the DTO for creating a new loan application.

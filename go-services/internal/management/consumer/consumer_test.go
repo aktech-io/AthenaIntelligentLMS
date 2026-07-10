@@ -24,6 +24,8 @@ type fakeLoanService struct {
 	activations int
 	repayments  []repaymentCall
 	applyErr    error
+	writeOffs   []writeOffCall
+	writeOffErr error
 }
 
 type repaymentCall struct {
@@ -31,6 +33,12 @@ type repaymentCall struct {
 	tenantID string
 	userID   string
 	req      *model.RepaymentRequest
+}
+
+type writeOffCall struct {
+	loanID   uuid.UUID
+	tenantID string
+	caseID   string
 }
 
 func (f *fakeLoanService) ActivateLoan(_ context.Context, _ uuid.UUID, _ string, _ uuid.UUID, _ string,
@@ -46,6 +54,14 @@ func (f *fakeLoanService) ApplyRepayment(_ context.Context, loanID uuid.UUID, re
 	}
 	f.repayments = append(f.repayments, repaymentCall{loanID: loanID, tenantID: tenantID, userID: userID, req: req})
 	return &model.RepaymentResponse{ID: uuid.New(), Status: "COMPLETED", Amount: req.Amount}, nil
+}
+
+func (f *fakeLoanService) WriteOffLoan(_ context.Context, loanID uuid.UUID, tenantID, caseID string) error {
+	if f.writeOffErr != nil {
+		return f.writeOffErr
+	}
+	f.writeOffs = append(f.writeOffs, writeOffCall{loanID: loanID, tenantID: tenantID, caseID: caseID})
+	return nil
 }
 
 func newTestConsumer(svc LoanService) *LoanDisbursedConsumer {
@@ -244,6 +260,83 @@ func TestHandle_LoanDisbursedStillActivates(t *testing.T) {
 	require.NoError(t, c.handle(context.Background(), evt))
 	assert.Equal(t, 1, fake.activations)
 	assert.Empty(t, fake.repayments)
+}
+
+func writeOffApprovedEvent(t *testing.T, payload map[string]any) *commonEvent.DomainEvent {
+	t.Helper()
+	evt, err := commonEvent.NewDomainEvent(commonEvent.WriteOffApproved, "collections-service", "tenant1", "", payload)
+	require.NoError(t, err)
+	return evt
+}
+
+func TestHandleWriteOffApproved_WritesOffLoan(t *testing.T) {
+	fake := &fakeLoanService{}
+	c := newTestConsumer(fake)
+	loanID := uuid.New()
+
+	evt := writeOffApprovedEvent(t, map[string]any{
+		"caseId": "CASE-7",
+		"loanId": loanID.String(),
+		"amount": "12000.00",
+	})
+
+	require.NoError(t, c.handle(context.Background(), evt))
+	require.Len(t, fake.writeOffs, 1)
+	call := fake.writeOffs[0]
+	assert.Equal(t, loanID, call.loanID)
+	assert.Equal(t, "tenant1", call.tenantID, "tenant must come from the envelope")
+	assert.Equal(t, "CASE-7", call.caseID)
+}
+
+func TestHandleWriteOffApproved_SkipsMissingOrInvalidLoanID(t *testing.T) {
+	for name, payload := range map[string]map[string]any{
+		"missing": {"caseId": "CASE-7", "amount": "100"},
+		"invalid": {"caseId": "CASE-7", "loanId": "not-a-uuid", "amount": "100"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake := &fakeLoanService{}
+			c := newTestConsumer(fake)
+
+			assert.NoError(t, c.handle(context.Background(), writeOffApprovedEvent(t, payload)),
+				"malformed events must be acked, never requeued")
+			assert.Empty(t, fake.writeOffs)
+		})
+	}
+}
+
+func TestHandleWriteOffApproved_BusinessRejectionAcked(t *testing.T) {
+	for name, writeOffErr := range map[string]error{
+		"business":  cerrors.NewBusinessError("Loan cannot be written off from status CLOSED"),
+		"not found": cerrors.NotFoundResource("Loan", uuid.New()),
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake := &fakeLoanService{writeOffErr: writeOffErr}
+			c := newTestConsumer(fake)
+
+			evt := writeOffApprovedEvent(t, map[string]any{
+				"caseId": "CASE-7",
+				"loanId": uuid.New().String(),
+				"amount": "100",
+			})
+
+			assert.NoError(t, c.handle(context.Background(), evt),
+				"business rejections are terminal: ack, don't wedge the queue")
+		})
+	}
+}
+
+func TestHandleWriteOffApproved_InfraErrorRequeued(t *testing.T) {
+	fake := &fakeLoanService{writeOffErr: fmt.Errorf("db connection lost")}
+	c := newTestConsumer(fake)
+
+	evt := writeOffApprovedEvent(t, map[string]any{
+		"caseId": "CASE-7",
+		"loanId": uuid.New().String(),
+		"amount": "100",
+	})
+
+	assert.Error(t, c.handle(context.Background(), evt),
+		"infrastructure failures must be returned so the delivery is nacked and retried")
 }
 
 func TestHandle_IgnoresUnknownEventTypes(t *testing.T) {

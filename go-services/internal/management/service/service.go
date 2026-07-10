@@ -17,6 +17,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/management/client"
 	"github.com/athena-lms/go-services/internal/management/crb"
 	"github.com/athena-lms/go-services/internal/management/event"
 	"github.com/athena-lms/go-services/internal/management/model"
@@ -24,39 +25,57 @@ import (
 	"github.com/athena-lms/go-services/internal/management/repository"
 )
 
-// repaymentStore is the slice of *repository.Repository the repayment money
-// path depends on, expressed as an interface so ApplyRepayment is unit-testable
-// without a database (see service_test.go). *repository.Repository satisfies it.
+// repaymentStore is the slice of *repository.Repository the loan money paths
+// (repayment, penalty accrual, write-off) depend on, expressed as an interface
+// so they are unit-testable without a database (see service_test.go).
+// *repository.Repository satisfies it.
 type repaymentStore interface {
 	BeginTx(ctx context.Context) (pgx.Tx, error)
 	GetLoanByIDAndTenantTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, tenantID string) (*model.Loan, error)
+	GetLoanByIDTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*model.Loan, error)
 	GetRepaymentByLoanAndReference(ctx context.Context, loanID uuid.UUID, reference string) (*model.LoanRepayment, error)
 	GetRepaymentByLoanAndReferenceTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID, reference string) (*model.LoanRepayment, error)
 	GetPendingSchedulesTx(ctx context.Context, tx pgx.Tx, loanID uuid.UUID) ([]*model.LoanSchedule, error)
 	UpdateScheduleTx(ctx context.Context, tx pgx.Tx, s *model.LoanSchedule) error
+	AddSchedulePenaltyTx(ctx context.Context, tx pgx.Tx, scheduleID uuid.UUID, amount decimal.Decimal) error
 	UpdateLoanTx(ctx context.Context, tx pgx.Tx, l *model.Loan) error
 	InsertRepaymentTx(ctx context.Context, tx pgx.Tx, rep *model.LoanRepayment) (*model.LoanRepayment, error)
 }
 
 var _ repaymentStore = (*repository.Repository)(nil)
 
+// productTermsClient is the slice of *client.ProductClient the service uses to
+// fetch a product's penalty terms (interface seam for unit tests).
+type productTermsClient interface {
+	GetPenaltyTerms(ctx context.Context, productID uuid.UUID) (*client.PenaltyTerms, error)
+}
+
+var _ productTermsClient = (*client.ProductClient)(nil)
+
 // Service contains the loan management business logic.
 type Service struct {
 	repo      *repository.Repository
-	store     repaymentStore // same object as repo; narrow seam for ApplyRepayment
+	store     repaymentStore // same object as repo; narrow seam for the money paths
 	schedGen  *ScheduleGenerator
 	publisher *event.ManagementPublisher
+	products  productTermsClient // product-service client for penalty terms (nil-safe)
 	logger    *zap.Logger
 	auditor   *audit.Logger
 }
 
 // New creates a new Service.
+//
+// The product client is built from the environment (PRODUCT_SERVICE_URL,
+// LMS_INTERNAL_SERVICE_KEY) rather than injected, so the service main needs no
+// wiring change; it is only used to copy penalty terms onto loans (activation
+// + lazy backfill) and every use degrades gracefully when unreachable.
 func New(repo *repository.Repository, schedGen *ScheduleGenerator, publisher *event.ManagementPublisher, logger *zap.Logger) *Service {
 	return &Service{
 		repo:      repo,
 		store:     repo,
 		schedGen:  schedGen,
 		publisher: publisher,
+		products:  client.NewProductClientFromEnv(logger),
 		logger:    logger,
 		auditor:   audit.New(repo, logger),
 	}
@@ -130,6 +149,21 @@ func (s *Service) ActivateLoan(ctx context.Context, applicationID uuid.UUID, cus
 		Status:               model.LoanStatusActive,
 		Stage:                model.LoanStagePerforming,
 		DPD:                  0,
+	}
+
+	// Copy the product's penalty terms onto the loan (BLOCKER-2) so the daily
+	// accrual job never depends on the product service. Activation must not
+	// fail on this: on any fetch error the terms stay NULL and the accrual job
+	// backfills them lazily.
+	if s.products != nil {
+		if terms, termsErr := s.products.GetPenaltyTerms(ctx, productID); termsErr != nil {
+			s.logger.Warn("Could not fetch product penalty terms at activation; storing NULL (accrual job will backfill)",
+				zap.String("productId", productID.String()),
+				zap.Error(termsErr))
+		} else {
+			loan.PenaltyRate = terms.PenaltyRate
+			loan.PenaltyGraceDays = terms.PenaltyGraceDays
+		}
 	}
 
 	// Use a transaction
@@ -513,6 +547,91 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 	return &resp, nil
 }
 
+// ---------------------------------------------------------------------------
+// Write-off (driven by collection.writeoff.approved — BLOCKER-4)
+// ---------------------------------------------------------------------------
+
+// WriteOffLoan transitions a loan to WRITTEN_OFF and publishes loan.written.off.
+//
+//   - Valid from-statuses: ACTIVE, RESTRUCTURED, DEFAULT. Anything else is a
+//     BusinessError (terminal — the consumer acks, never requeues).
+//   - Idempotent: an already-WRITTEN_OFF loan is a no-op success, so a
+//     redelivered collection.writeoff.approved cannot double-publish.
+//   - The outstanding buckets are deliberately KEPT on the loan: they represent
+//     the recovery claim (post-write-off recoveries are a later feature).
+//   - tenantID (from the event envelope) is verified when present; missing
+//     loans surface as NotFoundError.
+func (s *Service) WriteOffLoan(ctx context.Context, loanID uuid.UUID, tenantID, caseID string) error {
+	tx, err := s.store.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the loan row so the write-off serializes against concurrent
+	// repayments and penalty accrual on the same loan.
+	loan, err := s.store.GetLoanByIDTx(ctx, tx, loanID)
+	if err != nil {
+		return errors.NotFoundResource("Loan", loanID)
+	}
+	if tenantID != "" && loan.TenantID != tenantID {
+		return errors.NotFoundResource("Loan", loanID)
+	}
+
+	if loan.Status == model.LoanStatusWrittenOff {
+		s.logger.Info("Loan already written off; skipping",
+			zap.String("loanId", loan.ID.String()),
+			zap.String("caseId", caseID))
+		return nil
+	}
+
+	switch loan.Status {
+	case model.LoanStatusActive, model.LoanStatusRestructured, model.LoanStatusDefault:
+		// valid from-status
+	default:
+		return errors.NewBusinessError(fmt.Sprintf(
+			"Loan cannot be written off from status %s", loan.Status))
+	}
+
+	now := time.Now()
+	loan.Status = model.LoanStatusWrittenOff
+	loan.WrittenOffAt = &now
+	// Outstanding principal/interest/fees/penalty stay untouched: the amounts
+	// written off remain visible as the recovery claim.
+	if err := s.store.UpdateLoanTx(ctx, tx, loan); err != nil {
+		return fmt.Errorf("update loan: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	totalWrittenOff := loan.OutstandingPrincipal.
+		Add(loan.OutstandingInterest).
+		Add(loan.OutstandingFees).
+		Add(loan.OutstandingPenalty)
+
+	s.auditor.Record(ctx, "LOAN_WRITE_OFF", "LOAN", loan.ID.String(), nil, nil,
+		map[string]any{
+			"caseId":              caseID,
+			"principalWrittenOff": loan.OutstandingPrincipal,
+			"interestWrittenOff":  loan.OutstandingInterest,
+			"feesWrittenOff":      loan.OutstandingFees,
+			"penaltyWrittenOff":   loan.OutstandingPenalty,
+			"totalWrittenOff":     totalWrittenOff,
+			"writtenOffAt":        now,
+		})
+
+	// Best-effort publish: accounting posts the write-off against the ECL
+	// allowance / statutory reserve, collections closes the case.
+	s.publisher.PublishLoanWrittenOff(ctx, loan, caseID)
+
+	s.logger.Info("Loan written off",
+		zap.String("loanId", loan.ID.String()),
+		zap.String("caseId", caseID),
+		zap.String("totalWrittenOff", totalWrittenOff.String()))
+	return nil
+}
+
 // GetPortfolioStats returns live portfolio totals for the tenant.
 func (s *Service) GetPortfolioStats(ctx context.Context, tenantID string) (*repository.PortfolioStats, error) {
 	return s.repo.GetPortfolioStats(ctx, tenantID)
@@ -606,14 +725,16 @@ func (s *Service) Restructure(ctx context.Context, loanID uuid.UUID, req *model.
 // DPD Refresh (called by scheduler)
 // ---------------------------------------------------------------------------
 
-// RefreshAllDpd recalculates DPD for all active/restructured loans.
+// RefreshAllDpd recalculates DPD for all active/restructured loans and then
+// accrues the day's penalties per loan (BLOCKER-2). WRITTEN_OFF loans never
+// appear here: FindAllActiveLoans filters on status IN (ACTIVE, RESTRUCTURED).
 func (s *Service) RefreshAllDpd(ctx context.Context) {
 	loans, err := s.repo.FindAllActiveLoans(ctx)
 	if err != nil {
 		s.logger.Error("Failed to fetch active loans for DPD refresh", zap.Error(err))
 		return
 	}
-	s.logger.Info("Refreshing DPD for active loans", zap.Int("count", len(loans)))
+	s.logger.Info("Refreshing DPD and accruing penalties for active loans", zap.Int("count", len(loans)))
 	today := time.Now()
 	todayDate := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -624,7 +745,155 @@ func (s *Service) RefreshAllDpd(ctx context.Context) {
 				zap.Error(err),
 			)
 		}
+		// Penalty accrual rides the same iteration (one pass over the slice —
+		// see the scale note on FindAllActiveLoans). Each loan accrues in its
+		// own transaction under a row lock, re-reading fresh state.
+		if err := s.AccruePenaltyForLoan(ctx, loan.ID, todayDate); err != nil {
+			s.logger.Error("Penalty accrual failed for loan",
+				zap.String("loanId", loan.ID.String()),
+				zap.Error(err),
+			)
+		}
 	}
+}
+
+// AccruePenaltyForLoan runs one day's penalty accrual for a single loan in one
+// transaction (BLOCKER-2). For every overdue installment past the product's
+// grace days it accrues a daily simple penalty of
+//
+//	penaltyRate/100/365 × overdue unpaid amount (principal+interest due − paid)
+//
+// onto the installment's PenaltyDue (and TotalDue) and the loan's
+// OutstandingPenalty. It is idempotent per calendar day via
+// last_penalty_accrual_date: a scheduler rerun (the job also runs on startup)
+// skips loans already accrued today.
+func (s *Service) AccruePenaltyForLoan(ctx context.Context, loanID uuid.UUID, today time.Time) error {
+	tx, err := s.store.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the loan row: accrual serializes against concurrent repayments and
+	// write-offs, and re-reads fresh state instead of trusting the caller's
+	// possibly stale slice entry.
+	loan, err := s.store.GetLoanByIDTx(ctx, tx, loanID)
+	if err != nil {
+		return fmt.Errorf("load loan: %w", err)
+	}
+
+	// Only ACTIVE/RESTRUCTURED loans accrue. WRITTEN_OFF and CLOSED loans are
+	// explicitly excluded (re-checked here under the lock in case the status
+	// changed since the loan list was loaded).
+	if loan.Status != model.LoanStatusActive && loan.Status != model.LoanStatusRestructured {
+		return nil
+	}
+
+	// Same-day idempotency: a restart re-runs the scheduler but must not
+	// double-accrue the day's penalty.
+	if loan.LastPenaltyAccrualDate != nil && !loan.LastPenaltyAccrualDate.Before(today) {
+		return nil
+	}
+
+	// Legacy loans predate the penalty_rate column: backfill the terms from
+	// the product service once. If the fetch fails, skip the loan (0 penalty)
+	// and retry the backfill on the next run — never fabricate a rate.
+	if loan.PenaltyRate == nil {
+		if s.products == nil {
+			return nil
+		}
+		terms, termsErr := s.products.GetPenaltyTerms(ctx, loan.ProductID)
+		if termsErr != nil {
+			s.logger.Warn("Could not backfill penalty terms; skipping accrual for loan until next run",
+				zap.String("loanId", loan.ID.String()),
+				zap.String("productId", loan.ProductID.String()),
+				zap.Error(termsErr))
+			return nil
+		}
+		loan.PenaltyRate = terms.PenaltyRate
+		loan.PenaltyGraceDays = terms.PenaltyGraceDays
+		if loan.PenaltyRate == nil {
+			// Product defines no penalty: persist an explicit zero so the
+			// backfill happens only once.
+			zero := decimal.Zero
+			loan.PenaltyRate = &zero
+		}
+	}
+
+	rate := *loan.PenaltyRate
+	graceDays := 0
+	if loan.PenaltyGraceDays != nil {
+		graceDays = *loan.PenaltyGraceDays
+	}
+
+	accrued := decimal.Zero
+	if rate.GreaterThan(decimal.Zero) {
+		// In-duplum guard (inspired by Kenya Banking Act s.44A, applied
+		// conservatively to the penalty bucket alone): once the accumulated
+		// outstanding penalty reaches the outstanding principal, no further
+		// penalty accrues. Interest/charges recoverable on a non-performing
+		// facility are capped relative to the principal owing, so letting the
+		// penalty bucket outgrow principal would book income that is not
+		// legally recoverable. headroom caps each day's accrual so the bucket
+		// can never overshoot the principal.
+		headroom := loan.OutstandingPrincipal.Sub(loan.OutstandingPenalty)
+		if headroom.GreaterThan(decimal.Zero) {
+			pending, schedErr := s.store.GetPendingSchedulesTx(ctx, tx, loan.ID)
+			if schedErr != nil {
+				return fmt.Errorf("get pending schedules: %w", schedErr)
+			}
+			// rate is % per annum; daily simple factor = rate/100/365.
+			dailyFactor := rate.Div(decimal.NewFromInt(100)).Div(decimal.NewFromInt(365))
+			for _, inst := range pending {
+				if headroom.LessThanOrEqual(decimal.Zero) {
+					break
+				}
+				// Penalty starts only past the grace period: daysOverdue must
+				// exceed graceDays (same day arithmetic as the DPD refresh).
+				daysOverdue := int(today.Sub(inst.DueDate).Hours() / 24)
+				if daysOverdue <= graceDays {
+					continue
+				}
+				overdueUnpaid := inst.PrincipalDue.Sub(inst.PrincipalPaid).
+					Add(inst.InterestDue.Sub(inst.InterestPaid))
+				if overdueUnpaid.LessThanOrEqual(decimal.Zero) {
+					continue
+				}
+				penalty := overdueUnpaid.Mul(dailyFactor).Round(2)
+				if penalty.GreaterThan(headroom) {
+					penalty = headroom
+				}
+				if penalty.LessThanOrEqual(decimal.Zero) {
+					continue
+				}
+				if err := s.store.AddSchedulePenaltyTx(ctx, tx, inst.ID, penalty); err != nil {
+					return fmt.Errorf("add schedule penalty: %w", err)
+				}
+				accrued = accrued.Add(penalty)
+				headroom = headroom.Sub(penalty)
+			}
+		}
+	}
+
+	loan.OutstandingPenalty = loan.OutstandingPenalty.Add(accrued)
+	loan.LastPenaltyAccrualDate = &today
+	if err := s.store.UpdateLoanTx(ctx, tx, loan); err != nil {
+		return fmt.Errorf("update loan: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	if accrued.GreaterThan(decimal.Zero) {
+		// Best-effort publish (matches PublishDpdUpdated): accounting consumes
+		// this to book penalty income receivable.
+		s.publisher.PublishPenaltyAccrued(ctx, loan, accrued, today.Format("2006-01-02"))
+		s.logger.Info("Accrued penalty for loan",
+			zap.String("loanId", loan.ID.String()),
+			zap.String("amount", accrued.String()),
+			zap.String("accrualDate", today.Format("2006-01-02")))
+	}
+	return nil
 }
 
 func (s *Service) refreshDpdForLoan(ctx context.Context, loan *model.Loan, today time.Time) error {

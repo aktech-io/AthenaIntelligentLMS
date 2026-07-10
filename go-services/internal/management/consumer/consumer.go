@@ -61,6 +61,14 @@ var repaymentPaymentTypes = map[string]bool{
 	"FEE":            true,
 }
 
+// WriteOffApprovedPayload mirrors the collection.writeoff.approved payload
+// built by the collections service (all fields are strings).
+type WriteOffApprovedPayload struct {
+	CaseID string `json:"caseId"`
+	LoanID string `json:"loanId"`
+	Amount string `json:"amount"`
+}
+
 // LoanService is the slice of the management service this consumer drives.
 // *service.Service satisfies it; tests substitute an in-memory fake.
 type LoanService interface {
@@ -69,6 +77,7 @@ type LoanService interface {
 		tenorMonths int, scheduleTypeStr, repaymentFreqStr string) error
 	ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *model.RepaymentRequest,
 		tenantID, userID string) (*model.RepaymentResponse, error)
+	WriteOffLoan(ctx context.Context, loanID uuid.UUID, tenantID, caseID string) error
 }
 
 var _ LoanService = (*service.Service)(nil)
@@ -110,6 +119,8 @@ func (c *LoanDisbursedConsumer) handle(ctx context.Context, evt *commonEvent.Dom
 		return c.handleLoanDisbursed(ctx, evt)
 	case commonEvent.PaymentCompleted:
 		return c.handlePaymentCompleted(ctx, evt)
+	case commonEvent.WriteOffApproved:
+		return c.handleWriteOffApproved(ctx, evt)
 	default:
 		c.logger.Debug("Ignoring event type", zap.String("type", evt.Type))
 		return nil
@@ -259,5 +270,58 @@ func (c *LoanDisbursedConsumer) handlePaymentCompleted(ctx context.Context, evt 
 		zap.String("repaymentId", resp.ID.String()),
 		zap.String("paymentReference", reference),
 		zap.String("amount", payload.Amount.String()))
+	return nil
+}
+
+// handleWriteOffApproved transitions a loan to WRITTEN_OFF on
+// collection.writeoff.approved (BLOCKER-4: the queue binding existed but
+// nothing consumed it, so approved write-offs never reached the loan).
+//
+// Ack semantics mirror handlePaymentCompleted: malformed payloads, missing
+// loans and invalid status transitions are logged and acked — requeueing can
+// never succeed and would wedge the queue. An already-WRITTEN_OFF loan is a
+// no-op success inside the service (idempotent). Only infrastructure errors
+// are returned, which nacks + requeues the delivery.
+func (c *LoanDisbursedConsumer) handleWriteOffApproved(ctx context.Context, evt *commonEvent.DomainEvent) error {
+	c.logger.Info("Received collection.writeoff.approved event", zap.String("id", evt.ID))
+
+	var payload WriteOffApprovedPayload
+	if err := evt.UnmarshalPayload(&payload); err != nil {
+		c.logger.Error("Failed to unmarshal collection.writeoff.approved payload", zap.Error(err))
+		return nil // don't retry malformed messages
+	}
+
+	if payload.LoanID == "" {
+		c.logger.Error("collection.writeoff.approved has no loanId; skipping",
+			zap.String("id", evt.ID),
+			zap.String("caseId", payload.CaseID))
+		return nil
+	}
+	loanID, err := uuid.Parse(payload.LoanID)
+	if err != nil {
+		c.logger.Error("Invalid loanId on collection.writeoff.approved; skipping",
+			zap.String("value", payload.LoanID), zap.Error(err))
+		return nil
+	}
+
+	if err := c.svc.WriteOffLoan(ctx, loanID, evt.TenantID, payload.CaseID); err != nil {
+		var bizErr *commonErrors.BusinessError
+		var nfErr *commonErrors.NotFoundError
+		if stderrors.As(err, &bizErr) || stderrors.As(err, &nfErr) {
+			// Terminal for this event: the loan is missing or in a status that
+			// cannot be written off. Requeueing can never succeed — ack + alert.
+			c.logger.Error("collection.writeoff.approved could not be applied; skipping",
+				zap.String("id", evt.ID),
+				zap.String("loanId", loanID.String()),
+				zap.String("caseId", payload.CaseID),
+				zap.Error(err))
+			return nil
+		}
+		return fmt.Errorf("write off loan: %w", err)
+	}
+
+	c.logger.Info("Processed write-off approval",
+		zap.String("loanId", loanID.String()),
+		zap.String("caseId", payload.CaseID))
 	return nil
 }

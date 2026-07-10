@@ -8,16 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func strPtr(s string) *string { return &s }
+
+func intPtr(i int) *int { return &i }
+
 func TestNotificationConfig_JSONRoundTrip(t *testing.T) {
 	cfg := NotificationConfig{
 		ID:          1,
 		Type:        "EMAIL",
-		Provider:    "SMTP",
-		Host:        "smtp.gmail.com",
-		Port:        587,
-		Username:    "user@gmail.com",
-		Password:    "secret",
-		FromAddress: "noreply@athena.co.ke",
+		Provider:    strPtr("SMTP"),
+		Host:        strPtr("smtp.gmail.com"),
+		Port:        intPtr(587),
+		Username:    strPtr("user@gmail.com"),
+		Password:    strPtr("secret"),
+		FromAddress: strPtr("noreply@athena.co.ke"),
 		Enabled:     true,
 	}
 
@@ -36,10 +40,10 @@ func TestNotificationConfig_JSONRoundTrip(t *testing.T) {
 
 func TestNotificationConfig_JSONFieldNames(t *testing.T) {
 	cfg := NotificationConfig{
-		FromAddress: "test@example.com",
-		APIKey:      "key123",
-		APISecret:   "secret456",
-		SenderID:    "ATHENA",
+		FromAddress: strPtr("test@example.com"),
+		APIKey:      strPtr("key123"),
+		APISecret:   strPtr("secret456"),
+		SenderID:    strPtr("ATHENA"),
 	}
 
 	data, err := json.Marshal(cfg)

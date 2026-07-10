@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/common/audit"
 	cerrors "github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/management/client"
 	"github.com/athena-lms/go-services/internal/management/event"
 	"github.com/athena-lms/go-services/internal/management/model"
 )
@@ -44,7 +46,8 @@ type fakeStore struct {
 	// (as if a concurrent transaction committed the reference in between).
 	hideExistingFromTxLookup bool
 
-	inserts int
+	inserts     int
+	loanUpdates int
 }
 
 func (f *fakeStore) BeginTx(context.Context) (pgx.Tx, error) { return fakeTx{}, nil }
@@ -88,7 +91,45 @@ func (f *fakeStore) GetPendingSchedulesTx(_ context.Context, _ pgx.Tx, loanID uu
 
 func (f *fakeStore) UpdateScheduleTx(context.Context, pgx.Tx, *model.LoanSchedule) error { return nil }
 
-func (f *fakeStore) UpdateLoanTx(context.Context, pgx.Tx, *model.Loan) error { return nil }
+func (f *fakeStore) UpdateLoanTx(context.Context, pgx.Tx, *model.Loan) error {
+	f.loanUpdates++
+	return nil
+}
+
+func (f *fakeStore) GetLoanByIDTx(_ context.Context, _ pgx.Tx, id uuid.UUID) (*model.Loan, error) {
+	if f.loan != nil && f.loan.ID == id {
+		return f.loan, nil
+	}
+	return nil, pgx.ErrNoRows
+}
+
+// AddSchedulePenaltyTx mirrors the real repository's relative UPDATE:
+// penalty_due and total_due both grow by the accrued amount.
+func (f *fakeStore) AddSchedulePenaltyTx(_ context.Context, _ pgx.Tx, scheduleID uuid.UUID, amount decimal.Decimal) error {
+	for _, s := range f.schedules {
+		if s.ID == scheduleID {
+			s.PenaltyDue = s.PenaltyDue.Add(amount)
+			s.TotalDue = s.TotalDue.Add(amount)
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
+}
+
+// fakeProducts is an in-memory productTermsClient.
+type fakeProducts struct {
+	terms *client.PenaltyTerms
+	err   error
+	calls int
+}
+
+func (f *fakeProducts) GetPenaltyTerms(context.Context, uuid.UUID) (*client.PenaltyTerms, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.terms, nil
+}
 
 func (f *fakeStore) InsertRepaymentTx(_ context.Context, _ pgx.Tx, rep *model.LoanRepayment) (*model.LoanRepayment, error) {
 	if rep.PaymentReference.Valid {
@@ -315,4 +356,311 @@ func TestApplyRepayment_InactiveLoanRejected(t *testing.T) {
 
 func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+// ---------------------------------------------------------------------------
+// Penalty accrual (BLOCKER-2)
+// ---------------------------------------------------------------------------
+
+func decPtr(d decimal.Decimal) *decimal.Decimal { return &d }
+func intPtr(i int) *int                         { return &i }
+
+// accrualToday is a fixed accrual date so due-date arithmetic is deterministic.
+var accrualToday = time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+// penaltyLoan returns a test loan with penalty terms set.
+// Rate 36.5% p.a. gives an exact daily factor of 0.001 (36.5/100/365).
+func penaltyLoan(graceDays int) *model.Loan {
+	loan := testLoan("tenant1")
+	loan.PenaltyRate = decPtr(decimal.NewFromFloat(36.5))
+	loan.PenaltyGraceDays = intPtr(graceDays)
+	return loan
+}
+
+func overdueSchedule(loan *model.Loan, no, daysOverdue int, principalDue, interestDue decimal.Decimal) *model.LoanSchedule {
+	s := testSchedule(loan, no, principalDue, interestDue)
+	s.DueDate = accrualToday.AddDate(0, 0, -daysOverdue)
+	return s
+}
+
+func TestAccruePenalty_DailySimplePenaltyMath(t *testing.T) {
+	loan := penaltyLoan(0)
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	svc := newTestService(store)
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+	// daily = 36.5/100/365 x (1000 + 100 unpaid) = 0.001 x 1100 = 1.10
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(1.10)), "penaltyDue = %s", sched.PenaltyDue)
+	assert.True(t, sched.TotalDue.Equal(decimal.NewFromFloat(1101.10)),
+		"totalDue must grow with the accrual, got %s", sched.TotalDue)
+	assert.True(t, loan.OutstandingPenalty.Equal(decimal.NewFromFloat(1.10)),
+		"outstandingPenalty = %s", loan.OutstandingPenalty)
+	require.NotNil(t, loan.LastPenaltyAccrualDate)
+	assert.True(t, loan.LastPenaltyAccrualDate.Equal(accrualToday))
+}
+
+func TestAccruePenalty_PartiallyPaidInstallmentAccruesOnUnpaidOnly(t *testing.T) {
+	loan := penaltyLoan(0)
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	sched.PrincipalPaid = decimal.NewFromInt(400)
+	sched.InterestPaid = decimal.NewFromInt(100)
+	sched.Status = model.InstallmentPartial
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	svc := newTestService(store)
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+	// unpaid = (1000-400) + (100-100) = 600 -> 0.001 x 600 = 0.60
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(0.60)), "penaltyDue = %s", sched.PenaltyDue)
+	assert.True(t, loan.OutstandingPenalty.Equal(decimal.NewFromFloat(0.60)))
+}
+
+func TestAccruePenalty_GraceDays(t *testing.T) {
+	cases := []struct {
+		name        string
+		daysOverdue int
+		graceDays   int
+		accrues     bool
+	}{
+		{"within grace", 5, 5, false},
+		{"one day past grace", 6, 5, true},
+		{"not yet due", -3, 0, false},
+		{"due today", 0, 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			loan := penaltyLoan(tc.graceDays)
+			sched := overdueSchedule(loan, 1, tc.daysOverdue, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+			store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+			svc := newTestService(store)
+
+			require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+			if tc.accrues {
+				assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(1.10)), "penaltyDue = %s", sched.PenaltyDue)
+			} else {
+				assert.True(t, sched.PenaltyDue.IsZero(), "no penalty within grace, got %s", sched.PenaltyDue)
+				assert.True(t, loan.OutstandingPenalty.IsZero())
+			}
+			// The day is marked processed either way.
+			require.NotNil(t, loan.LastPenaltyAccrualDate)
+		})
+	}
+}
+
+func TestAccruePenalty_SameDayIdempotent(t *testing.T) {
+	loan := penaltyLoan(0)
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	svc := newTestService(store)
+
+	// First run accrues; a rerun the same day (e.g. scheduler restart) must not.
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(1.10)),
+		"same-day rerun must not double-accrue, got %s", sched.PenaltyDue)
+	assert.True(t, loan.OutstandingPenalty.Equal(decimal.NewFromFloat(1.10)))
+
+	// The next day accrues one more day's penalty.
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday.AddDate(0, 0, 1)))
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(2.20)), "penaltyDue = %s", sched.PenaltyDue)
+	assert.True(t, loan.OutstandingPenalty.Equal(decimal.NewFromFloat(2.20)))
+}
+
+func TestAccruePenalty_InDuplumStopsAtPrincipal(t *testing.T) {
+	loan := penaltyLoan(0)
+	loan.OutstandingPenalty = loan.OutstandingPrincipal // already at the cap
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	svc := newTestService(store)
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+	assert.True(t, sched.PenaltyDue.IsZero(), "in-duplum: no accrual once penalty >= principal")
+	assert.True(t, loan.OutstandingPenalty.Equal(loan.OutstandingPrincipal))
+	require.NotNil(t, loan.LastPenaltyAccrualDate, "the day still counts as processed")
+}
+
+func TestAccruePenalty_InDuplumCapsFinalIncrement(t *testing.T) {
+	loan := penaltyLoan(0)
+	// Headroom of 0.50 left before penalty reaches principal; the computed
+	// daily accrual (1.10) must be clamped so the bucket never overshoots.
+	loan.OutstandingPenalty = loan.OutstandingPrincipal.Sub(decimal.NewFromFloat(0.50))
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	svc := newTestService(store)
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(0.50)), "penaltyDue = %s", sched.PenaltyDue)
+	assert.True(t, loan.OutstandingPenalty.Equal(loan.OutstandingPrincipal),
+		"penalty must stop exactly at principal, got %s", loan.OutstandingPenalty)
+}
+
+func TestAccruePenalty_SkipsNonAccruingStatuses(t *testing.T) {
+	for _, status := range []model.LoanStatus{model.LoanStatusClosed, model.LoanStatusWrittenOff, model.LoanStatusDefault} {
+		t.Run(string(status), func(t *testing.T) {
+			loan := penaltyLoan(0)
+			loan.Status = status
+			sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+			store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+			svc := newTestService(store)
+
+			require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+			assert.True(t, sched.PenaltyDue.IsZero())
+			assert.Nil(t, loan.LastPenaltyAccrualDate)
+			assert.Zero(t, store.loanUpdates)
+		})
+	}
+}
+
+func TestAccruePenalty_BackfillsNullTermsFromProductOnce(t *testing.T) {
+	loan := testLoan("tenant1") // NULL penalty terms (legacy loan)
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	products := &fakeProducts{terms: &client.PenaltyTerms{
+		PenaltyRate:      decPtr(decimal.NewFromFloat(36.5)),
+		PenaltyGraceDays: intPtr(0),
+	}}
+	svc := newTestService(store)
+	svc.products = products
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+	assert.Equal(t, 1, products.calls)
+	require.NotNil(t, loan.PenaltyRate)
+	assert.True(t, loan.PenaltyRate.Equal(decimal.NewFromFloat(36.5)), "terms must be backfilled onto the loan")
+	assert.True(t, sched.PenaltyDue.Equal(decimal.NewFromFloat(1.10)))
+
+	// Next day: terms are already on the loan — no refetch.
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday.AddDate(0, 0, 1)))
+	assert.Equal(t, 1, products.calls, "backfill must happen once")
+}
+
+func TestAccruePenalty_ProductFetchFailureSkipsAndRetries(t *testing.T) {
+	loan := testLoan("tenant1") // NULL penalty terms
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	products := &fakeProducts{err: stderrors.New("product-service down")}
+	svc := newTestService(store)
+	svc.products = products
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+
+	assert.True(t, sched.PenaltyDue.IsZero(), "no rate is ever fabricated")
+	assert.Nil(t, loan.PenaltyRate)
+	assert.Nil(t, loan.LastPenaltyAccrualDate, "day is not marked processed, so the backfill retries next run")
+	assert.Zero(t, store.loanUpdates)
+}
+
+func TestAccruePenalty_ProductWithoutPenaltyPersistsZeroRate(t *testing.T) {
+	loan := testLoan("tenant1") // NULL penalty terms
+	sched := overdueSchedule(loan, 1, 10, decimal.NewFromInt(1000), decimal.NewFromInt(100))
+	store := &fakeStore{loan: loan, schedules: []*model.LoanSchedule{sched}}
+	products := &fakeProducts{terms: &client.PenaltyTerms{}} // product defines no penalty
+	svc := newTestService(store)
+	svc.products = products
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday))
+	assert.True(t, sched.PenaltyDue.IsZero())
+	require.NotNil(t, loan.PenaltyRate)
+	assert.True(t, loan.PenaltyRate.IsZero(), "an explicit zero is persisted so the backfill happens once")
+
+	require.NoError(t, svc.AccruePenaltyForLoan(context.Background(), loan.ID, accrualToday.AddDate(0, 0, 1)))
+	assert.Equal(t, 1, products.calls)
+}
+
+// ---------------------------------------------------------------------------
+// Write-off (BLOCKER-4)
+// ---------------------------------------------------------------------------
+
+func TestWriteOffLoan_TransitionsFromEachValidStatus(t *testing.T) {
+	for _, status := range []model.LoanStatus{model.LoanStatusActive, model.LoanStatusRestructured, model.LoanStatusDefault} {
+		t.Run(string(status), func(t *testing.T) {
+			loan := testLoan("tenant1")
+			loan.Status = status
+			loan.OutstandingPenalty = decimal.NewFromInt(25)
+			store := &fakeStore{loan: loan}
+			svc := newTestService(store)
+
+			require.NoError(t, svc.WriteOffLoan(context.Background(), loan.ID, "tenant1", "case-1"))
+
+			assert.Equal(t, model.LoanStatusWrittenOff, loan.Status)
+			require.NotNil(t, loan.WrittenOffAt)
+			assert.Equal(t, 1, store.loanUpdates)
+			// Outstanding buckets are kept — they are the recovery claim.
+			assert.True(t, loan.OutstandingPrincipal.Equal(decimal.NewFromInt(1000)))
+			assert.True(t, loan.OutstandingInterest.Equal(decimal.NewFromInt(100)))
+			assert.True(t, loan.OutstandingPenalty.Equal(decimal.NewFromInt(25)))
+		})
+	}
+}
+
+func TestWriteOffLoan_AlreadyWrittenOffIsIdempotentNoOp(t *testing.T) {
+	loan := testLoan("tenant1")
+	loan.Status = model.LoanStatusWrittenOff
+	writtenOffAt := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	loan.WrittenOffAt = &writtenOffAt
+	store := &fakeStore{loan: loan}
+	svc := newTestService(store)
+
+	require.NoError(t, svc.WriteOffLoan(context.Background(), loan.ID, "tenant1", "case-1"),
+		"redelivered write-off approval must ack, not error")
+	assert.Zero(t, store.loanUpdates, "no second update")
+	assert.True(t, loan.WrittenOffAt.Equal(writtenOffAt), "original timestamp preserved")
+}
+
+func TestWriteOffLoan_InvalidFromStatusRejected(t *testing.T) {
+	loan := testLoan("tenant1")
+	loan.Status = model.LoanStatusClosed
+	store := &fakeStore{loan: loan}
+	svc := newTestService(store)
+
+	err := svc.WriteOffLoan(context.Background(), loan.ID, "tenant1", "case-1")
+
+	var bizErr *cerrors.BusinessError
+	require.ErrorAs(t, err, &bizErr)
+	assert.Equal(t, model.LoanStatusClosed, loan.Status, "status unchanged")
+	assert.Zero(t, store.loanUpdates)
+}
+
+func TestWriteOffLoan_MissingLoanNotFound(t *testing.T) {
+	store := &fakeStore{}
+	svc := newTestService(store)
+
+	err := svc.WriteOffLoan(context.Background(), uuid.New(), "tenant1", "case-1")
+
+	var nfErr *cerrors.NotFoundError
+	require.ErrorAs(t, err, &nfErr)
+}
+
+func TestWriteOffLoan_TenantMismatchNotFound(t *testing.T) {
+	loan := testLoan("tenant1")
+	store := &fakeStore{loan: loan}
+	svc := newTestService(store)
+
+	err := svc.WriteOffLoan(context.Background(), loan.ID, "other-tenant", "case-1")
+
+	var nfErr *cerrors.NotFoundError
+	require.ErrorAs(t, err, &nfErr)
+	assert.Equal(t, model.LoanStatusActive, loan.Status, "status unchanged")
+}
+
+func TestApplyRepayment_WrittenOffLoanRejectedAsBusinessError(t *testing.T) {
+	// Post-write-off recoveries are a later feature: for now a repayment
+	// against a WRITTEN_OFF loan must fail with a clean BusinessError.
+	loan := testLoan("tenant1")
+	loan.Status = model.LoanStatusWrittenOff
+	store := &fakeStore{loan: loan}
+	svc := newTestService(store)
+
+	resp, err := svc.ApplyRepayment(context.Background(), loan.ID,
+		&model.RepaymentRequest{Amount: decimal.NewFromInt(100)}, loan.TenantID, "officer")
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	var bizErr *cerrors.BusinessError
+	require.ErrorAs(t, err, &bizErr)
+	assert.Zero(t, store.inserts)
 }

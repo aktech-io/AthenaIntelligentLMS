@@ -90,6 +90,48 @@ func (p *ManagementPublisher) PublishRepaymentCompleted(ctx context.Context, loa
 	p.publish(ctx, commonEvent.PaymentCompleted, loan.TenantID, loan.ID.String(), payload)
 }
 
+// PublishPenaltyAccrued publishes a loan.penalty.accrued event for one loan's
+// daily penalty accrual. The payload is a fixed contract consumed by
+// accounting — exactly {loanId, customerId, amount, currency, accrualDate,
+// tenantId}, with amount as a decimal string and accrualDate as YYYY-MM-DD.
+// Do not add fields via basePayload.
+func (p *ManagementPublisher) PublishPenaltyAccrued(ctx context.Context, loan *model.Loan, amount decimal.Decimal, accrualDate string) {
+	payload := map[string]any{
+		"loanId":      loan.ID.String(),
+		"customerId":  loan.CustomerID,
+		"amount":      amount.String(),
+		"currency":    loan.Currency,
+		"accrualDate": accrualDate,
+		"tenantId":    loan.TenantID,
+	}
+	p.publish(ctx, commonEvent.LoanPenaltyAccrued, loan.TenantID, loan.ID.String(), payload)
+}
+
+// PublishLoanWrittenOff publishes a loan.written.off event after the loan's
+// WRITTEN_OFF transition. The payload is a fixed contract consumed by
+// accounting (posts the write-off against the ECL allowance) and collections
+// (closes the case) — amounts are the loan's outstanding buckets at write-off
+// time, as decimal strings. Do not add fields via basePayload.
+func (p *ManagementPublisher) PublishLoanWrittenOff(ctx context.Context, loan *model.Loan, caseID string) {
+	total := loan.OutstandingPrincipal.
+		Add(loan.OutstandingInterest).
+		Add(loan.OutstandingFees).
+		Add(loan.OutstandingPenalty)
+	payload := map[string]any{
+		"loanId":              loan.ID.String(),
+		"customerId":          loan.CustomerID,
+		"principalWrittenOff": loan.OutstandingPrincipal.String(),
+		"interestWrittenOff":  loan.OutstandingInterest.String(),
+		"feesWrittenOff":      loan.OutstandingFees.String(),
+		"penaltyWrittenOff":   loan.OutstandingPenalty.String(),
+		"totalWrittenOff":     total.String(),
+		"currency":            loan.Currency,
+		"caseId":              caseID,
+		"tenantId":            loan.TenantID,
+	}
+	p.publish(ctx, commonEvent.LoanWrittenOff, loan.TenantID, loan.ID.String(), payload)
+}
+
 func (p *ManagementPublisher) publish(ctx context.Context, eventType, tenantID, correlationID string, payload map[string]any) {
 	if p.pub == nil {
 		// No broker wired (unit tests): events are best-effort, drop silently.

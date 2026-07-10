@@ -161,6 +161,71 @@ func (r *Repository) UpdateApplicationWithEvent(ctx context.Context, app *model.
 	return app, nil
 }
 
+// DisburseWithFees atomically applies the DISBURSED state change, records the
+// disbursement fee breakdown (one row per charged fee), and appends the
+// loan.disbursed plus one loan.fee.charged event PER FEE to the transactional
+// outbox — all in the SAME transaction (BLOCKER-3). Nil events are skipped
+// (build failures fall back to a plain state update; reconciliation catches it).
+func (r *Repository) DisburseWithFees(ctx context.Context, app *model.LoanApplication, fees []model.DisbursementFee, events []*commonEvent.DomainEvent) (*model.LoanApplication, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if err := r.updateApplication(ctx, tx, app); err != nil {
+		return nil, fmt.Errorf("update application: %w", err)
+	}
+	for i := range fees {
+		f := &fees[i]
+		if f.ID == uuid.Nil {
+			f.ID = uuid.New()
+		}
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO disbursement_fees (id, application_id, tenant_id, fee_name, fee_type, calculation_type, amount, currency, reference)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+			RETURNING created_at`,
+			f.ID, f.ApplicationID, f.TenantID, f.FeeName, f.FeeType, f.CalculationType, f.Amount, f.Currency, f.Reference,
+		).Scan(&f.CreatedAt); err != nil {
+			return nil, fmt.Errorf("insert disbursement fee %q: %w", f.FeeName, err)
+		}
+	}
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		if err := outbox.Write(ctx, tx, evt, app.ID.String()); err != nil {
+			return nil, fmt.Errorf("write outbox event: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit disburse tx: %w", err)
+	}
+	return app, nil
+}
+
+// FindDisbursementFeesByApplicationID returns the fee breakdown recorded at
+// disbursement for an application.
+func (r *Repository) FindDisbursementFeesByApplicationID(ctx context.Context, applicationID uuid.UUID) ([]model.DisbursementFee, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, application_id, tenant_id, fee_name, fee_type, calculation_type, amount, currency, reference, created_at
+		FROM disbursement_fees WHERE application_id=$1 ORDER BY created_at, reference`, applicationID)
+	if err != nil {
+		return nil, fmt.Errorf("find disbursement fees: %w", err)
+	}
+	defer rows.Close()
+
+	var result []model.DisbursementFee
+	for rows.Next() {
+		var f model.DisbursementFee
+		if err := rows.Scan(&f.ID, &f.ApplicationID, &f.TenantID, &f.FeeName, &f.FeeType, &f.CalculationType, &f.Amount, &f.Currency, &f.Reference, &f.CreatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, f)
+	}
+	return result, rows.Err()
+}
+
 // FindByID finds an application by ID and tenant.
 func (r *Repository) FindByID(ctx context.Context, id uuid.UUID, tenantID string) (*model.LoanApplication, error) {
 	row := r.pool.QueryRow(ctx,

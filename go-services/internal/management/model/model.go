@@ -18,7 +18,11 @@ const (
 	LoanStatusActive       LoanStatus = "ACTIVE"
 	LoanStatusRestructured LoanStatus = "RESTRUCTURED"
 	LoanStatusClosed       LoanStatus = "CLOSED"
-	LoanStatusWrittenOff   LoanStatus = "WRITTEN_OFF"
+	// LoanStatusDefault marks a loan declared in default by collections but
+	// not yet written off; it is a valid from-status for the WRITTEN_OFF
+	// transition (collection.writeoff.approved).
+	LoanStatusDefault    LoanStatus = "DEFAULT"
+	LoanStatusWrittenOff LoanStatus = "WRITTEN_OFF"
 )
 
 type LoanStage string
@@ -85,8 +89,21 @@ type Loan struct {
 	LastRepaymentDate    *time.Time         `json:"lastRepaymentDate,omitempty"`
 	LastRepaymentAmount  *decimal.Decimal   `json:"lastRepaymentAmount,omitempty"`
 	ClosedAt             *time.Time         `json:"closedAt,omitempty"`
-	CreatedAt            time.Time          `json:"createdAt"`
-	UpdatedAt            time.Time          `json:"updatedAt"`
+	// PenaltyRate (% p.a.) and PenaltyGraceDays are copied from the product at
+	// activation so the daily penalty accrual job does not depend on the
+	// product service. NULL for legacy loans (backfilled lazily by the job).
+	PenaltyRate      *decimal.Decimal `json:"penaltyRate,omitempty"`
+	PenaltyGraceDays *int             `json:"penaltyGraceDays,omitempty"`
+	// LastPenaltyAccrualDate makes the daily penalty accrual idempotent per
+	// day: the job skips loans already accrued today (the scheduler also runs
+	// on startup, so a restart must not double-accrue).
+	LastPenaltyAccrualDate *time.Time `json:"lastPenaltyAccrualDate,omitempty"`
+	// WrittenOffAt is set when the loan transitions to WRITTEN_OFF (driven by
+	// collection.writeoff.approved). Outstanding buckets are kept on the loan;
+	// they represent the recovery claim.
+	WrittenOffAt *time.Time `json:"writtenOffAt,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
 }
 
 // LoanSchedule maps to the "loan_schedules" table.

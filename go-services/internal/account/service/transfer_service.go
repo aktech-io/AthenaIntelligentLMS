@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -190,8 +191,13 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 		return nil, errors.BadRequest("INTERNAL transfers require same customer; use THIRD_PARTY for different customers")
 	}
 
-	// Calculate charge (fail-open: 0 if product-service unreachable)
-	chargeAmount := s.calculateCharge(string(transferType), req.Amount, tenantID)
+	// Calculate charge — fail closed (HIGH-2): if product-service is down the
+	// transfer is rejected rather than silently processed charge-free, unless the
+	// LMS_TRANSFER_CHARGE_FAIL_OPEN escape hatch is enabled.
+	chargeAmount, err := s.calculateCharge(string(transferType), req.Amount, tenantID)
+	if err != nil {
+		return nil, errors.NewBusinessError("charge service unavailable — transfer not processed")
+	}
 	totalDebit := req.Amount.Add(chargeAmount)
 
 	// Generate reference
@@ -340,7 +346,8 @@ func (s *TransferService) InitiateTransfer(ctx context.Context, req TransferRequ
 	// Emit transfer.completed atomically with the balance moves via the
 	// transactional outbox so the money-path event can never be lost relative to
 	// the committed state change (F27). The relay publishes it at-least-once.
-	evt, err := s.publisher.BuildTransferCompleted(transfer.ID, sourceAccount.ID, destAccount.ID, req.Amount, tenantID)
+	evt, err := s.publisher.BuildTransferCompleted(transfer.ID, sourceAccount.ID, destAccount.ID,
+		req.Amount, chargeAmount, sourceAccount.Currency, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -413,9 +420,39 @@ func (s *TransferService) getAccountNumber(ctx context.Context, accountID uuid.U
 	return &a.AccountNumber
 }
 
-func (s *TransferService) calculateCharge(transferType string, amount decimal.Decimal, tenantID string) decimal.Decimal {
+// transferChargeFailOpen reports whether the operator has explicitly restored
+// the legacy fail-open behavior (charge 0 when product-service is unavailable).
+// Default is fail-closed: a transfer is rejected rather than processed for free.
+func transferChargeFailOpen() bool {
+	return os.Getenv("LMS_TRANSFER_CHARGE_FAIL_OPEN") == "true"
+}
+
+// calculateCharge asks product-service for the transfer charge.
+//
+// Fail-closed by default (HIGH-2): any product-service failure returns an error
+// so the caller rejects the transfer, instead of silently charging 0 — which
+// meant free transfers (silent revenue loss) during any product-service outage,
+// and an incentive to induce one. Setting LMS_TRANSFER_CHARGE_FAIL_OPEN=true
+// restores the old behavior as an operational escape hatch.
+//
+// An empty productServiceURL means charging is not configured for this
+// deployment — a deliberate configuration, not a failure — so the charge is 0
+// without error. Likewise a 200 response without a chargeAmount is
+// product-service explicitly saying "no charge applies".
+func (s *TransferService) calculateCharge(transferType string, amount decimal.Decimal, tenantID string) (decimal.Decimal, error) {
 	if s.productServiceURL == "" {
-		return decimal.Zero
+		return decimal.Zero, nil
+	}
+
+	fail := func(err error) (decimal.Decimal, error) {
+		if transferChargeFailOpen() {
+			s.logger.Warn("Could not fetch charge from product-service; LMS_TRANSFER_CHARGE_FAIL_OPEN=true, using 0 charge",
+				zap.Error(err))
+			return decimal.Zero, nil
+		}
+		s.logger.Error("Could not fetch charge from product-service; failing closed (set LMS_TRANSFER_CHARGE_FAIL_OPEN=true to override)",
+			zap.Error(err))
+		return decimal.Zero, err
 	}
 
 	chargeType := "TRANSFER_" + transferType
@@ -424,7 +461,7 @@ func (s *TransferService) calculateCharge(transferType string, amount decimal.De
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return decimal.Zero
+		return fail(err)
 	}
 	req.Header.Set("X-Service-Key", s.serviceKey)
 	req.Header.Set("X-Service-Tenant", tenantID)
@@ -433,21 +470,25 @@ func (s *TransferService) calculateCharge(transferType string, amount decimal.De
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		s.logger.Warn("Could not fetch charge from product-service, using 0 charge", zap.Error(err))
-		return decimal.Zero
+		return fail(err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		var body map[string]any
-		if err := json.NewDecoder(resp.Body).Decode(&body); err == nil {
-			if charge, ok := body["chargeAmount"]; ok && charge != nil {
-				d, err := decimal.NewFromString(fmt.Sprintf("%v", charge))
-				if err == nil {
-					return d
-				}
-			}
-		}
+	if resp.StatusCode != http.StatusOK {
+		return fail(fmt.Errorf("product-service charge lookup returned status %d", resp.StatusCode))
 	}
-	return decimal.Zero
+
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return fail(fmt.Errorf("decode charge response: %w", err))
+	}
+	charge, ok := body["chargeAmount"]
+	if !ok || charge == nil {
+		return decimal.Zero, nil
+	}
+	d, err := decimal.NewFromString(fmt.Sprintf("%v", charge))
+	if err != nil {
+		return fail(fmt.Errorf("parse chargeAmount %q: %w", fmt.Sprintf("%v", charge), err))
+	}
+	return d, nil
 }

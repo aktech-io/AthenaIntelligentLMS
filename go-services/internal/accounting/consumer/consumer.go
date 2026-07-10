@@ -27,6 +27,10 @@ type accountingService interface {
 	PostOverdraftFeeCharged(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
 	PostFloatDrawn(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
 	PostFloatRepaid(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal) error
+	PostTransferCharge(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error
+	PostLoanFeeCharged(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency, feeName string) error
+	PostPenaltyAccrued(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error
+	PostLoanWriteOff(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error
 }
 
 // AccountingConsumer handles incoming domain events for the accounting service.
@@ -117,6 +121,14 @@ func (c *AccountingConsumer) handle(ctx context.Context, evt *event.DomainEvent)
 		return c.handleOverdraftInterestCharged(ctx, payload, tenantID, evt.ID)
 	case "overdraft.fee.charged":
 		return c.handleOverdraftFeeCharged(ctx, payload, tenantID)
+	case "transfer.completed":
+		return c.handleTransferCompleted(ctx, payload, tenantID, evt.ID)
+	case "loan.fee.charged":
+		return c.handleLoanFeeCharged(ctx, payload, tenantID, evt.ID)
+	case "loan.penalty.accrued":
+		return c.handleLoanPenaltyAccrued(ctx, payload, tenantID, evt.ID)
+	case "loan.written.off":
+		return c.handleLoanWrittenOff(ctx, payload, tenantID, evt.ID)
 	default:
 		c.logger.Debug("No accounting handler for event", zap.String("type", eventType))
 		return nil
@@ -263,6 +275,96 @@ func (c *AccountingConsumer) handleFloatRepaid(ctx context.Context, payload map[
 		return nil
 	}
 	return c.svc.PostFloatRepaid(ctx, tenantID, sourceID, amount)
+}
+
+// handleTransferCompleted posts the CHARGE on a completed fund transfer (HIGH-2).
+// The transfer principal moves between two customer deposit accounts (both
+// within 2000 Customer Deposits) and nets to zero, so no journal entry is
+// needed for it; only chargeAmount > 0 produces a posting:
+// DR 2000 Customer Deposits / CR 4500 Transfer Fee Income.
+func (c *AccountingConsumer) handleTransferCompleted(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
+	charge := getDecimal(payload, "chargeAmount")
+	if charge.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	// Dedup on the transfer's business key; fall back to the stable event
+	// envelope ID (constant across redelivery, never a timestamp — H-3).
+	sourceID := "TXF-CHG-" + getStr(payload, "transferId")
+	if sourceID == "TXF-CHG-" {
+		sourceID += eventID
+	}
+	if c.svc.EntryExists(ctx, "transfer.completed", sourceID) {
+		return nil
+	}
+	return c.svc.PostTransferCharge(ctx, tenantID, sourceID, charge, getStr(payload, "currency"))
+}
+
+// handleLoanFeeCharged posts a loan fee capitalized onto the loan (BLOCKER-3).
+// DR 1100 Loans Receivable / CR 4110 Loan Fee Income.
+// Payload: {applicationId, customerId, feeType, feeName, amount, currency, reference, tenantId}.
+func (c *AccountingConsumer) handleLoanFeeCharged(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
+	amount := getDecimal(payload, "amount")
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	// Dedup on the fee's business reference; fall back to the stable event
+	// envelope ID when absent (H-3).
+	sourceID := "LOAN-FEE-" + getStr(payload, "reference")
+	if sourceID == "LOAN-FEE-" {
+		sourceID += eventID
+	}
+	if c.svc.EntryExists(ctx, "loan.fee.charged", sourceID) {
+		return nil
+	}
+	feeName := getStr(payload, "feeName")
+	if feeName == "" {
+		feeName = getStr(payload, "feeType")
+	}
+	return c.svc.PostLoanFeeCharged(ctx, tenantID, sourceID, amount, getStr(payload, "currency"), feeName)
+}
+
+// handleLoanPenaltyAccrued posts a penalty accrual (BLOCKER-2). Accrual basis:
+// DR 1350 Penalty Receivable / CR 4200 Penalty Income — no cash moves until
+// the borrower pays. Payload: {loanId, customerId, amount, currency, accrualDate, tenantId}.
+func (c *AccountingConsumer) handleLoanPenaltyAccrued(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
+	amount := getDecimal(payload, "amount")
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	loanID := getStr(payload, "loanId")
+	accrualDate := getStr(payload, "accrualDate")
+	// Natural key: the accrual job runs daily, one accrual per loan per day —
+	// (loanId, accrualDate) dedups both broker redelivery and an accidental
+	// same-day re-run of the job. Fall back to the stable event ID (H-3).
+	sourceID := fmt.Sprintf("PEN-ACCR-%s-%s", loanID, accrualDate)
+	if loanID == "" || accrualDate == "" {
+		sourceID = "PEN-ACCR-" + eventID
+	}
+	if c.svc.EntryExists(ctx, "loan.penalty.accrued", sourceID) {
+		return nil
+	}
+	return c.svc.PostPenaltyAccrued(ctx, tenantID, sourceID, amount, getStr(payload, "currency"))
+}
+
+// handleLoanWrittenOff posts a write-off against the IFRS 9 ECL allowance
+// (BLOCKER-4): DR 1410 Allowance for Credit Losses / CR 1100 Loans Receivable
+// for totalWrittenOff. Payload: {loanId, customerId, principalWrittenOff,
+// interestWrittenOff, feesWrittenOff, penaltyWrittenOff, totalWrittenOff,
+// currency, caseId, tenantId}.
+func (c *AccountingConsumer) handleLoanWrittenOff(ctx context.Context, payload map[string]any, tenantID, eventID string) error {
+	total := getDecimal(payload, "totalWrittenOff")
+	if total.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	// A loan is written off at most once — the loan itself is the natural key.
+	sourceID := "WOFF-" + getStr(payload, "loanId")
+	if sourceID == "WOFF-" {
+		sourceID += eventID
+	}
+	if c.svc.EntryExists(ctx, "loan.written.off", sourceID) {
+		return nil
+	}
+	return c.svc.PostLoanWriteOff(ctx, tenantID, sourceID, total, getStr(payload, "currency"))
 }
 
 // --- helpers ---

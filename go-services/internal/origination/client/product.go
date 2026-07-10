@@ -45,6 +45,26 @@ type AuthConfig struct {
 	AuthThresholdAmount   *decimal.Decimal
 }
 
+// ProductFee is one fee line configured on a product.
+type ProductFee struct {
+	FeeName         string           `json:"feeName"`
+	FeeType         string           `json:"feeType"`
+	CalculationType string           `json:"calculationType"`
+	Amount          *decimal.Decimal `json:"amount"`
+	Rate            *decimal.Decimal `json:"rate"`
+	IsMandatory     bool             `json:"isMandatory"`
+}
+
+// FeeConfig holds the product's disbursement-time fee configuration: the
+// processing fee (percentage of the disbursed amount, clamped to [min, max])
+// plus the configured fee lines.
+type FeeConfig struct {
+	ProcessingFeeRate decimal.Decimal
+	ProcessingFeeMin  decimal.Decimal
+	ProcessingFeeMax  *decimal.Decimal
+	Fees              []ProductFee
+}
+
 // productResponse is the partial response from product-service.
 type productResponse struct {
 	Status                string                 `json:"status"`
@@ -54,6 +74,10 @@ type productResponse struct {
 	RepaymentFrequency    *string                `json:"repaymentFrequency"`
 	RequiresTwoPersonAuth bool                   `json:"requiresTwoPersonAuth"`
 	AuthThresholdAmount   *decimal.Decimal       `json:"authThresholdAmount"`
+	ProcessingFeeRate     *decimal.Decimal       `json:"processingFeeRate"`
+	ProcessingFeeMin      *decimal.Decimal       `json:"processingFeeMin"`
+	ProcessingFeeMax      *decimal.Decimal       `json:"processingFeeMax"`
+	Fees                  []ProductFee           `json:"fees"`
 	Configuration         map[string]interface{} `json:"configuration"`
 }
 
@@ -144,4 +168,37 @@ func (c *ProductClient) GetProductAuthConfig(ctx context.Context, productID uuid
 		RequiresTwoPersonAuth: resp.RequiresTwoPersonAuth,
 		AuthThresholdAmount:   resp.AuthThresholdAmount,
 	}
+}
+
+// GetProductFeeConfig fetches the product's disbursement fee configuration.
+// Unlike the other lookups this FAILS CLOSED: if product-service is unreachable
+// or returns an error, the caller must reject the disbursement rather than
+// silently skip fees (silently skipping fees is exactly the BLOCKER-3 bug).
+// processingFeeMin/Max are decoded tolerantly: the product response may omit
+// them (older product-service builds), in which case min defaults to zero and
+// max to "no cap".
+func (c *ProductClient) GetProductFeeConfig(ctx context.Context, productID uuid.UUID) (*FeeConfig, error) {
+	if productID == uuid.Nil {
+		return nil, fmt.Errorf("productId must not be null")
+	}
+
+	url := fmt.Sprintf("%s/api/v1/products/%s", c.baseURL, productID)
+	var resp productResponse
+	if err := c.client.Get(ctx, url, &resp); err != nil {
+		return nil, fmt.Errorf("fetch fee config for product %s: %w", productID, err)
+	}
+
+	cfg := &FeeConfig{
+		ProcessingFeeRate: decimal.Zero,
+		ProcessingFeeMin:  decimal.Zero,
+		ProcessingFeeMax:  resp.ProcessingFeeMax,
+		Fees:              resp.Fees,
+	}
+	if resp.ProcessingFeeRate != nil {
+		cfg.ProcessingFeeRate = *resp.ProcessingFeeRate
+	}
+	if resp.ProcessingFeeMin != nil {
+		cfg.ProcessingFeeMin = *resp.ProcessingFeeMin
+	}
+	return cfg, nil
 }

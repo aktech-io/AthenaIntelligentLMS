@@ -654,6 +654,128 @@ func (s *AccountingService) PostFloatRepaid(ctx context.Context, tenantID, sourc
 	return nil
 }
 
+// GL account codes used by the event-driven revenue/write-off postings
+// (week 2: HIGH-2, BLOCKER-2/3/4). All are seeded system accounts:
+// 1100/2000/4200 in migration 1, 1410 in migration 3, 1350/4110/4500 in
+// migration 10.
+const (
+	glCustomerDeposits  = "2000" // LIABILITY — customer funds held by the lender
+	glLoansReceivable   = "1100" // ASSET — outstanding loan principal (loan.disbursed DRs this)
+	glPenaltyReceivable = "1350" // ASSET — accrued penalties not yet collected
+	glECLAllowance      = "1410" // ASSET/CREDIT — IFRS 9 Allowance for Credit Losses (contra-asset)
+	glPenaltyIncome     = "4200" // INCOME — late payment penalties
+	glLoanFeeIncome     = "4110" // INCOME — loan processing/product fees
+	glTransferFeeIncome = "4500" // INCOME — charges on customer fund transfers
+)
+
+// PostTransferCharge posts the charge levied on a completed fund transfer (HIGH-2).
+// DR 2000 Customer Deposits / CR 4500 Transfer Fee Income.
+// The transfer principal itself moves between two customer deposit accounts —
+// both inside 2000 — so it nets to zero and needs no journal entry; only the
+// charge changes the GL: the source account was debited amount+charge but the
+// destination credited only amount, and the difference is fee income.
+func (s *AccountingService) PostTransferCharge(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error {
+	drAccount, err := s.resolveAccountID(ctx, tenantID, glCustomerDeposits)
+	if err != nil {
+		return err
+	}
+	crAccount, err := s.resolveAccountID(ctx, tenantID, glTransferFeeIncome)
+	if err != nil {
+		return err
+	}
+
+	entry := s.buildSystemEntryWithCurrency(tenantID, sourceID,
+		"Transfer charge "+sourceID, "transfer.completed", sourceID,
+		drAccount, crAccount, amount, currency)
+
+	if err := s.postSystemEntry(ctx, entry); err != nil {
+		return err
+	}
+	s.logger.Info("Posted transfer charge journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
+	return nil
+}
+
+// PostLoanFeeCharged posts a loan fee capitalized onto the loan (BLOCKER-3).
+// DR 1100 Loans Receivable / CR 4110 Loan Fee Income — consistent with
+// loan.disbursed, which DRs 1100 for the amount owed by the borrower.
+func (s *AccountingService) PostLoanFeeCharged(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency, feeName string) error {
+	drAccount, err := s.resolveAccountID(ctx, tenantID, glLoansReceivable)
+	if err != nil {
+		return err
+	}
+	crAccount, err := s.resolveAccountID(ctx, tenantID, glLoanFeeIncome)
+	if err != nil {
+		return err
+	}
+
+	desc := "Loan fee charged " + sourceID
+	if feeName != "" {
+		desc = "Loan fee charged (" + feeName + ") " + sourceID
+	}
+	entry := s.buildSystemEntryWithCurrency(tenantID, sourceID,
+		desc, "loan.fee.charged", sourceID,
+		drAccount, crAccount, amount, currency)
+
+	if err := s.postSystemEntry(ctx, entry); err != nil {
+		return err
+	}
+	s.logger.Info("Posted loan fee journal",
+		zap.String("sourceId", sourceID), zap.String("feeName", feeName), zap.String("amount", amount.String()))
+	return nil
+}
+
+// PostPenaltyAccrued posts a late-payment penalty accrual (BLOCKER-2).
+// DR 1350 Penalty Receivable / CR 4200 Penalty Income.
+// Accrual basis: the penalty is income when levied and a receivable until the
+// borrower actually pays — no cash account is touched here; cash arrives later
+// through the repayment waterfall.
+func (s *AccountingService) PostPenaltyAccrued(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error {
+	drAccount, err := s.resolveAccountID(ctx, tenantID, glPenaltyReceivable)
+	if err != nil {
+		return err
+	}
+	crAccount, err := s.resolveAccountID(ctx, tenantID, glPenaltyIncome)
+	if err != nil {
+		return err
+	}
+
+	entry := s.buildSystemEntryWithCurrency(tenantID, sourceID,
+		"Penalty accrued "+sourceID, "loan.penalty.accrued", sourceID,
+		drAccount, crAccount, amount, currency)
+
+	if err := s.postSystemEntry(ctx, entry); err != nil {
+		return err
+	}
+	s.logger.Info("Posted penalty accrual journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
+	return nil
+}
+
+// PostLoanWriteOff posts a loan write-off against the ECL allowance (BLOCKER-4).
+// DR 1410 Allowance for Credit Losses / CR 1100 Loans Receivable for the total
+// written off. IFRS 9: the loss was already expensed when the allowance was
+// built (DR 6000 Provision for Credit Losses / CR 1410), so the write-off only
+// utilises the allowance and derecognises the receivable — no new P&L charge.
+func (s *AccountingService) PostLoanWriteOff(ctx context.Context, tenantID, sourceID string, amount decimal.Decimal, currency string) error {
+	drAccount, err := s.resolveAccountID(ctx, tenantID, glECLAllowance)
+	if err != nil {
+		return err
+	}
+	crAccount, err := s.resolveAccountID(ctx, tenantID, glLoansReceivable)
+	if err != nil {
+		return err
+	}
+
+	entry := s.buildSystemEntryWithCurrency(tenantID, sourceID,
+		"Loan write-off "+sourceID, "loan.written.off", sourceID,
+		drAccount, crAccount, amount, currency)
+
+	if err := s.postSystemEntry(ctx, entry); err != nil {
+		return err
+	}
+	s.logger.Info("Posted loan write-off journal", zap.String("sourceId", sourceID), zap.String("amount", amount.String()))
+	return nil
+}
+
 // --- Entry Workflow ---
 
 // SubmitForApproval transitions a DRAFT entry to PENDING_APPROVAL.
@@ -1101,6 +1223,22 @@ func (s *AccountingService) resolveAccountID(ctx context.Context, tenantID, code
 }
 
 func (s *AccountingService) buildSystemEntry(tenantID, reference, description, sourceEvent, sourceID string, drAccountID, crAccountID uuid.UUID, amount decimal.Decimal) *model.JournalEntry {
+	return s.buildSystemEntryWithCurrency(tenantID, reference, description, sourceEvent, sourceID,
+		drAccountID, crAccountID, amount, defaultCurrency)
+}
+
+// defaultCurrency is the journal-line currency used when an event carries none.
+// (Full multi-currency support is out of scope; this mirrors the historical
+// hardcoded "KES" convention.)
+const defaultCurrency = "KES"
+
+// buildSystemEntryWithCurrency is buildSystemEntry with an explicit line
+// currency, used by handlers that receive a currency on the event payload.
+// An empty currency falls back to the existing default.
+func (s *AccountingService) buildSystemEntryWithCurrency(tenantID, reference, description, sourceEvent, sourceID string, drAccountID, crAccountID uuid.UUID, amount decimal.Decimal, currency string) *model.JournalEntry {
+	if currency == "" {
+		currency = defaultCurrency
+	}
 	postedBy := "system"
 	entry := &model.JournalEntry{
 		TenantID:          tenantID,
@@ -1117,10 +1255,10 @@ func (s *AccountingService) buildSystemEntry(tenantID, reference, description, s
 		IsSystemGenerated: true,
 		Lines: []model.JournalLine{
 			{
-				AccountID: drAccountID, LineNo: 1, DebitAmount: amount, CreditAmount: decimal.Zero, Currency: "KES",
+				AccountID: drAccountID, LineNo: 1, DebitAmount: amount, CreditAmount: decimal.Zero, Currency: currency,
 			},
 			{
-				AccountID: crAccountID, LineNo: 2, DebitAmount: decimal.Zero, CreditAmount: amount, Currency: "KES",
+				AccountID: crAccountID, LineNo: 2, DebitAmount: decimal.Zero, CreditAmount: amount, Currency: currency,
 			},
 		},
 	}

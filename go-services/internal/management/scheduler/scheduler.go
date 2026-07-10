@@ -9,7 +9,10 @@ import (
 	"github.com/athena-lms/go-services/internal/management/service"
 )
 
-// DpdRefreshScheduler runs daily DPD calculation for all active loans.
+// DpdRefreshScheduler runs the daily DPD calculation and penalty accrual for
+// all active loans (accrual rides the same iteration inside RefreshAllDpd; it
+// is idempotent per day via last_penalty_accrual_date, so the startup run
+// after a restart cannot double-accrue).
 type DpdRefreshScheduler struct {
 	svc    *service.Service
 	logger *zap.Logger
@@ -44,7 +47,7 @@ func (s *DpdRefreshScheduler) Start(ctx context.Context) {
 }
 
 func (s *DpdRefreshScheduler) run(ctx context.Context) {
-	s.logger.Info("Starting daily DPD refresh job")
+	s.logger.Info("Starting daily DPD refresh + penalty accrual job")
 	defer func() {
 		if r := recover(); r != nil {
 			s.logger.Error("DPD refresh job panicked", zap.Any("recover", r))
@@ -52,7 +55,7 @@ func (s *DpdRefreshScheduler) run(ctx context.Context) {
 	}()
 
 	s.svc.RefreshAllDpd(ctx)
-	s.logger.Info("DPD refresh job completed")
+	s.logger.Info("DPD refresh + penalty accrual job completed")
 }
 
 // nextRunTime returns the next 01:00 AM UTC.

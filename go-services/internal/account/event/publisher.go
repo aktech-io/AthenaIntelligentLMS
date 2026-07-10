@@ -69,13 +69,9 @@ func (p *Publisher) PublishCustomerUpdated(ctx context.Context, id uuid.UUID, cu
 
 // PublishTransferCompleted publishes a transfer.completed event.
 func (p *Publisher) PublishTransferCompleted(ctx context.Context, transferID, sourceAccountID, destAccountID uuid.UUID,
-	amount decimal.Decimal, tenantID string) {
-	p.publish(ctx, event.TransferCompleted, tenantID, map[string]any{
-		"transferId":           transferID.String(),
-		"sourceAccountId":      sourceAccountID.String(),
-		"destinationAccountId": destAccountID.String(),
-		"amount":               amount,
-	})
+	amount, chargeAmount decimal.Decimal, currency, tenantID string) {
+	p.publish(ctx, event.TransferCompleted, tenantID,
+		transferCompletedPayload(transferID, sourceAccountID, destAccountID, amount, chargeAmount, currency))
 }
 
 // PublishTransferFailed publishes a transfer.failed event.
@@ -109,13 +105,25 @@ func (p *Publisher) BuildDebitProcessed(accountID uuid.UUID, amount decimal.Deci
 // BuildTransferCompleted constructs the transfer.completed DomainEvent WITHOUT
 // publishing it, for the transactional-outbox path.
 func (p *Publisher) BuildTransferCompleted(transferID, sourceAccountID, destAccountID uuid.UUID,
-	amount decimal.Decimal, tenantID string) (*event.DomainEvent, error) {
-	return p.build(event.TransferCompleted, tenantID, map[string]any{
+	amount, chargeAmount decimal.Decimal, currency, tenantID string) (*event.DomainEvent, error) {
+	return p.build(event.TransferCompleted, tenantID,
+		transferCompletedPayload(transferID, sourceAccountID, destAccountID, amount, chargeAmount, currency))
+}
+
+// transferCompletedPayload builds the transfer.completed event payload.
+// chargeAmount (decimal string) and currency are ADDITIVE fields (HIGH-2: the
+// charge debited from the source account must reach accounting as fee income);
+// existing field names must not change — downstream consumers rely on them.
+func transferCompletedPayload(transferID, sourceAccountID, destAccountID uuid.UUID,
+	amount, chargeAmount decimal.Decimal, currency string) map[string]any {
+	return map[string]any{
 		"transferId":           transferID.String(),
 		"sourceAccountId":      sourceAccountID.String(),
 		"destinationAccountId": destAccountID.String(),
 		"amount":               amount,
-	})
+		"chargeAmount":         chargeAmount.String(),
+		"currency":             currency,
+	}
 }
 
 // build constructs a DomainEvent without publishing it.

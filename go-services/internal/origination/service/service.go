@@ -11,6 +11,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	commonEvent "github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/origination/client"
 	"github.com/athena-lms/go-services/internal/origination/event"
 	"github.com/athena-lms/go-services/internal/origination/model"
@@ -311,6 +312,24 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		}
 	}
 
+	// Fetch the product fee configuration and resolve the upfront fees due at
+	// disbursement (BLOCKER-3). This FAILS CLOSED: if the fee config cannot be
+	// fetched the disbursement is rejected — silently skipping fees is exactly
+	// the bug being fixed.
+	feeCfg, cfgErr := s.productClient.GetProductFeeConfig(ctx, app.ProductID)
+	if cfgErr != nil {
+		return nil, errors.NewBusinessError("disbursement rejected: could not fetch product fee configuration (fees must be charged at disbursement): " + cfgErr.Error())
+	}
+	computedFees, totalFees := ComputeDisbursementFees(req.DisbursedAmount, feeCfg)
+	if verr := ValidateFeeTotal(req.DisbursedAmount, totalFees); verr != nil {
+		return nil, errors.NewBusinessError("disbursement rejected: " + verr.Error())
+	}
+
+	// Net-off model (standard for Kenyan digital lending): the borrower is
+	// credited disbursedAmount − totalFees, while the loan principal remains the
+	// gross disbursedAmount.
+	netAmount := req.DisbursedAmount.Sub(totalFees)
+
 	// Credit the borrower's disbursement account BEFORE marking the loan
 	// disbursed, so the money actually arrives. If the credit fails the loan
 	// stays APPROVED and the operator can retry. The credit is idempotent on the
@@ -319,7 +338,7 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		if acctID, perr := uuid.Parse(req.DisbursementAccount); perr == nil {
 			desc := "Loan disbursement for application " + app.ID.String()
 			ref := "DISB-" + app.ID.String()
-			if cerr := s.accountClient.Credit(ctx, acctID, req.DisbursedAmount, desc, ref, ref); cerr != nil {
+			if cerr := s.accountClient.Credit(ctx, acctID, netAmount, desc, ref, ref); cerr != nil {
 				return nil, errors.NewBusinessError("disbursement failed: could not credit account " + req.DisbursementAccount + ": " + cerr.Error())
 			}
 		} else {
@@ -338,19 +357,47 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 		return nil, err
 	}
 
-	// Build the loan.disbursed event and persist it to the transactional outbox
-	// in the SAME transaction as the DISBURSED state change. This closes the
-	// dual-write that previously dropped the event when the broker was down
-	// (F27): loan-management can no longer miss a disbursement. The outbox relay
-	// publishes it asynchronously and at-least-once.
+	// Build the fee breakdown rows with deterministic references so a retry can
+	// never double-record a fee (unique index on reference).
+	feeRows := make([]model.DisbursementFee, 0, len(computedFees))
+	for i, cf := range computedFees {
+		feeRows = append(feeRows, model.DisbursementFee{
+			ApplicationID:   app.ID,
+			TenantID:        app.TenantID,
+			FeeName:         cf.FeeName,
+			FeeType:         cf.FeeType,
+			CalculationType: cf.CalculationType,
+			Amount:          cf.Amount,
+			Currency:        app.Currency,
+			Reference:       fmt.Sprintf("FEE-%s-%d", app.ID, i+1),
+		})
+	}
+
+	// Build the loan.disbursed event plus one loan.fee.charged event PER FEE and
+	// persist them to the transactional outbox in the SAME transaction as the
+	// DISBURSED state change and fee rows. This closes the dual-write that
+	// previously dropped the event when the broker was down (F27): loan-management
+	// and accounting can no longer miss a disbursement or a fee charge. The
+	// outbox relay publishes them asynchronously and at-least-once.
 	scheduleConfig := s.productClient.GetProductScheduleConfig(ctx, app.ProductID)
-	evt, berr := s.publisher.BuildDisbursed(app, scheduleConfig.ScheduleType, scheduleConfig.RepaymentFrequency)
+	events := make([]*commonEvent.DomainEvent, 0, 1+len(feeRows))
+	evt, berr := s.publisher.BuildDisbursed(app, scheduleConfig.ScheduleType, scheduleConfig.RepaymentFrequency, netAmount, totalFees)
 	if berr != nil {
 		s.logger.Error("Failed to build loan.disbursed event", zap.Error(berr))
 		evt = nil // fall back to a plain state update; reconciliation will catch it
 	}
+	events = append(events, evt)
+	for _, fee := range feeRows {
+		fevt, ferr := s.publisher.BuildFeeCharged(app, fee)
+		if ferr != nil {
+			s.logger.Error("Failed to build loan.fee.charged event",
+				zap.String("feeName", fee.FeeName), zap.Error(ferr))
+			continue // the fee row is still persisted; reconciliation/ops can replay
+		}
+		events = append(events, fevt)
+	}
 
-	app, err = s.repo.UpdateApplicationWithEvent(ctx, app, evt)
+	app, err = s.repo.DisburseWithFees(ctx, app, feeRows, events)
 	if err != nil {
 		return nil, fmt.Errorf("disburse application: %w", err)
 	}
@@ -358,7 +405,12 @@ func (s *Service) Disburse(ctx context.Context, id uuid.UUID, req model.Disburse
 	s.auditor.Record(ctx, "LOAN_APP_DISBURSE", "LOAN_APPLICATION", app.ID.String(),
 		map[string]any{"status": model.StatusApproved},
 		map[string]any{"status": model.StatusDisbursed},
-		map[string]any{"disbursedAmount": req.DisbursedAmount, "disbursementAccount": req.DisbursementAccount})
+		map[string]any{
+			"disbursedAmount":     req.DisbursedAmount,
+			"disbursementAccount": req.DisbursementAccount,
+			"totalFeesCharged":    totalFees.StringFixed(2),
+			"netDisbursedAmount":  netAmount.StringFixed(2),
+		})
 
 	resp := model.ToSimpleResponse(app)
 	return &resp, nil
