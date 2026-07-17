@@ -79,10 +79,18 @@ each track, chosen for dependency flow, not grade alone.
 | G2 | Public API platform + dev portal | E | Phase 3. |
 
 ## 3. Business blockers (founder decisions, not code)
-1. **Card processor partner** (B1) — pick Paymentology / Interswitch / partner-bank BIN; blocks cards and starts the PCI clock.
-2. **eKYC vendor** (A2) — pick provider (Smile ID / Veriff class) for the adapter's first implementation.
+1. **Card processor partner** (B1) — *researching (July 2026)*: EM recommendation is
+   Paymentology-first (issuer-processor with Kenya BIN sponsorship live via Diamond
+   Trust Bank; powers M-PESA GlobalPay virtual Visa; multi-network, Africa-wide —
+   fits white-label multi-tenant issuing), with Interswitch as the pan-African
+   alternative and Sudo/Bridgecard class APIs as fallback for speed. Founder to
+   confirm; the B1 build is an adapter, so the choice is swappable.
+2. **eKYC** (A2) — **DECIDED (2026-07-18): in-house first** (own OCR + face match +
+   screening engine; `nemo/a2-inhouse-ekyc` in flight), commercial vendors remain a
+   pluggable per-client option via the existing provider adapter.
 3. **Crypto**: VASP licence path + custody partner (B11) — parked until decided.
-4. **First external tenant/market commitment** (Ethiopia?) — drives ET market-pack content and NBE report set (F5).
+4. **Second market** — **DECIDED (2026-07-18): Ethiopia.** ET built-in pack shipped
+   (`8b37bd5`); NBE licence profile + report set (F5) queued.
 
 ## 4. Operating model
 Work runs continuously in parallel tracks: the main line executes Track 1→4 priority
