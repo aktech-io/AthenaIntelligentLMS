@@ -105,6 +105,7 @@ func main() {
 	dormancySvc := service.NewDormancyService(repo, acctPub, logger)
 	eodSvc := service.NewEODService(interestSvc, dormancySvc, logger)
 	approvalSvc := service.NewApprovalService(repo, accountSvc, transferSvc, openingSvc, logger)
+	tenantSvc := service.NewTenantService(repo, repo, logger)
 	hdlr := handler.NewWithRepo(accountSvc, customerSvc, transferSvc, repo, logger)
 	hdlr.SetOpeningService(openingSvc)
 	hdlr.SetInterestService(interestSvc)
@@ -141,12 +142,15 @@ func main() {
 	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)
 	rbacAudit := audit.New(repo, logger)
 	rbacHandler := rbac.NewHandler(rbacStore, rbacAudit, logger)
+	tenantHandler := handler.NewTenantHandler(tenantSvc, logger)
 	r.Group(func(r chi.Router) {
 		r.Use(authMw.Handler)
 		r.Get("/api/auth/me", authHandler.Me)
 		hdlr.RegisterRoutes(r)
 		// RBAC matrix: reads open to authenticated callers; writes require rbac.manage.
 		rbacHandler.RegisterRoutes(r, auth.RequirePermission("rbac.manage", "ADMIN"))
+		// Tenant registry (Nemo C1): platform administration, admin-only.
+		tenantHandler.RegisterRoutes(r, auth.RequirePermission("tenant.manage", "ADMIN"))
 	})
 
 	// Server
