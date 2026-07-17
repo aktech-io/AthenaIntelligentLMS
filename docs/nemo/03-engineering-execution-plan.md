@@ -43,7 +43,7 @@ each track, chosen for dependency flow, not grade alone.
 | C1 | Tenant provisioning API + "create neobank" console | C | **API v1 shipped** (July 2026, account-service): `POST /api/v1/tenants` provisions a tenant atomically — registry row, org settings seeded from the market pack, initial admin user with one-time password (bcrypt-stored, returned once), `tenant.provisioned` outbox event — plus list/get/activate/suspend, gated by `tenant.manage` (ADMIN). Regulatory profile and GL need no seed (regulatory seeds lazily on first access; GL postings fall back to the shared `system` chart). Remaining: console UI, brand packs (C4), product-catalogue seeding, sandbox mode (C7), DB-backed login for provisioned admins. |
 | C2 | Market packs | C | **Skeleton shipped.** Remaining: rails/bureau/KYC/tax ids consumed by G1/G3/A2 as they land; per-tenant pack override; scheduler use of holiday calendar. |
 | C4/C5 | Brand packs, feature flags/entitlements | E | Design with C1 (both are tenant-config); implement after. |
-| D2–D4 | On-prem/air-gapped installer, zero-downtime upgrades, HA/DR | C | After D1 — all three build on the chart. DR runbook is a doc+test exercise, start early. |
+| D2–D4 | On-prem/air-gapped installer, zero-downtime upgrades, HA/DR | C | **D3 gating shipped** (`5271fe2`): `migrations.gated=true` runs schema migrations in pre-upgrade hook Jobs (MIGRATE_ONLY, fail-blocks rollout), pods skip startup migrations. D4 baseline in chart (`hardening.enabled`). Remaining: D2 offline bundle, rolling-deploy strategy tuning, backup/PITR + DR runbook with tested RPO/RTO. |
 | C6/C7 | Usage metering & billing; per-tenant sandboxes | E | Phase 2; sandbox falls out of C1 if designed in. |
 
 ### Track 2 — Customer front end (the "neobank" claim)
