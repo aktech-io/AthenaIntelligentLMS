@@ -37,6 +37,7 @@ type Config struct {
 	LoanManagementServiceURL  string
 	AIScoringServiceURL       string
 	ComplianceServiceURL      string
+	MediaServiceURL           string
 	NotificationServiceURL    string
 }
 
@@ -66,7 +67,12 @@ func Load() (*Config, error) {
 	v.SetDefault("LOAN_ORIGINATION_SERVICE_URL", "http://localhost:8105/lms")
 	v.SetDefault("LOAN_MANAGEMENT_SERVICE_URL", "http://localhost:8105/lms")
 	v.SetDefault("AI_SCORING_SERVICE_URL", "http://localhost:8105/lms")
-	v.SetDefault("COMPLIANCE_SERVICE_URL", "http://localhost:8105/lms")
+	// Compliance + media are called DIRECTLY (not via the lms-api-gateway):
+	// the public gateway strips X-Service-Key/-Tenant headers (CRIT-1), so
+	// service-key traffic through it would 401. Compose/Helm point these at
+	// the in-cluster services; the localhost defaults use their host ports.
+	v.SetDefault("COMPLIANCE_SERVICE_URL", "http://localhost:28094")
+	v.SetDefault("MEDIA_SERVICE_URL", "http://localhost:28098")
 	v.SetDefault("NOTIFICATION_SERVICE_URL", "http://localhost:8111")
 
 	return &Config{
@@ -85,6 +91,7 @@ func Load() (*Config, error) {
 		LoanManagementServiceURL:  v.GetString("LOAN_MANAGEMENT_SERVICE_URL"),
 		AIScoringServiceURL:       v.GetString("AI_SCORING_SERVICE_URL"),
 		ComplianceServiceURL:      v.GetString("COMPLIANCE_SERVICE_URL"),
+		MediaServiceURL:           v.GetString("MEDIA_SERVICE_URL"),
 		NotificationServiceURL:    v.GetString("NOTIFICATION_SERVICE_URL"),
 	}, nil
 }

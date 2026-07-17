@@ -118,6 +118,17 @@ func defaultRoutes() []RouteConfig {
 			EnvOverride: "ROUTE_COMPLIANCE_SERVICE_URL",
 		},
 		{
+			// A2 self-service onboarding lives on compliance-service; this
+			// route exposes the officer queue/decision endpoints to the staff
+			// portal (JWT). The mobile BFF does NOT use it — it calls
+			// compliance-service directly with the service key, which this
+			// public gateway deliberately strips (CRIT-1).
+			ID:          "compliance-service-onboarding",
+			PathPrefix:  "/lms/api/v1/onboarding/",
+			TargetURL:   "http://compliance-service.lms.svc.cluster.local:8094",
+			EnvOverride: "ROUTE_COMPLIANCE_SERVICE_URL",
+		},
+		{
 			ID:          "reporting-service",
 			PathPrefix:  "/lms/api/v1/reports/",
 			TargetURL:   "http://reporting-service.lms.svc.cluster.local:8095",
