@@ -39,7 +39,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 1 — Package & install (the "in a box" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| D1 | Helm umbrella chart, one-command install | C | **Next up.** Chart skeleton → service subchart template → infra deps (PG, RabbitMQ, observability) → values presets (demo/prod). |
+| D1 | Helm umbrella chart, one-command install | C | **Shipped** (`deploy/helm/nemo`): all 17 workloads, in-cluster PG/RabbitMQ, observability stack (Prometheus/Alertmanager/Grafana + Money Paths dashboard), severity-routed alerting, `hardening.enabled` (PDB/HPA/NetworkPolicy), `scripts/build-nemo-images.sh` builds the image set. Remaining: live-cluster install verification, image publish pipeline. |
 | C1 | Tenant provisioning API + "create neobank" console | C | **API v1 shipped** (July 2026, account-service): `POST /api/v1/tenants` provisions a tenant atomically — registry row, org settings seeded from the market pack, initial admin user with one-time password (bcrypt-stored, returned once), `tenant.provisioned` outbox event — plus list/get/activate/suspend, gated by `tenant.manage` (ADMIN). Regulatory profile and GL need no seed (regulatory seeds lazily on first access; GL postings fall back to the shared `system` chart). Remaining: console UI, brand packs (C4), product-catalogue seeding, sandbox mode (C7), DB-backed login for provisioned admins. |
 | C2 | Market packs | C | **Skeleton shipped.** Remaining: rails/bureau/KYC/tax ids consumed by G1/G3/A2 as they land; per-tenant pack override; scheduler use of holiday calendar. |
 | C4/C5 | Brand packs, feature flags/entitlements | E | Design with C1 (both are tenant-config); implement after. |
@@ -91,9 +91,8 @@ wallet audit). Every completed item: tests green → commit/push → tick here a
 gap analysis. Standing tracks (money-path correctness, regulatory currency, security)
 interleave as audits surface work.
 
-**Immediate queue** (D1 ✓, wallet decision ✓, H2 ✓, H1 baseline ✓, in-chart
-observability ✓): **in flight on agent branches** — C1 tenant provisioning API
-(`nemo/c1-tenant-provisioning`), E1 decision-engine design
-(`nemo/e1-decision-engine-design`), wallet app Nemo rebrand
-(AthenaMobileWallet `nemo-rebrand`). Next after merge: A1 Phase 0 (fold wallet
-BFF into monorepo) → E1 v1 implementation → D3 migration gating → H3 receivers.
+**Immediate queue** (D1 ✓, C1 API ✓, C2 ✓, H1/H2/H3 baselines ✓, E1 design ✓,
+wallet rebrand merged to wallet `main` ✓, portal Nemo branding ✓):
+**A1 Phase 0** (fold wallet BFF into monorepo) → **E1 v1 implementation**
+(decision library + decision_log + overdraft shadow, per 05 design) →
+D3 migration gating → A2 eKYC API skeleton → live-cluster chart install test.
