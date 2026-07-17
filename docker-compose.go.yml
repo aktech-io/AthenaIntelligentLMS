@@ -530,13 +530,13 @@ services:
       DB_HOST: postgres
       DB_NAME: athena_mobile_gateway
       SERVICE_NAME: go-bff-gateway
-      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      OVERDRAFT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      PRODUCT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      LOAN_ORIGINATION_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      LOAN_MANAGEMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      AI_SCORING_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      ACCOUNT_SERVICE_URL: http://go-account-service:8086
+      OVERDRAFT_SERVICE_URL: http://go-overdraft-service:8097
+      PAYMENT_SERVICE_URL: http://go-payment-service:8090
+      PRODUCT_SERVICE_URL: http://go-product-service:8087
+      LOAN_ORIGINATION_SERVICE_URL: http://go-loan-origination-service:8088
+      LOAN_MANAGEMENT_SERVICE_URL: http://go-loan-management-service:8089
+      AI_SCORING_SERVICE_URL: http://go-ai-scoring-service:8096
       # A2 onboarding: direct service URLs — the public lms-api-gateway strips
       # X-Service-Key headers (CRIT-1), so service-key calls must not transit it.
       COMPLIANCE_SERVICE_URL: "http://go-compliance-service:8094"
@@ -595,8 +595,8 @@ services:
       DB_HOST: postgres
       DB_NAME: athena_billpay_savings
       SERVICE_NAME: go-bff-billpay-savings
-      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      ACCOUNT_SERVICE_URL: http://go-account-service:8086
+      PAYMENT_SERVICE_URL: http://go-payment-service:8090
     depends_on:
       postgres:
         condition: service_healthy
@@ -623,10 +623,10 @@ services:
       DB_HOST: postgres
       DB_NAME: athena_shop
       SERVICE_NAME: go-bff-shop
-      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      LOAN_ORIGINATION_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      AI_SCORING_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      ACCOUNT_SERVICE_URL: http://go-account-service:8086
+      PAYMENT_SERVICE_URL: http://go-payment-service:8090
+      LOAN_ORIGINATION_SERVICE_URL: http://go-loan-origination-service:8088
+      AI_SCORING_SERVICE_URL: http://go-ai-scoring-service:8096
     depends_on:
       postgres:
         condition: service_healthy
