@@ -2,6 +2,7 @@ package model
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -23,6 +24,7 @@ type ScoreBand string
 
 const (
 	ScoreBandExcellent ScoreBand = "EXCELLENT"
+	ScoreBandVeryGood  ScoreBand = "VERY_GOOD"
 	ScoreBandGood      ScoreBand = "GOOD"
 	ScoreBandFair      ScoreBand = "FAIR"
 	ScoreBandMarginal  ScoreBand = "MARGINAL"
@@ -30,28 +32,36 @@ const (
 )
 
 // ScoreBandLabel returns the score range label for a band.
+// Ranges match the NemoScore PDO band thresholds (see docs/nemoscore-api.yaml).
 func ScoreBandLabel(band ScoreBand) string {
 	switch band {
 	case ScoreBandExcellent:
-		return "750-850"
+		return "780-850"
+	case ScoreBandVeryGood:
+		return "720-779"
 	case ScoreBandGood:
-		return "670-749"
+		return "680-719"
 	case ScoreBandFair:
-		return "580-669"
+		return "640-679"
 	case ScoreBandMarginal:
-		return "500-579"
+		return "600-639"
 	case ScoreBandPoor:
-		return "300-499"
+		return "300-599"
 	default:
-		return "300-499"
+		return "300-599"
 	}
 }
 
-// ScoreBandFromString parses a string into a ScoreBand, defaulting to POOR.
+// ScoreBandFromString parses a band string into a ScoreBand, defaulting to POOR.
+// Accepts both canonical enum values ("VERY_GOOD") and the scoring engine's
+// display labels ("Very Good") case-insensitively.
 func ScoreBandFromString(band string) ScoreBand {
-	switch band {
+	normalized := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(band), " ", "_"))
+	switch normalized {
 	case "EXCELLENT":
 		return ScoreBandExcellent
+	case "VERY_GOOD":
+		return ScoreBandVeryGood
 	case "GOOD":
 		return ScoreBandGood
 	case "FAIR":
@@ -154,6 +164,10 @@ type ExternalScoreResponse struct {
 	LlmProvider     string          `json:"llm_provider"`
 	LlmModel        string          `json:"llm_model"`
 	ScoredAt        string          `json:"scored_at"`
+	Status          string          `json:"status"`           // SCORED | INSUFFICIENT_DATA (empty = legacy SCORED)
+	DataSufficiency string          `json:"data_sufficiency"` // FULL | PARTIAL | INSUFFICIENT
+	PdSource        string          `json:"pd_source"`        // lgbm:<alias> | scorecard
+	ModelVersion    string          `json:"model_version"`
 }
 
 // FlexibleCustomerID parses a customer ID from a string.

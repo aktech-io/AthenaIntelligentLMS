@@ -89,6 +89,24 @@ func (s *Service) TriggerScoring(ctx context.Context, loanApplicationID string, 
 		return
 	}
 
+	if score.Status == "INSUFFICIENT_DATA" {
+		req.Status = model.ScoringStatusSkipped
+		msg := "insufficient data for automated scoring — route to manual review"
+		req.ErrorMessage = &msg
+		if err := s.repo.UpdateRequest(ctx, req); err != nil {
+			s.logger.Error("Failed to update request to SKIPPED", zap.Error(err))
+		}
+		s.logger.Warn("Scoring SKIPPED: insufficient data",
+			zap.String("loanApplicationId", loanApplicationID),
+			zap.Int64("customerId", customerID),
+			zap.String("dataSufficiency", score.DataSufficiency))
+		return
+	}
+
+	// Normalize the band to the canonical enum before persisting/publishing
+	// (the engine emits display labels like "Very Good").
+	score.ScoreBand = string(model.ScoreBandFromString(score.ScoreBand))
+
 	reasoningJSON := serializeToJSON(score.Reasoning)
 	rawResponseJSON := serializeToJSON(score)
 

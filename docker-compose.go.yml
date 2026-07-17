@@ -327,6 +327,10 @@ services:
       DB_NAME: athena_scoring
       SERVICE_NAME: go-ai-scoring-service
       RABBITMQ_CONSUME_ENABLED: "true"
+      # NemoScore scoring engine via Kong (key-auth + rate limiting).
+      # No mock fallback: if this is unreachable, scoring requests FAIL closed.
+      SCORING_API_URL: "http://kong:8000"
+      SCORING_API_KEY: ${SCORING_API_KEY:-dev-key}
     depends_on:
       postgres:
         condition: service_healthy

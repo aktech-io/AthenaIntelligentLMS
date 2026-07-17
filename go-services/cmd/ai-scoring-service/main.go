@@ -95,9 +95,11 @@ func main() {
 	}
 
 	// Wire up scoring components
-	scoringBaseURL := envStr("SCORING_API_URL", "http://localhost:8200")
+	// NemoScore is reached through Kong so key-auth and rate limits apply.
+	scoringBaseURL := envStr("SCORING_API_URL", "http://kong:8000")
+	scoringAPIKey := envStr("SCORING_API_KEY", "dev-key")
 	repo := repository.New(pool)
-	extClient := scoringclient.NewAthenaScoreClient(scoringBaseURL, logger)
+	extClient := scoringclient.NewAthenaScoreClient(scoringBaseURL, scoringAPIKey, logger)
 	evtPublisher := scoringevent.NewPublisher(pub, logger)
 	svc := service.New(repo, extClient, evtPublisher, logger)
 	h := handler.New(svc, logger)
