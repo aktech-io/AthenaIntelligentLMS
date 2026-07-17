@@ -96,3 +96,27 @@ portal:
   enabled: false               # back-office UI; needs a built nginx image
   image: ""                    # defaults to <registry>/nemo-portal:<tag>
   port: 80
+
+# Observability in the box (H1/H2/H3): Prometheus scrapes every annotated pod
+# in the release namespace and evaluates the Nemo business alert pack;
+# Grafana ships with the money-path dashboard provisioned.
+observability:
+  prometheus:
+    enabled: true
+    image: prom/prometheus:v2.53.0
+    retention: 15d
+    scrapeInterval: 30s
+    storage: ""                # empty = emptyDir (demo); set e.g. 20Gi for a PVC
+  alertmanager:
+    enabled: false             # enable once a receiver is configured
+    image: prom/alertmanager:v0.27.0
+    # Raw alertmanager.yml content; default routes everything to a black hole.
+    config: |
+      route:
+        receiver: default
+      receivers:
+        - name: default
+  grafana:
+    enabled: true
+    image: grafana/grafana:11.1.0
+    adminPassword: nemo-admin  # demo only; override in production

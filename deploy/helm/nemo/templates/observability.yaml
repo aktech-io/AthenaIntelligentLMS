@@ -1,0 +1,285 @@
+{{- $obs := .Values.observability }}
+{{- if $obs.prometheus.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nemo-prometheus
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nemo-prometheus
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nemo-prometheus
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nemo-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: nemo-prometheus
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-prometheus-config
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ $obs.prometheus.scrapeInterval }}
+      evaluation_interval: {{ $obs.prometheus.scrapeInterval }}
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+    {{- if $obs.alertmanager.enabled }}
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["nemo-alertmanager:9093"]
+    {{- end }}
+    scrape_configs:
+      # Every pod in the release namespace carrying prometheus.io/scrape=true —
+      # all Nemo services annotate themselves (see services.yaml).
+      - job_name: nemo-pods
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: job
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-prometheus-rules
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  nemo-business-alerts.yaml: |
+{{ .Files.Get "files/nemo-business-alerts.yaml" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-prometheus
+  labels:
+    app: nemo-prometheus
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-prometheus
+  template:
+    metadata:
+      labels:
+        app: nemo-prometheus
+        {{- include "nemo.labels" . | nindent 8 }}
+      annotations:
+        # Restart Prometheus when scrape config or the rules pack change.
+        checksum/config: {{ print ($obs | toYaml) (.Files.Get "files/nemo-business-alerts.yaml") | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: nemo-prometheus
+      containers:
+        - name: prometheus
+          image: {{ $obs.prometheus.image }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ $obs.prometheus.retention }}
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - {name: config, mountPath: /etc/prometheus}
+            - {name: rules, mountPath: /etc/prometheus/rules}
+            - {name: data, mountPath: /prometheus}
+          readinessProbe:
+            httpGet: {path: /-/ready, port: 9090}
+            initialDelaySeconds: 5
+      volumes:
+        - name: config
+          configMap: {name: nemo-prometheus-config}
+        - name: rules
+          configMap: {name: nemo-prometheus-rules}
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-prometheus
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-prometheus
+  ports:
+    - port: 9090
+{{- end }}
+{{- if $obs.alertmanager.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-alertmanager-config
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  alertmanager.yml: |
+{{ $obs.alertmanager.config | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-alertmanager
+  labels:
+    app: nemo-alertmanager
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-alertmanager
+  template:
+    metadata:
+      labels:
+        app: nemo-alertmanager
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: alertmanager
+          image: {{ $obs.alertmanager.image }}
+          args: [--config.file=/etc/alertmanager/alertmanager.yml]
+          ports:
+            - containerPort: 9093
+          volumeMounts:
+            - {name: config, mountPath: /etc/alertmanager}
+      volumes:
+        - name: config
+          configMap: {name: nemo-alertmanager-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-alertmanager
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-alertmanager
+  ports:
+    - port: 9093
+{{- end }}
+{{- if $obs.grafana.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-grafana-provisioning
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: nemo-prometheus
+        type: prometheus
+        access: proxy
+        url: http://nemo-prometheus:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: nemo
+        folder: Nemo
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-grafana-dashboards
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  nemo-money-paths.json: |
+{{ .Files.Get "files/grafana-dashboard-nemo.json" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-grafana
+  labels:
+    app: nemo-grafana
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-grafana
+  template:
+    metadata:
+      labels:
+        app: nemo-grafana
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: grafana
+          image: {{ $obs.grafana.image }}
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: {{ $obs.grafana.adminPassword | quote }}
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - {name: provisioning-ds, mountPath: /etc/grafana/provisioning/datasources}
+            - {name: provisioning-db, mountPath: /etc/grafana/provisioning/dashboards}
+            - {name: dashboards, mountPath: /var/lib/grafana/dashboards}
+          readinessProbe:
+            httpGet: {path: /api/health, port: 3000}
+            initialDelaySeconds: 10
+      volumes:
+        - name: provisioning-ds
+          configMap:
+            name: nemo-grafana-provisioning
+            items: [{key: datasource.yaml, path: datasource.yaml}]
+        - name: provisioning-db
+          configMap:
+            name: nemo-grafana-provisioning
+            items: [{key: dashboards.yaml, path: dashboards.yaml}]
+        - name: dashboards
+          configMap: {name: nemo-grafana-dashboards}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-grafana
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-grafana
+  ports:
+    - port: 3000
+{{- end }}
