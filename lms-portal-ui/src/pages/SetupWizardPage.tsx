@@ -56,8 +56,8 @@ export default function SetupWizardPage() {
   const [saving, setSaving] = useState(false);
 
   // Step 1 form fields
-  const [legalName, setLegalName] = useState("AthenaLMS Kenya Ltd");
-  const [tradingName, setTradingName] = useState("AthenaLMS");
+  const [legalName, setLegalName] = useState("Nemo Kenya Ltd");
+  const [tradingName, setTradingName] = useState("Nemo");
   const [regNumber, setRegNumber] = useState("CPR/2018/123456");
   const [taxId, setTaxId] = useState("P051234567Z");
   const [institutionType, setInstitutionType] = useState("digital");
@@ -200,7 +200,7 @@ export default function SetupWizardPage() {
         timezone: country?.timezone || "Africa/Nairobi",
       });
       localStorage.setItem("athena_setup_complete", "true");
-      toast({ title: "Institution activated", description: "Setup is complete. Welcome to AthenaLMS!" });
+      toast({ title: "Institution activated", description: "Setup is complete. Welcome to Nemo!" });
     } catch {
       // handled by mutation
     } finally {
@@ -209,7 +209,7 @@ export default function SetupWizardPage() {
   };
 
   return (
-    <DashboardLayout title="Setup Wizard" subtitle="Configure your AthenaLMS institution">
+    <DashboardLayout title="Setup Wizard" subtitle="Configure your Nemo institution">
       <div className="flex gap-6">
         {/* Step sidebar */}
         <div className="w-60 shrink-0">
@@ -250,11 +250,11 @@ export default function SetupWizardPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Legal Name</Label>
-                    <Input value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="AthenaLMS Kenya Ltd" />
+                    <Input value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="Nemo Kenya Ltd" />
                   </div>
                   <div className="space-y-2">
                     <Label>Trading Name</Label>
-                    <Input value={tradingName} onChange={(e) => setTradingName(e.target.value)} placeholder="AthenaLMS" />
+                    <Input value={tradingName} onChange={(e) => setTradingName(e.target.value)} placeholder="Nemo" />
                   </div>
                   <div className="space-y-2">
                     <Label>Registration Number</Label>

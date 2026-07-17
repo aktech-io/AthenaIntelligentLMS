@@ -1,3 +1,4 @@
+import { NemoMark } from "@/components/NemoMark";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -63,12 +64,10 @@ const LoginPage = () => {
       >
         {/* Logo & Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 rounded-2xl bg-accent items-center justify-center mb-4 shadow-lg shadow-accent/20">
-            <span className="font-heading font-bold text-accent-foreground text-2xl">A</span>
-          </div>
-          <h1 className="font-heading text-3xl text-white">AthenaLMS</h1>
+          <NemoMark className="inline-flex h-16 w-16 mb-4 rounded-2xl shadow-lg shadow-accent/20" />
+          <h1 className="font-heading text-3xl text-white">Nemo</h1>
           <p className="text-sm text-white/50 mt-1 font-sans uppercase tracking-widest">
-            Lending Platform
+            Neobank in a Box
           </p>
         </div>
 
@@ -217,7 +216,7 @@ const LoginPage = () => {
         </Card>
 
         <p className="text-center text-[10px] text-white/30 mt-6 font-sans">
-          © 2026 AthenaLMS. All rights reserved.
+          © 2026 Nemo. All rights reserved.
         </p>
       </motion.div>
     </div>

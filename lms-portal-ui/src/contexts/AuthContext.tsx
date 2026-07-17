@@ -207,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge,
-          rp: { name: "AthenaLMS", id: window.location.hostname },
+          rp: { name: "Nemo", id: window.location.hostname },
           user: {
             id: new TextEncoder().encode(user.id),
             name: user.email,

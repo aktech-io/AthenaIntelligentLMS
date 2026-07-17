@@ -230,7 +230,7 @@ function SendTestTab() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="subject" className="text-xs">Subject</Label>
-          <Input id="subject" className="h-8 text-xs" placeholder="Test notification from Athena LMS"
+          <Input id="subject" className="h-8 text-xs" placeholder="Test notification from Nemo"
             value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} />
         </div>
         <div className="space-y-1.5">

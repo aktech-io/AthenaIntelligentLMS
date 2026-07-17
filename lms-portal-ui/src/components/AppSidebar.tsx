@@ -1,3 +1,4 @@
+import { NemoMark } from "@/components/NemoMark";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -251,16 +252,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-accent flex items-center justify-center shrink-0">
-            <span className="font-heading font-bold text-accent-foreground text-base">A</span>
-          </div>
+          <NemoMark className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div>
               <h2 className="font-heading text-sidebar-accent-foreground text-base tracking-wide">
-                AthenaLMS
+                Nemo
               </h2>
               <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest font-sans">
-                Lending Platform
+                Neobank in a Box
               </p>
             </div>
           )}
