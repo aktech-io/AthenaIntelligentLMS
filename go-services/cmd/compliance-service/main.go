@@ -100,6 +100,9 @@ func main() {
 
 	// Self-service eKYC onboarding (A2): provider from EKYC_PROVIDER
 	// (default sandbox); risk-tiered auto-approve with officer referrals.
+	// The in-house engine (ekyc-ml-service) registers here; it fails closed
+	// at Verify time if EKYC_ML_SERVICE_URL / MEDIA_SERVICE_URL are unset.
+	ekyc.Register(ekyc.NewInhouseFromEnv())
 	ekycProvider, err := ekyc.FromEnv()
 	if err != nil {
 		logger.Fatal("Failed to resolve eKYC provider", zap.Error(err))

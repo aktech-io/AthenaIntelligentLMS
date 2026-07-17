@@ -273,10 +273,18 @@ services:
       DB_NAME: athena_compliance
       SERVICE_NAME: go-compliance-service
       RABBITMQ_CONSUME_ENABLED: "true"
+      # A2 in-house eKYC: provider "inhouse" fetches media bytes and calls the
+      # ekyc-ml-service engine; override EKYC_PROVIDER=sandbox for demos
+      # without the ML sidecar, or a vendor name once an adapter registers.
+      EKYC_PROVIDER: "${EKYC_PROVIDER:-inhouse}"
+      EKYC_ML_SERVICE_URL: "http://ekyc-ml-service:8102"
+      MEDIA_SERVICE_URL: "http://go-media-service:8098"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      ekyc-ml-service:
         condition: service_healthy
     networks: [athena-net]
     healthcheck:
@@ -420,6 +428,19 @@ services:
       interval: 20s
       timeout: 10s
       start_period: 45s
+      retries: 3
+
+  # ─── eKYC ML Service (Python sidecar — OCR/MRZ, face match, screening) ─────
+  ekyc-ml-service:
+    build:
+      context: ./ekyc-ml-service
+    ports: ["28102:8102"]
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8102/health\")' || exit 1"]
+      interval: 20s
+      timeout: 10s
+      start_period: 30s
       retries: 3
 
   go-fraud-detection-service:
