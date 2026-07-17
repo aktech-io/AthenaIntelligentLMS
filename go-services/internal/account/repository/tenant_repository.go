@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -137,4 +138,32 @@ func (r *Repository) UpdateTenantStatus(ctx context.Context, id string, status m
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+// GetTenantBrand returns the tenant's brand pack JSON, (nil, nil) when the
+// tenant exists but has no brand, and pgx.ErrNoRows mapped to (nil, nil,
+// false) semantics via found.
+func (r *Repository) GetTenantBrand(ctx context.Context, id string) (raw []byte, found bool, err error) {
+	err = r.pool.QueryRow(ctx,
+		`SELECT brand FROM tenants WHERE id = $1`, id).Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("get tenant brand: %w", err)
+	}
+	return raw, true, nil
+}
+
+// SetTenantBrand stores the tenant's brand pack JSON.
+func (r *Repository) SetTenantBrand(ctx context.Context, id string, raw []byte) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE tenants SET brand = $1, updated_at = NOW() WHERE id = $2`, raw, id)
+	if err != nil {
+		return fmt.Errorf("set tenant brand: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }

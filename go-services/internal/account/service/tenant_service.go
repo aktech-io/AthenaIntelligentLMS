@@ -3,9 +3,14 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
+	errors2 "errors"
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -27,6 +32,8 @@ type TenantRepository interface {
 	ListTenants(ctx context.Context) ([]*model.Tenant, error)
 	ProvisionTenant(ctx context.Context, t *model.Tenant, s *model.TenantSettings, u *model.User, passwordHash string, evt *commonevent.DomainEvent) error
 	UpdateTenantStatus(ctx context.Context, id string, status model.TenantStatus, evt *commonevent.DomainEvent) error
+	GetTenantBrand(ctx context.Context, id string) (raw []byte, found bool, err error)
+	SetTenantBrand(ctx context.Context, id string, raw []byte) error
 }
 
 // TenantService implements tenant provisioning (Nemo gap C1): the "create
@@ -297,4 +304,44 @@ func generateOneTimePassword() (string, error) {
 		out[i] = otpAlphabet[n.Int64()]
 	}
 	return string(out), nil
+}
+
+// GetBrand returns the tenant's brand pack, falling back to the platform
+// default (Nemo deep-water) when the tenant has none. The tenant must exist.
+func (s *TenantService) GetBrand(ctx context.Context, tenantID string) (*model.BrandPack, error) {
+	raw, found, err := s.repo.GetTenantBrand(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, errors.NotFoundResource("Tenant", tenantID)
+	}
+	if len(raw) == 0 {
+		def := model.DefaultBrand()
+		return &def, nil
+	}
+	var b model.BrandPack
+	if err := json.Unmarshal(raw, &b); err != nil {
+		return nil, fmt.Errorf("stored brand pack is corrupt for tenant %s: %w", tenantID, err)
+	}
+	return &b, nil
+}
+
+// SetBrand validates and stores the tenant's brand pack.
+func (s *TenantService) SetBrand(ctx context.Context, tenantID string, b model.BrandPack) (*model.BrandPack, error) {
+	if err := b.Validate(); err != nil {
+		return nil, errors.BadRequest(err.Error())
+	}
+	raw, err := json.Marshal(b)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.SetTenantBrand(ctx, tenantID, raw); err != nil {
+		if errors2.Is(err, pgx.ErrNoRows) {
+			return nil, errors.NotFoundResource("Tenant", tenantID)
+		}
+		return nil, err
+	}
+	s.logger.Info("Brand pack updated", zap.String("tenant", tenantID))
+	return &b, nil
 }

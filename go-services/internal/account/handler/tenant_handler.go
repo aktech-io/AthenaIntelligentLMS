@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+
+	"github.com/athena-lms/go-services/internal/account/model"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -29,12 +31,18 @@ func NewTenantHandler(svc *service.TenantService, logger *zap.Logger) *TenantHan
 // admin authorisation middleware (auth.RequirePermission("tenant.manage", "ADMIN")).
 func (h *TenantHandler) RegisterRoutes(r chi.Router, gate func(http.Handler) http.Handler) {
 	r.Route("/api/v1/tenants", func(r chi.Router) {
-		r.Use(gate)
-		r.Get("/", h.list)
-		r.Post("/", h.create)
-		r.Get("/{id}", h.get)
-		r.Post("/{id}/activate", h.activate)
-		r.Post("/{id}/suspend", h.suspend)
+		// Brand pack read is deliberately outside the tenant.manage gate:
+		// the portal and the mobile BFF fetch it to theme themselves.
+		r.Get("/{id}/brand", h.getBrand)
+		r.Group(func(r chi.Router) {
+			r.Use(gate)
+			r.Get("/", h.list)
+			r.Post("/", h.create)
+			r.Get("/{id}", h.get)
+			r.Post("/{id}/activate", h.activate)
+			r.Post("/{id}/suspend", h.suspend)
+			r.Put("/{id}/brand", h.putBrand)
+		})
 	})
 }
 
@@ -100,4 +108,31 @@ func (h *TenantHandler) handleError(w http.ResponseWriter, r *http.Request, err 
 		h.logger.Error("Tenant registry error", zap.Error(err), zap.String("path", r.URL.Path))
 		httputil.WriteInternalError(w, "An unexpected error occurred", r.URL.Path)
 	}
+}
+
+// getBrand handles GET /api/v1/tenants/{id}/brand — readable by any
+// authenticated caller (portal, BFF via service key): the app needs its
+// theme before any staff privilege exists.
+func (h *TenantHandler) getBrand(w http.ResponseWriter, r *http.Request) {
+	b, err := h.svc.GetBrand(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, b)
+}
+
+// putBrand handles PUT /api/v1/tenants/{id}/brand (tenant.manage gated).
+func (h *TenantHandler) putBrand(w http.ResponseWriter, r *http.Request) {
+	var b model.BrandPack
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		httputil.WriteBadRequest(w, "Invalid request body", r.URL.Path)
+		return
+	}
+	stored, err := h.svc.SetBrand(r.Context(), chi.URLParam(r, "id"), b)
+	if err != nil {
+		h.handleError(w, r, err)
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, stored)
 }

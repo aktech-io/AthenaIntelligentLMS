@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
@@ -19,6 +20,7 @@ type fakeTenantRepo struct {
 	users      map[string]*model.User
 	hashes     map[string]string
 	events     []*commonevent.DomainEvent
+	brands     map[string][]byte
 	provisionN int
 }
 
@@ -29,6 +31,25 @@ func newFakeTenantRepo() *fakeTenantRepo {
 		users:    map[string]*model.User{},
 		hashes:   map[string]string{},
 	}
+}
+
+func (f *fakeTenantRepo) GetTenantBrand(_ context.Context, id string) ([]byte, bool, error) {
+	t, ok := f.tenants[id]
+	if !ok || t == nil {
+		return nil, false, nil
+	}
+	return f.brands[id], true, nil
+}
+
+func (f *fakeTenantRepo) SetTenantBrand(_ context.Context, id string, raw []byte) error {
+	if _, ok := f.tenants[id]; !ok {
+		return pgx.ErrNoRows
+	}
+	if f.brands == nil {
+		f.brands = map[string][]byte{}
+	}
+	f.brands[id] = raw
+	return nil
 }
 
 func (f *fakeTenantRepo) GetTenant(_ context.Context, id string) (*model.Tenant, error) {
@@ -272,5 +293,55 @@ func assertBusinessStatus(t *testing.T, err error, status int) {
 	}
 	if be.StatusCode != status {
 		t.Fatalf("want status %d, got %d (%s)", status, be.StatusCode, be.Message)
+	}
+}
+
+func TestBrandPackDefaultAndRoundTrip(t *testing.T) {
+	f := newFakeTenantRepo()
+	svc := newTenantSvc(f)
+	if _, err := svc.Provision(context.Background(), validReq()); err != nil {
+		t.Fatal(err)
+	}
+	const fixtureTenantID = "acme-bank"
+
+	// Unknown tenant → not found.
+	if _, err := svc.GetBrand(context.Background(), "ghost"); err == nil {
+		t.Error("GetBrand for unknown tenant must fail")
+	}
+
+	// No brand set → platform default.
+	b, err := svc.GetBrand(context.Background(), fixtureTenantID)
+	if err != nil {
+		t.Fatalf("GetBrand: %v", err)
+	}
+	if b.AppName != "NemoWallet" || b.Colors["primary"] != "#FF6A3D" {
+		t.Errorf("default brand = %+v, want NemoWallet deep-water", b)
+	}
+
+	// Set + read back.
+	custom := model.BrandPack{AppName: "AcmeBank", Colors: map[string]string{"primary": "#123456"}}
+	if _, err := svc.SetBrand(context.Background(), fixtureTenantID, custom); err != nil {
+		t.Fatalf("SetBrand: %v", err)
+	}
+	got, err := svc.GetBrand(context.Background(), fixtureTenantID)
+	if err != nil {
+		t.Fatalf("GetBrand after set: %v", err)
+	}
+	if got.AppName != "AcmeBank" || got.Colors["primary"] != "#123456" {
+		t.Errorf("round-trip brand = %+v", got)
+	}
+
+	// Validation: bad hex and empty name rejected.
+	if _, err := svc.SetBrand(context.Background(), fixtureTenantID,
+		model.BrandPack{AppName: "X", Colors: map[string]string{"primary": "red"}}); err == nil {
+		t.Error("non-hex color must be rejected")
+	}
+	if _, err := svc.SetBrand(context.Background(), fixtureTenantID,
+		model.BrandPack{Colors: map[string]string{}}); err == nil {
+		t.Error("empty appName must be rejected")
+	}
+	// Unknown tenant on set → not found.
+	if _, err := svc.SetBrand(context.Background(), "ghost", custom); err == nil {
+		t.Error("SetBrand for unknown tenant must fail")
 	}
 }
