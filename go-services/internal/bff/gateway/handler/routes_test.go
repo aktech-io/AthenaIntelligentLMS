@@ -33,6 +33,7 @@ func newRouter(t *testing.T) chi.Router {
 	NewTopUpHandler(nil).Routes(r, authMw.Handler)
 	NewLoanHandler(nil).Routes(r, authMw.Handler)
 	NewOverdraftHandler(nil).Routes(r, authMw.Handler)
+	NewOnboardingHandler(nil).Routes(r)
 	return r
 }
 
@@ -78,6 +79,11 @@ func TestPublicAuthRoutesRegistered(t *testing.T) {
 		{http.MethodPost, "/api/v1/mobile/auth/otp/send"},
 		{http.MethodPost, "/api/v1/mobile/auth/otp/verify"},
 		{http.MethodPost, "/api/v1/mobile/auth/token/refresh"},
+		// A2 self-service eKYC onboarding — pre-auth by design (the applicant
+		// has no account yet).
+		{http.MethodPost, "/api/v1/mobile/onboarding"},
+		{http.MethodGet, "/api/v1/mobile/onboarding/{id}"},
+		{http.MethodPost, "/api/v1/mobile/onboarding/media"},
 	}
 	routes := walkRoutes(t, r)
 	for _, tc := range public {

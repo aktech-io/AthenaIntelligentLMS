@@ -113,6 +113,10 @@ func main() {
 	productClient := client.NewProductClient(cfg.ProductServiceURL, cfg.InternalServiceKey)
 	originationClient := client.NewLoanOriginationClient(cfg.LoanOriginationServiceURL, cfg.InternalServiceKey)
 	managementClient := client.NewLoanManagementClient(cfg.LoanManagementServiceURL, cfg.InternalServiceKey)
+	// A2 self-service eKYC onboarding: compliance + media are called directly
+	// (the public lms-api-gateway strips service-auth headers — CRIT-1).
+	complianceClient := client.NewComplianceClient(cfg.ComplianceServiceURL, cfg.InternalServiceKey)
+	mediaClient := client.NewMediaClient(cfg.MediaServiceURL, cfg.InternalServiceKey)
 
 	// Services
 	authSvc := service.NewAuthService(cfg, userRepo, otpRepo, tokenRepo, deviceRepo, jwtUtil, notifClient, eventPublisher)
@@ -123,6 +127,7 @@ func main() {
 	topUpSvc := service.NewTopUpService(paymentClient, accountClient)
 	loanSvc := service.NewLoanProxyService(productClient, originationClient, managementClient, authSvc)
 	overdraftSvc := service.NewOverdraftProxyService(overdraftClient, authSvc)
+	onboardingSvc := service.NewOnboardingService(complianceClient, mediaClient)
 
 	// Router
 	r := chi.NewRouter()
@@ -142,6 +147,7 @@ func main() {
 	handler.NewTopUpHandler(topUpSvc).Routes(r, authMw.Handler)
 	handler.NewLoanHandler(loanSvc).Routes(r, authMw.Handler)
 	handler.NewOverdraftHandler(overdraftSvc).Routes(r, authMw.Handler)
+	handler.NewOnboardingHandler(onboardingSvc).Routes(r)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),

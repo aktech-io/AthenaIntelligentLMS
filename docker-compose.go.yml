@@ -537,7 +537,10 @@ services:
       LOAN_ORIGINATION_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
       LOAN_MANAGEMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
       AI_SCORING_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
-      COMPLIANCE_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      # A2 onboarding: direct service URLs — the public lms-api-gateway strips
+      # X-Service-Key headers (CRIT-1), so service-key calls must not transit it.
+      COMPLIANCE_SERVICE_URL: "http://go-compliance-service:8094"
+      MEDIA_SERVICE_URL: "http://go-media-service:8098"
       NOTIFICATION_SERVICE_URL: "http://go-bff-notification:8111"
     depends_on:
       postgres:
