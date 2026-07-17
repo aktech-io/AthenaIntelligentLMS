@@ -141,6 +141,12 @@ The platform becomes *installable, configurable Nemo* rather than "our LMS deplo
 - **D1** Helm umbrella chart — one-command full-platform install
 - **C1** Tenant provisioning API + minimal console ("create neobank" end-to-end to sandbox)
 - **C2** Market-pack skeleton; extract Kenya hardcoding into the first pack (unblocks Ethiopia)
+  — *started July 2026*: `go-services/internal/common/market` ships packs-as-YAML
+  (embedded `KE` pack; `MARKET_PACK`/`MARKET_PACK_DIR` env selection). Currency, timezone,
+  support contacts and regulatory-profile seeding now read the pack — zero `"KES"`/Nairobi
+  hardcodes left outside tests. Remaining: consume rails/bureau/KYC/tax ids from the pack
+  as those frameworks land (G1/G3/A2), per-tenant pack override, holiday-calendar use in
+  schedulers.
 - **H1/H2/H3** Observability: OTel tracing, business-metric exporters (GL balance, event lag, payment success), Alertmanager with a starter SLO/alert pack
 - **A2** Self-service onboarding APIs (eKYC vendor integration, risk-tiered auto-approve)
 - **E1** Decision-engine spine v1: route existing credit + fraud scoring through one logged, explainable policy layer

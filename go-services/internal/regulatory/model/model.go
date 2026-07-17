@@ -167,7 +167,9 @@ func DefaultReportSetFor(lt LicenseType) []ReportCode {
 	return base
 }
 
-// Default profile field values seeded for a new tenant.
+// Legacy fallback profile values. Seeding now reads the active market pack
+// (internal/common/market); these remain as the last-resort defaults when a
+// pack omits a value.
 const (
 	DefaultCountry           = "KE"
 	DefaultReportingCurrency = "KES"

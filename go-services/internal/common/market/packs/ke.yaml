@@ -1,0 +1,45 @@
+# Kenya — the first market pack. Formerly the platform hardcode.
+code: KE
+name: Kenya
+currency: KES
+timezone: Africa/Nairobi
+locale: en-KE
+phonePrefix: "+254"
+
+support:
+  phone: "+254 700 000 000"
+  email: support@athena.co.ke
+
+regulatory:
+  regulator: CBK
+  defaultLicenseType: DCP
+  provisioningKey: CBK_PG_04
+  reportingCurrency: KES
+
+# Connector/rule-set ids — skeleton entries consumed as the pluggable
+# frameworks land (gaps G1/G3, A2, C2 tax rules).
+rails:
+  - mpesa
+  - pesalink
+creditBureaus:
+  - METROPOL
+  - TRANSUNION
+  - CREDITINFO
+kycRuleSet: ke-poca-2009
+taxRuleSet: ke-kra
+
+holidays:
+  - { name: "New Year's Day", monthDay: "01-01" }
+  - { name: "Labour Day", monthDay: "05-01" }
+  - { name: "Madaraka Day", monthDay: "06-01" }
+  - { name: "Mazingira Day", monthDay: "10-10" }
+  - { name: "Mashujaa Day", monthDay: "10-20" }
+  - { name: "Jamhuri Day", monthDay: "12-12" }
+  - { name: "Christmas Day", monthDay: "12-25" }
+  - { name: "Boxing Day", monthDay: "12-26" }
+  - name: "Good Friday"
+    dates: ["2026-04-03", "2027-03-26"]
+  - name: "Easter Monday"
+    dates: ["2026-04-06", "2027-03-29"]
+  - name: "Idd-ul-Fitr"
+    dates: ["2026-03-20", "2027-03-10"]

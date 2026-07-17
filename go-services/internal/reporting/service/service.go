@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"strings"
 	"time"
 
@@ -58,7 +59,7 @@ func (s *Service) RecordEvent(ctx context.Context, eventType string, payload map
 		SubjectID:     subjectID,
 		CustomerID:    customerID,
 		Amount:        amount,
-		Currency:      "KES",
+		Currency:      market.Currency(),
 		Payload:       payloadJSON,
 	}
 

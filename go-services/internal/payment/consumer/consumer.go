@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,7 +110,7 @@ func (c *Consumer) onLoanDisbursed(ctx context.Context, evt *event.DomainEvent) 
 
 	currency := getStr(payload, "currency")
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 
 	tenantID := evt.TenantID

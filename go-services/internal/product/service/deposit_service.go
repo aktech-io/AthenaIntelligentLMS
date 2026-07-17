@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/athena-lms/go-services/internal/common/market"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -44,7 +45,7 @@ func (s *DepositService) CreateDepositProduct(ctx context.Context, req model.Cre
 		return nil, &ConflictError{Msg: "deposit product with code " + req.ProductCode + " already exists"}
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != nil {
 		currency = *req.Currency
 	}

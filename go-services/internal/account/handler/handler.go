@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"net/http"
 	"strconv"
 	"strings"
@@ -623,8 +624,8 @@ func (h *Handler) GetOrgSettings(w http.ResponseWriter, r *http.Request) {
 		// If not found, return defaults
 		settings = &model.TenantSettings{
 			TenantID:              tenantID,
-			Currency:              "KES",
-			Timezone:              "Africa/Nairobi",
+			Currency:              market.Currency(),
+			Timezone:              market.Timezone(),
 			SessionTimeoutMinutes: 30,
 			AuditTrailEnabled:     true,
 		}
@@ -654,8 +655,8 @@ func (h *Handler) UpdateOrgSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		settings = &model.TenantSettings{
 			TenantID:              tenantID,
-			Currency:              "KES",
-			Timezone:              "Africa/Nairobi",
+			Currency:              market.Currency(),
+			Timezone:              market.Timezone(),
 			SessionTimeoutMinutes: 30,
 			AuditTrailEnabled:     true,
 		}

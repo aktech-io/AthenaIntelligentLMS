@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,7 +70,7 @@ func (s *Service) Create(ctx context.Context, req model.CreateApplicationRequest
 
 	currency := req.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 	depositAmount := decimal.Zero
 	if req.DepositAmount != nil {
@@ -464,7 +465,7 @@ func (s *Service) AddCollateral(ctx context.Context, id uuid.UUID, req model.Add
 
 	currency := req.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 
 	collateral := &model.ApplicationCollateral{

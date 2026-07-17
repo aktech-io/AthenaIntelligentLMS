@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"regexp"
 	"strings"
 	"time"
@@ -62,7 +63,7 @@ func (s *Service) CreateAccount(ctx context.Context, req *model.CreateFloatAccou
 
 	currency := req.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 
 	account := &model.FloatAccount{
@@ -472,7 +473,7 @@ func (s *Service) autoCreateFloatAccount(ctx context.Context, tenantID string) (
 		TenantID:    tenantID,
 		AccountName: "Auto-created Float Account",
 		AccountCode: accountCode,
-		Currency:    "KES",
+		Currency:    market.Currency(),
 		FloatLimit:  defaultLimit,
 		DrawnAmount: decimal.Zero,
 		Status:      model.FloatAccountStatusActive,

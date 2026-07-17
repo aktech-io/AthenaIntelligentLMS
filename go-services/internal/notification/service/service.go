@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"net/smtp"
 	"strings"
 
@@ -204,8 +205,8 @@ func (s *Service) SendDisputeAcknowledgement(ctx context.Context, to, disputeID 
 			"Our team will review your dispute and respond within 5 working days in accordance "+
 			"with the Credit Reference Bureau Regulations, 2013.\n\n"+
 			"You can track the status of your dispute by logging into the Athena Customer Portal.\n\n"+
-			"Regards,\nAthena Credit Score Team\nsupport@athena.co.ke",
-		disputeID)
+			"Regards,\nAthena Credit Score Team\n%s",
+		disputeID, market.Current().Support.Email)
 	return s.SendEmail(ctx, "customer-service", to, subject, body)
 }
 
@@ -218,22 +219,23 @@ func (s *Service) SendScoreUpdateNotification(ctx context.Context, to string, sc
 			"New Score: %v / 850\n\n"+
 			"Log in to the Athena Customer Portal to view your full credit report "+
 			"and understand what factors influenced your score.\n\n"+
-			"Regards,\nAthena Credit Score Team\nsupport@athena.co.ke",
-		score)
+			"Regards,\nAthena Credit Score Team\n%s",
+		score, market.Current().Support.Email)
 	return s.SendEmail(ctx, "scoring-service", to, subject, body)
 }
 
 // SendConsentGrantedNotification sends a data consent confirmation email.
 func (s *Service) SendConsentGrantedNotification(ctx context.Context, to string, partnerID any) error {
 	subject := "Data Access Consent Confirmed — Athena"
+	support := market.Current().Support
 	body := fmt.Sprintf(
 		"Dear Valued Customer,\n\n"+
 			"You have successfully granted data access consent to partner: %v.\n\n"+
-			"If you did not authorise this, please contact us immediately at support@athena.co.ke "+
-			"or call +254 700 000 000.\n\n"+
+			"If you did not authorise this, please contact us immediately at %s "+
+			"or call %s.\n\n"+
 			"You can revoke consent at any time from the Athena Customer Portal.\n\n"+
 			"Regards,\nAthena Credit Score Team",
-		partnerID)
+		partnerID, support.Email, support.Phone)
 	return s.SendEmail(ctx, "customer-service", to, subject, body)
 }
 

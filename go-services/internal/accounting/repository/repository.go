@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -149,7 +150,7 @@ func (r *Repository) createJournalEntryTx(ctx context.Context, tx pgx.Tx, entry 
 		line.EntryID = entry.ID
 		line.TenantID = entry.TenantID
 		if line.Currency == "" {
-			line.Currency = "KES"
+			line.Currency = market.Currency()
 		}
 		_, err = tx.Exec(ctx,
 			`INSERT INTO journal_lines (id, entry_id, tenant_id, account_id, line_no, description, debit_amount, credit_amount, currency)

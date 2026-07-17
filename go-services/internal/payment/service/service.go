@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,7 +88,7 @@ func (s *Service) Initiate(ctx context.Context, req *model.InitiatePaymentReques
 
 	currency := req.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 
 	now := time.Now()

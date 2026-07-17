@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 
 	"go.uber.org/zap"
 
@@ -72,15 +73,30 @@ func (s *Service) GetOrCreateForTenant(ctx context.Context, tenantID string) (*m
 }
 
 func defaultProfile(tenantID string) *model.RegulatoryProfile {
+	// Seed defaults come from the active market pack; fall back to the
+	// legacy Kenya constants if the pack omits a value.
+	pack := market.Current()
+	provisioningKey := pack.Regulatory.ProvisioningKey
+	if !model.ValidProvisioningKey(provisioningKey) {
+		provisioningKey = model.DefaultProvisioningKey
+	}
+	reportingCurrency := pack.Regulatory.ReportingCurrency
+	if reportingCurrency == "" {
+		reportingCurrency = pack.Currency
+	}
+	licenseType := model.LicenseType(pack.Regulatory.DefaultLicenseType)
+	if !model.ValidLicenseType(string(licenseType)) {
+		licenseType = model.LicenseDCP
+	}
 	return &model.RegulatoryProfile{
 		TenantID:               tenantID,
-		LicenseType:            model.LicenseDCP,
-		Country:                model.DefaultCountry,
-		ReportingCurrency:      model.DefaultReportingCurrency,
-		ProvisioningTableKey:   model.DefaultProvisioningKey,
+		LicenseType:            licenseType,
+		Country:                pack.Code,
+		ReportingCurrency:      reportingCurrency,
+		ProvisioningTableKey:   provisioningKey,
 		CrbEnabled:             false,
 		CrbSubmissionFrequency: model.FrequencyMonthly,
-		ReportSet:              model.DefaultReportSetFor(model.LicenseDCP),
+		ReportSet:              model.DefaultReportSetFor(licenseType),
 		Active:                 true,
 	}
 }

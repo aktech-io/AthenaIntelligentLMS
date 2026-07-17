@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"math"
 	"time"
 
@@ -346,7 +347,7 @@ func (s *Service) CreateCharge(ctx context.Context, req model.CreateChargeReques
 		return nil, &BusinessError{Status: 400, Msg: err.Error()}
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != nil {
 		currency = *req.Currency
 	}
@@ -512,7 +513,7 @@ func (s *Service) CalculateCharge(ctx context.Context, transactionType string, a
 			TransactionType:   transactionType,
 			TransactionAmount: amount,
 			ChargeAmount:      decimal.Zero,
-			Currency:          "KES",
+			Currency:          market.Currency(),
 		}, nil
 	}
 
@@ -564,7 +565,7 @@ func (s *Service) buildProduct(req model.CreateProductRequest, tenantID, created
 		}
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != nil {
 		currency = *req.Currency
 	}

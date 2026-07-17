@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"math/big"
 	"strings"
 	"time"
@@ -73,7 +74,7 @@ func (s *AccountService) CreateAccount(ctx context.Context, req CreateAccountReq
 		return nil, fmt.Errorf("generate account number: %w", err)
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != "" {
 		currency = req.Currency
 	}

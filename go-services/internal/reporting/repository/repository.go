@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func (r *Repository) InsertEvent(ctx context.Context, e *model.ReportEvent) erro
 	}
 	e.CreatedAt = now
 	if e.Currency == "" {
-		e.Currency = "KES"
+		e.Currency = market.Currency()
 	}
 
 	_, err := r.pool.Exec(ctx,

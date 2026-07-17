@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"math/big"
 	"strings"
 	"time"
@@ -44,8 +45,8 @@ type OpenAccountRequest struct {
 	BranchID         *string          `json:"branchId"`
 	InitialDeposit   *decimal.Decimal `json:"initialDeposit"`
 	// Fixed deposit fields
-	TermDays         *int             `json:"termDays"`
-	AutoRenew        bool             `json:"autoRenew"`
+	TermDays             *int             `json:"termDays"`
+	AutoRenew            bool             `json:"autoRenew"`
 	InterestRateOverride *decimal.Decimal `json:"interestRateOverride"`
 }
 
@@ -63,7 +64,7 @@ func (s *AccountOpeningService) OpenAccount(ctx context.Context, req OpenAccount
 		return nil, fmt.Errorf("generate account number: %w", err)
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != "" {
 		currency = req.Currency
 	}

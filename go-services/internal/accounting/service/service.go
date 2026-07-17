@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"time"
 
 	"github.com/google/uuid"
@@ -184,7 +185,7 @@ func (s *AccountingService) PostEntry(ctx context.Context, req model.PostJournal
 	for i, lr := range req.Lines {
 		currency := lr.Currency
 		if currency == "" {
-			currency = "KES"
+			currency = defaultCurrency
 		}
 		entry.Lines = append(entry.Lines, model.JournalLine{
 			AccountID:    lr.AccountID,
@@ -264,7 +265,7 @@ func (s *AccountingService) GetBalance(ctx context.Context, accountID uuid.UUID,
 		AccountType: string(account.AccountType),
 		BalanceType: string(account.BalanceType),
 		Balance:     net,
-		Currency:    "KES",
+		Currency:    defaultCurrency,
 		PeriodYear:  year,
 		PeriodMonth: month,
 	}, nil
@@ -322,7 +323,7 @@ func (s *AccountingService) GetTrialBalance(ctx context.Context, tenantID string
 			AccountType: string(acc.AccountType),
 			BalanceType: string(acc.BalanceType),
 			Balance:     net.Abs(),
-			Currency:    "KES",
+			Currency:    defaultCurrency,
 			PeriodYear:  year,
 			PeriodMonth: month,
 		}
@@ -436,14 +437,14 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 	lineNo := 1
 	// Line 1: DR Cash - total received
 	entry.Lines = append(entry.Lines, model.JournalLine{
-		AccountID: cashAccount, LineNo: lineNo, DebitAmount: amount, CreditAmount: decimal.Zero, Currency: "KES",
+		AccountID: cashAccount, LineNo: lineNo, DebitAmount: amount, CreditAmount: decimal.Zero, Currency: defaultCurrency,
 	})
 	lineNo++
 
 	// Line 2: CR Loans Receivable - principal portion
 	if principal.GreaterThan(decimal.Zero) {
 		entry.Lines = append(entry.Lines, model.JournalLine{
-			AccountID: loansAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: principal, Currency: "KES",
+			AccountID: loansAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: principal, Currency: defaultCurrency,
 		})
 		lineNo++
 	}
@@ -455,7 +456,7 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 			return err
 		}
 		entry.Lines = append(entry.Lines, model.JournalLine{
-			AccountID: interestAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: interest, Currency: "KES",
+			AccountID: interestAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: interest, Currency: defaultCurrency,
 		})
 		lineNo++
 	}
@@ -467,7 +468,7 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 			return err
 		}
 		entry.Lines = append(entry.Lines, model.JournalLine{
-			AccountID: feeAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: fees, Currency: "KES",
+			AccountID: feeAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: fees, Currency: defaultCurrency,
 		})
 		lineNo++
 	}
@@ -479,7 +480,7 @@ func (s *AccountingService) PostRepayment(ctx context.Context, tenantID, payment
 			return err
 		}
 		entry.Lines = append(entry.Lines, model.JournalLine{
-			AccountID: penaltyAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: penalties, Currency: "KES",
+			AccountID: penaltyAccount, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: penalties, Currency: defaultCurrency,
 		})
 	}
 
@@ -1227,10 +1228,10 @@ func (s *AccountingService) buildSystemEntry(tenantID, reference, description, s
 		drAccountID, crAccountID, amount, defaultCurrency)
 }
 
-// defaultCurrency is the journal-line currency used when an event carries none.
-// (Full multi-currency support is out of scope; this mirrors the historical
-// hardcoded "KES" convention.)
-const defaultCurrency = "KES"
+// defaultCurrency is the journal-line currency used when an event carries
+// none. It comes from the active market pack (full multi-currency support is
+// out of scope; a deployment books in its market's currency).
+var defaultCurrency = market.Currency()
 
 // buildSystemEntryWithCurrency is buildSystemEntry with an explicit line
 // currency, used by handlers that receive a currency on the event payload.

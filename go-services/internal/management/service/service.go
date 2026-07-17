@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	stderrors "errors"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"strings"
 	"time"
 
@@ -138,7 +139,7 @@ func (s *Service) ActivateLoan(ctx context.Context, applicationID uuid.UUID, cus
 		OutstandingInterest:  decimal.Zero,
 		OutstandingFees:      decimal.Zero,
 		OutstandingPenalty:   decimal.Zero,
-		Currency:             "KES",
+		Currency:             market.Currency(),
 		InterestRate:         interestRate,
 		TenorMonths:          tenorMonths,
 		RepaymentFrequency:   freq,
@@ -475,7 +476,7 @@ func (s *Service) ApplyRepayment(ctx context.Context, loanID uuid.UUID, req *mod
 		return nil, fmt.Errorf("update loan: %w", err)
 	}
 
-	currency := "KES"
+	currency := market.Currency()
 	if req.Currency != "" {
 		currency = req.Currency
 	}

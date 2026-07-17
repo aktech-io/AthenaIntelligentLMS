@@ -196,10 +196,10 @@ func buildYearEndCloseLines(income, expense []accountBalance, reID uuid.UUID) (
 		lineNo++
 		if net.IsPositive() {
 			// net debit balance -> credit to reverse
-			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: net, Currency: "KES"})
+			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: net, Currency: defaultCurrency})
 		} else {
 			// net credit balance -> debit to reverse
-			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: net.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
+			lines = append(lines, model.JournalLine{AccountID: acctID, LineNo: lineNo, DebitAmount: net.Neg(), CreditAmount: decimal.Zero, Currency: defaultCurrency})
 		}
 	}
 
@@ -221,10 +221,10 @@ func buildYearEndCloseLines(income, expense []accountBalance, reID uuid.UUID) (
 	// Balancing leg: roll net income to Retained Earnings.
 	if netIncome.IsPositive() {
 		lineNo++
-		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: netIncome, Currency: "KES"})
+		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: decimal.Zero, CreditAmount: netIncome, Currency: defaultCurrency})
 	} else if netIncome.IsNegative() {
 		lineNo++
-		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: netIncome.Neg(), CreditAmount: decimal.Zero, Currency: "KES"})
+		lines = append(lines, model.JournalLine{AccountID: reID, LineNo: lineNo, DebitAmount: netIncome.Neg(), CreditAmount: decimal.Zero, Currency: defaultCurrency})
 	}
 
 	// Assert balance — never return an unbalanced entry.

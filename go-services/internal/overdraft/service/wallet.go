@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"strings"
 	"time"
 
@@ -55,7 +56,7 @@ func (s *WalletService) CreateWallet(ctx context.Context, req model.CreateWallet
 
 	currency := req.Currency
 	if currency == "" {
-		currency = "KES"
+		currency = market.Currency()
 	}
 
 	wallet := &model.CustomerWallet{
