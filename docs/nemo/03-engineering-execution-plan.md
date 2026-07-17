@@ -61,7 +61,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 3 — AI at the core (the differentiator)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| E1 | Unified decision engine | C | Spine v1: route existing credit scoring + fraud rules through one logged, explainable policy layer. Design doc first. |
+| E1 | Unified decision engine | C | **Design merged** ([05-decision-engine-design.md](05-decision-engine-design.md)): embedded `internal/common/decision` library + thin control-plane service, decisions logged via existing outboxes, versioned YAML policies, explicit fail semantics (kills the scoring mock fail-open), shadow-first rollout. v1 PR = library + decision_log + overdraft in shadow (~10–11 eng-wks total across 4 increments). |
 | E2 | Straight-through credit + adverse-action reasons | C | Directly on E1. |
 | E7 | Model governance (registry, drift, kill switches) | C | Required before any bank risk committee sees E1/E2. Start as metadata + logging conventions inside E1, grow into service. |
 | E3–E6 | AIOps agents, AI collections, AML copilot, customer AI ("Nia") | D/E | Phase 3; Nia's UX already exists in the app concept. |
