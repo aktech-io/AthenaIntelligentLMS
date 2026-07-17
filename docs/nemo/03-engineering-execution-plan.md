@@ -79,12 +79,11 @@ each track, chosen for dependency flow, not grade alone.
 | G2 | Public API platform + dev portal | E | Phase 3. |
 
 ## 3. Business blockers (founder decisions, not code)
-1. **Card processor partner** (B1) — *researching (July 2026)*: EM recommendation is
-   Paymentology-first (issuer-processor with Kenya BIN sponsorship live via Diamond
-   Trust Bank; powers M-PESA GlobalPay virtual Visa; multi-network, Africa-wide —
-   fits white-label multi-tenant issuing), with Interswitch as the pan-African
-   alternative and Sudo/Bridgecard class APIs as fallback for speed. Founder to
-   confirm; the B1 build is an adapter, so the choice is swappable.
+1. **Card processor partner** (B1) — **DECIDED (2026-07-18): Paymentology**
+   (Kenya BIN sponsorship via Diamond Trust Bank; multi-network, Africa-wide).
+   Engineering proceeds on the adapter + card domain skeleton; founder action:
+   open the Paymentology/DTB commercial conversation — API credentials and the
+   PCI-DSS gap assessment (F2) are calendar-bound on it.
 2. **eKYC** (A2) — **DECIDED (2026-07-18): in-house first** (own OCR + face match +
    screening engine; `nemo/a2-inhouse-ekyc` in flight), commercial vendors remain a
    pluggable per-client option via the existing provider adapter.
