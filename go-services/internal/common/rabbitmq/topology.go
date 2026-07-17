@@ -24,6 +24,7 @@ const (
 	// inbox + push). Name kept from the wallet deployment so an in-place
 	// migration re-attaches to the existing durable queue.
 	BFFNotificationQueue = "athena.wallet.notification.queue"
+	DecisionQueue        = "athena.lms.decision.queue"
 
 	// Routing key patterns
 	LoanRoutingPattern     = "loan.#"
@@ -50,6 +51,7 @@ const (
 	ShopRoutingPattern      = "shop.#"
 	OverdraftRoutingPattern = "overdraft.#"
 	FraudRoutingPattern     = "fraud.#"
+	DecisionRoutingPattern  = "decision.#"
 
 	// Collections-specific routing keys
 	LoanClosedKey            = "loan.closed"
@@ -110,6 +112,8 @@ var AllBindings = []Binding{
 
 	// BFF notification bindings (wildcard — inbox/push decides per event type)
 	{BFFNotificationQueue, WildcardPattern},
+	// Decision spine (Nemo E1): decision.recorded → decision-service projection
+	{DecisionQueue, DecisionRoutingPattern},
 }
 
 // DeclareTopology declares the exchange, all queues, and all bindings.
@@ -129,6 +133,7 @@ func DeclareTopology(ch *amqp.Channel, logger *zap.Logger) error {
 		NotificationQueue, LoanMgmtQueue, ReportingQueue,
 		FloatQueue, AccountMobileQueue, OverdraftMobileQueue,
 		BFFNotificationQueue,
+		DecisionQueue,
 	}
 	for _, q := range queues {
 		if _, err := ch.QueueDeclare(q, true, false, false, false, nil); err != nil {

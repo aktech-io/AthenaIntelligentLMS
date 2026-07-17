@@ -84,6 +84,9 @@ services:
     routeKey: FRAUD_DETECTION_SERVICE
     extraEnv:
       FRAUD_ML_SERVICE_URL: http://nemo-fraud-ml:8101
+  # Decision spine control plane (E1): projects decision.recorded events into
+  # the append-only decision_log. Gateway route lands with E1 increment 4.
+  - {name: decision-service, port: 8106, dbName: athena_decision}
 
   # Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet).
   # Deliberately NO routeKey: these are app-facing, not gateway-routed. The

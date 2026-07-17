@@ -30,6 +30,7 @@ SERVICES = {
     "gateway":          f"{BASE}:28105",
     "fraud":            f"{BASE}:28100",
     "fraud_ml":         f"{BASE}:18101",
+    "decision":         f"{BASE}:28106",
 }
 
 SERVICE_KEY = os.getenv(

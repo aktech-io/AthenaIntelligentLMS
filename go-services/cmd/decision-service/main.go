@@ -1,10 +1,17 @@
+// decision-service is the thin control plane of the Nemo decision spine (E1).
+//
+// v1 (design §6): it hosts the decision_log projection — consuming
+// decision.recorded events from every producer's outbox, idempotently, into
+// the partitioned append-only decision_log — and the tenant-scoped read API
+// (GET /api/v1/decisions). Policy CRUD/approval, referral queues, ETag policy
+// distribution and the regulator export are increment 4; evaluation itself
+// never lives here (it is the internal/common/decision library, in-process in
+// each service).
 package main
 
 import (
 	"context"
 	"fmt"
-	"github.com/athena-lms/go-services/internal/common/metrics"
-	"github.com/athena-lms/go-services/internal/common/tracing"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,17 +25,14 @@ import (
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/config"
 	"github.com/athena-lms/go-services/internal/common/db"
-	"github.com/athena-lms/go-services/internal/common/decision"
-	"github.com/athena-lms/go-services/internal/common/event"
 	"github.com/athena-lms/go-services/internal/common/health"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
-	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
-	"github.com/athena-lms/go-services/internal/overdraft/client"
-	ovevent "github.com/athena-lms/go-services/internal/overdraft/event"
-	"github.com/athena-lms/go-services/internal/overdraft/handler"
-	"github.com/athena-lms/go-services/internal/overdraft/repository"
-	"github.com/athena-lms/go-services/internal/overdraft/service"
+	"github.com/athena-lms/go-services/internal/common/tracing"
+	"github.com/athena-lms/go-services/internal/decisionsvc/consumer"
+	"github.com/athena-lms/go-services/internal/decisionsvc/handler"
+	"github.com/athena-lms/go-services/internal/decisionsvc/repository"
 )
 
 func init() { decimal.MarshalJSONWithoutQuotes = true }
@@ -38,7 +42,7 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	cfg, err := config.Load("overdraft-service")
+	cfg, err := config.Load("decision-service")
 	if err != nil {
 		logger.Fatal("Failed to load config", zap.Error(err))
 	}
@@ -46,8 +50,8 @@ func main() {
 	// Distributed tracing (H1): no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
 	shutdownTracing := tracing.Init(context.Background(), cfg.ServiceName, logger)
 	defer shutdownTracing(context.Background())
-	cfg.Port = envInt("PORT", 8097)
-	cfg.DBName = envStr("DB_NAME", "athena_overdraft")
+	cfg.Port = envInt("PORT", 8106)
+	cfg.DBName = envStr("DB_NAME", "athena_decision")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -61,7 +65,7 @@ func main() {
 
 	// Run migrations
 	if cfg.MigrateOnStartup {
-		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/overdraft", logger); err != nil {
+		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/decision", logger); err != nil {
 			logger.Warn("Migration failed (may be first run)", zap.Error(err))
 		}
 	}
@@ -84,42 +88,25 @@ func main() {
 		}
 	})
 
-	// Event publisher
-	pub, err := event.NewPublisher(rmqConn, logger)
-	if err != nil {
-		logger.Warn("Event publisher unavailable (RabbitMQ not connected)", zap.Error(err))
-	}
-	defer pub.Close()
-
-	// Outbox relay (E1): drains decision.recorded events written transactionally
-	// with facility creation and publishes them at-least-once, surviving broker
-	// outages and restarts.
-	relay := outbox.NewRelay(pool, pub, logger)
-	metrics.MustRegister(metrics.NewOutboxCollector(relay))
-	go relay.Run(ctx)
-
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)
 	if err != nil {
 		logger.Fatal("Failed to initialize JWT", zap.Error(err))
 	}
 
-	// Wire up overdraft components
+	// Wire up decision components
 	repo := repository.New(pool)
-	ovPublisher := ovevent.NewPublisher(pub, logger)
-	auditSvc := service.NewAuditService(repo, logger)
-	walletSvc := service.NewWalletService(repo, ovPublisher, auditSvc, logger)
-	scoringURL := envStr("AI_SCORING_URL", "http://ai-scoring-service.lms.svc.cluster.local:8096")
-	scoringClient := client.NewScoringClient(scoringURL, cfg.InternalServiceKey, logger)
-	walletSvc.SetScoringClient(scoringClient)
-	// Decision spine (E1): shadow-evaluate overdraft.facility on every
-	// application; embedded policy defaults + DECISION_POLICY_DIR overrides.
-	walletSvc.SetDecisionEvaluator(decision.NewEvaluator(nil))
-	eodSvc := service.NewEODService(repo, ovPublisher, auditSvc, logger)
-	h := handler.New(walletSvc, auditSvc, eodSvc, logger)
+	h := handler.New(repo, logger)
 
-	// Start EOD scheduler in background (runs daily at 23:00 UTC)
-	go eodSvc.StartScheduler(ctx, 23)
+	// Projection consumer: decision.recorded → decision_log (idempotent).
+	if cfg.RabbitMQConsumeEnabled {
+		cons := consumer.New(rmqConn, pool, repo, logger)
+		go func() {
+			if err := cons.Start(ctx); err != nil {
+				logger.Error("Decision projection consumer stopped", zap.Error(err))
+			}
+		}()
+	}
 
 	// Router
 	r := chi.NewRouter()

@@ -161,6 +161,17 @@ const facilityColumns = `id,tenant_id,wallet_id,customer_id,credit_score,credit_
 	applied_at,approved_at,created_at,updated_at`
 
 func (r *Repository) CreateFacility(ctx context.Context, f *model.OverdraftFacility) error {
+	return r.createFacility(ctx, r.pool, f)
+}
+
+// CreateFacilityTx creates the facility inside the caller's transaction, so
+// the facility and its decision.recorded outbox row commit atomically (E1:
+// a facility can never exist without its decision record, and vice-versa).
+func (r *Repository) CreateFacilityTx(ctx context.Context, tx pgx.Tx, f *model.OverdraftFacility) error {
+	return r.createFacility(ctx, tx, f)
+}
+
+func (r *Repository) createFacility(ctx context.Context, q querier, f *model.OverdraftFacility) error {
 	f.ID = uuid.New()
 	now := time.Now()
 	f.AppliedAt = now
@@ -168,7 +179,7 @@ func (r *Repository) CreateFacility(ctx context.Context, f *model.OverdraftFacil
 	f.CreatedAt = now
 	f.UpdatedAt = now
 
-	_, err := r.pool.Exec(ctx,
+	_, err := q.Exec(ctx,
 		`INSERT INTO overdraft_facilities (id,tenant_id,wallet_id,customer_id,credit_score,credit_band,
 		 approved_limit,drawn_amount,drawn_principal,accrued_interest,interest_rate,status,dpd,npl_stage,
 		 last_billing_date,next_billing_date,expiry_date,last_dpd_refresh,applied_at,approved_at,created_at,updated_at)

@@ -448,6 +448,34 @@ services:
       start_period: 30s
       retries: 3
 
+  # ─── Decision Service (Nemo E1 — decision spine control plane) ──────────────
+  go-decision-service:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: decision-service
+    ports: ["28106:8106"]
+    environment:
+      <<: *go-env
+      PORT: 8106
+      DB_HOST: postgres
+      DB_NAME: athena_decision
+      SERVICE_NAME: go-decision-service
+      RABBITMQ_CONSUME_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8106/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
   go-lms-api-gateway:
     build:
       context: ./go-services

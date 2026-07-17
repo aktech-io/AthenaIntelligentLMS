@@ -91,6 +91,12 @@ const (
 	TenantActivated   = "tenant.activated"
 	TenantSuspended   = "tenant.suspended"
 
+	// Decision spine events (Nemo E1). Every automated (and recorded human)
+	// decision is emitted as decision.recorded through the producer's
+	// transactional outbox and projected into decision_log by
+	// decision-service. Payload contract: internal/common/decision.Record.
+	DecisionRecorded = "decision.recorded"
+
 	// Overdraft events
 	OverdraftApplied          = "overdraft.applied"
 	OverdraftDrawn            = "overdraft.drawn"
