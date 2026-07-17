@@ -60,8 +60,9 @@ serviceDefaults:
     requests: {cpu: 50m, memory: 64Mi}
     limits: {cpu: 500m, memory: 256Mi}
 
-# The 16 Go services. image defaults to <registry>/nemo-<name>:<tag>.
-# routeKey generates the gateway's ROUTE_<KEY>_URL env.
+# The Go services (16 LMS + 4 mobile BFF). image defaults to
+# <registry>/nemo-<name>:<tag>. routeKey generates the gateway's
+# ROUTE_<KEY>_URL env.
 services:
   - {name: account-service,          port: 8086, dbName: athena_accounts,      routeKey: ACCOUNT_SERVICE}
   - {name: product-service,          port: 8087, dbName: athena_products,      routeKey: PRODUCT_SERVICE}
@@ -83,6 +84,45 @@ services:
     routeKey: FRAUD_DETECTION_SERVICE
     extraEnv:
       FRAUD_ML_SERVICE_URL: http://nemo-fraud-ml:8101
+
+  # Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet).
+  # Deliberately NO routeKey: these are app-facing, not gateway-routed. The
+  # Flutter app authenticates against them directly (OTP/PIN/JWT for
+  # customers) and they call INTO go-lms-api-gateway with X-Service-Key —
+  # putting them behind the staff/service gateway would invert that trust
+  # boundary and double-wrap auth. External exposure (ingress paths or the
+  # legacy 3010x NodePorts) is part of the D1 exposure work; in-cluster they
+  # are plain ClusterIP services like everything else.
+  - name: bff-gateway
+    port: 8110
+    dbName: athena_mobile_gateway
+    extraEnv:
+      ACCOUNT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      OVERDRAFT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      PAYMENT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      PRODUCT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      LOAN_ORIGINATION_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      LOAN_MANAGEMENT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      AI_SCORING_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      COMPLIANCE_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      NOTIFICATION_SERVICE_URL: http://go-bff-notification:8111
+  - name: bff-notification
+    port: 8111
+    dbName: athena_bff_notifications
+  - name: bff-billpay-savings
+    port: 8112
+    dbName: athena_billpay_savings
+    extraEnv:
+      ACCOUNT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      PAYMENT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+  - name: bff-shop
+    port: 8113
+    dbName: athena_shop
+    extraEnv:
+      ACCOUNT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      PAYMENT_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      LOAN_ORIGINATION_SERVICE_URL: http://go-lms-api-gateway:8105/lms
+      AI_SCORING_SERVICE_URL: http://go-lms-api-gateway:8105/lms
 
 gateway:
   name: lms-api-gateway
