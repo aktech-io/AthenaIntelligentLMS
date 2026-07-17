@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/athena-lms/go-services/internal/common/metrics"
 	"github.com/athena-lms/go-services/internal/common/tracing"
+	"github.com/athena-lms/go-services/internal/compliance/ekyc"
 	"net/http"
 	"os"
 	"os/signal"
@@ -99,6 +100,14 @@ func main() {
 	svc := service.New(repo, compPub, logger)
 	hdlr := handler.New(svc, logger)
 
+	// Self-service eKYC onboarding (A2): provider from EKYC_PROVIDER
+	// (default sandbox); risk-tiered auto-approve with officer referrals.
+	ekycProvider, err := ekyc.FromEnv()
+	if err != nil {
+		logger.Fatal("Failed to resolve eKYC provider", zap.Error(err))
+	}
+	onboardingHdlr := handler.NewOnboarding(service.NewOnboarding(repo, ekycProvider, logger), logger)
+
 	// Regulatory profile wiring (foundation for the CBK/CRB reporting epic). Its
 	// repository is both the data store and the audit sink (hash-chained audit_log).
 	regRepo := regrepo.New(pool)
@@ -126,6 +135,7 @@ func main() {
 		r.Use(authMw.Handler)
 		hdlr.RegisterRoutes(r)
 		regHdlr.RegisterRoutes(r)
+		onboardingHdlr.RegisterRoutes(r)
 	})
 
 	// Consumer (gated by RABBITMQ_CONSUME_ENABLED)
