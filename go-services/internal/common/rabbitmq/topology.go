@@ -20,6 +20,10 @@ const (
 	FloatQueue           = "athena.lms.float.queue"
 	AccountMobileQueue   = "athena.lms.account.mobile.queue"
 	OverdraftMobileQueue = "athena.lms.overdraft.mobile.queue"
+	// BFFNotificationQueue feeds the mobile BFF notification service (in-app
+	// inbox + push). Name kept from the wallet deployment so an in-place
+	// migration re-attaches to the existing durable queue.
+	BFFNotificationQueue = "athena.wallet.notification.queue"
 
 	// Routing key patterns
 	LoanRoutingPattern     = "loan.#"
@@ -40,12 +44,12 @@ const (
 	CustomerRoutingPattern = "customer.#"
 
 	// Mobile wallet routing patterns
-	MobileRoutingPattern   = "mobile.#"
-	BillRoutingPattern     = "bill.#"
-	SavingsRoutingPattern  = "savings.#"
-	ShopRoutingPattern     = "shop.#"
+	MobileRoutingPattern    = "mobile.#"
+	BillRoutingPattern      = "bill.#"
+	SavingsRoutingPattern   = "savings.#"
+	ShopRoutingPattern      = "shop.#"
 	OverdraftRoutingPattern = "overdraft.#"
-	FraudRoutingPattern    = "fraud.#"
+	FraudRoutingPattern     = "fraud.#"
 
 	// Collections-specific routing keys
 	LoanClosedKey            = "loan.closed"
@@ -103,6 +107,9 @@ var AllBindings = []Binding{
 
 	// Overdraft mobile bindings
 	{OverdraftMobileQueue, MobileRoutingPattern},
+
+	// BFF notification bindings (wildcard — inbox/push decides per event type)
+	{BFFNotificationQueue, WildcardPattern},
 }
 
 // DeclareTopology declares the exchange, all queues, and all bindings.
@@ -121,6 +128,7 @@ func DeclareTopology(ch *amqp.Channel, logger *zap.Logger) error {
 		AccountingQueue, CollectionsQueue, ComplianceQueue,
 		NotificationQueue, LoanMgmtQueue, ReportingQueue,
 		FloatQueue, AccountMobileQueue, OverdraftMobileQueue,
+		BFFNotificationQueue,
 	}
 	for _, q := range queues {
 		if _, err := ch.QueueDeclare(q, true, false, false, false, nil); err != nil {

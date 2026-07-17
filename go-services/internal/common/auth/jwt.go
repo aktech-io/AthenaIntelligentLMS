@@ -34,11 +34,12 @@ func NewJWTUtil(base64Secret string) (*JWTUtil, error) {
 
 // Claims holds the extracted JWT claims matching the Java token structure.
 type Claims struct {
-	Username   string
-	TenantID   string
-	CustomerID *int64  // nil if not present or not numeric (e.g. mobile wallet string IDs)
-	CustomerIDStr string // raw string value of customerId claim
-	Roles      []string
+	Username       string
+	TenantID       string
+	CustomerID     *int64 // nil if not present or not numeric (e.g. mobile wallet string IDs)
+	CustomerIDStr  string // raw string value of customerId claim
+	MobileUserID   string // mobile app user UUID ("userId" claim), empty for staff tokens
+	Roles          []string
 	Permissions    []string // effective permission keys (RBAC matrix), if stamped
 	PermissionsSet bool     // true if the token carried a permissions claim at all
 	PermVersion    int64    // matrix version the permissions were resolved from
@@ -82,6 +83,11 @@ func (j *JWTUtil) ParseToken(tokenString string) (*Claims, error) {
 		if n, err := strconv.ParseInt(cidStr, 10, 64); err == nil {
 			c.CustomerID = &n
 		}
+	}
+
+	// MobileUserID — set on tokens issued by the mobile BFF gateway
+	if uid, ok := mapClaims["userId"].(string); ok {
+		c.MobileUserID = uid
 	}
 
 	// Roles
