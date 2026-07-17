@@ -42,6 +42,16 @@ postgresql:
   image: postgres:16-alpine
   storage: 8Gi
 
+# Production hardening (D4 baseline): per-service PDB + HPA and a
+# default-deny ingress NetworkPolicy (same-namespace traffic only — expose
+# only the gateway). HPA needs metrics-server; NetworkPolicy needs an
+# enforcing CNI.
+hardening:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilization: 70
+
 serviceDefaults:
   replicas: 1
   migrateOnStartup: true

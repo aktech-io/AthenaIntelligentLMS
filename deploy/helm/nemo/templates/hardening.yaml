@@ -1,0 +1,52 @@
+{{- /*
+Production hardening (chart-native successor to deploy/k8s/hardening.yaml):
+per-service PDB + HPA and a default-deny ingress NetworkPolicy that allows
+only same-namespace traffic — backends stay unreachable from outside the
+release namespace; expose only the gateway via Ingress. Liveness/readiness
+probes and Secret-sourced credentials are already in the base templates.
+*/ -}}
+{{- if .Values.hardening.enabled }}
+{{- $root := . }}
+{{- $h := .Values.hardening }}
+{{- $names := list }}
+{{- range .Values.services }}{{ $names = append $names (print "go-" .name) }}{{ end }}
+{{- $names = append $names (print "go-" .Values.gateway.name) }}
+{{- range $name := $names }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}-pdb
+  labels: {{- include "nemo.labels" $root | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}-hpa
+  labels: {{- include "nemo.labels" $root | nindent 4 }}
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: {{ $name }}}
+  minReplicas: {{ $h.minReplicas }}
+  maxReplicas: {{ $h.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: {{ $h.targetCPUUtilization }}}}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nemo-default-deny-ingress
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+{{- end }}
