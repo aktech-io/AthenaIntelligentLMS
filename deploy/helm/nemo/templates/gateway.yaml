@@ -1,0 +1,88 @@
+{{- $gw := .Values.gateway }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-{{ $gw.name }}
+  labels:
+    app: go-{{ $gw.name }}
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $gw.replicas }}
+  selector:
+    matchLabels:
+      app: go-{{ $gw.name }}
+  template:
+    metadata:
+      labels:
+        app: go-{{ $gw.name }}
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ $gw.name }}
+          image: {{ include "nemo.serviceImage" (list . (dict "name" $gw.name)) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ $gw.port }}
+          envFrom:
+            - configMapRef: {name: nemo-common}
+            - secretRef: {name: {{ include "nemo.secretName" . }}}
+          env:
+            - name: SERVICE_NAME
+              value: go-{{ $gw.name }}
+            - name: PORT
+              value: {{ $gw.port | quote }}
+            {{- range .Values.services }}
+            {{- if .routeKey }}
+            - name: ROUTE_{{ .routeKey }}_URL
+              value: http://go-{{ .name }}:{{ .port }}
+            {{- end }}
+            {{- end }}
+          readinessProbe:
+            httpGet: {path: /actuator/health, port: {{ $gw.port }}}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /actuator/health, port: {{ $gw.port }}}
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources: {{- .Values.serviceDefaults.resources | toYaml | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-{{ $gw.name }}
+  labels:
+    app: go-{{ $gw.name }}
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: go-{{ $gw.name }}
+  ports:
+    - port: {{ $gw.port }}
+      targetPort: {{ $gw.port }}
+{{- if $gw.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nemo-gateway
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  {{- with $gw.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with $gw.ingress.tls }}
+  tls: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ $gw.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: go-{{ $gw.name }}
+                port:
+                  number: {{ $gw.port }}
+{{- end }}

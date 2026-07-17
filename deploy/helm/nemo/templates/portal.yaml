@@ -1,0 +1,44 @@
+{{- if .Values.portal.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-portal
+  labels:
+    app: nemo-portal
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-portal
+  template:
+    metadata:
+      labels:
+        app: nemo-portal
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: portal
+          {{- if .Values.portal.image }}
+          image: {{ .Values.portal.image }}
+          {{- else if .Values.global.imageRegistry }}
+          image: {{ .Values.global.imageRegistry }}/nemo-portal:{{ .Values.global.imageTag }}
+          {{- else }}
+          image: nemo-portal:{{ .Values.global.imageTag }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.portal.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-portal
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-portal
+  ports:
+    - port: 80
+      targetPort: {{ .Values.portal.port }}
+{{- end }}

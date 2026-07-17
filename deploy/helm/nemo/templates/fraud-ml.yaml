@@ -1,0 +1,45 @@
+{{- if .Values.fraudMl.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-fraud-ml
+  labels:
+    app: nemo-fraud-ml
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-fraud-ml
+  template:
+    metadata:
+      labels:
+        app: nemo-fraud-ml
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: fraud-ml
+          {{- if .Values.fraudMl.image }}
+          image: {{ .Values.fraudMl.image }}
+          {{- else if .Values.global.imageRegistry }}
+          image: {{ .Values.global.imageRegistry }}/nemo-fraud-ml:{{ .Values.global.imageTag }}
+          {{- else }}
+          image: nemo-fraud-ml:{{ .Values.global.imageTag }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.fraudMl.port }}
+          resources: {{- .Values.fraudMl.resources | toYaml | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-fraud-ml
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-fraud-ml
+  ports:
+    - port: {{ .Values.fraudMl.port }}
+      targetPort: {{ .Values.fraudMl.port }}
+{{- end }}

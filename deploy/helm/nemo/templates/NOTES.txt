@@ -1,0 +1,21 @@
+Nemo — neobank in a box — is installing.
+
+Market pack: {{ .Values.global.marketPack }}
+{{- if not .Values.global.existingSecret }}
+
+WARNING: demo credentials are in use (global.existingSecret is empty).
+Do not run production this way — create a Secret with JWT_SECRET,
+LMS_INTERNAL_SERVICE_KEY, DB_USER, DB_PASSWORD, RABBITMQ_USER,
+RABBITMQ_PASSWORD and set global.existingSecret to its name.
+{{- end }}
+
+Check rollout:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+API gateway (in-cluster): http://go-{{ .Values.gateway.name }}:{{ .Values.gateway.port }}
+{{- if .Values.gateway.ingress.enabled }}
+Ingress: http(s)://{{ .Values.gateway.ingress.host }}/
+{{- else }}
+Port-forward for a quick look:
+  kubectl port-forward svc/go-{{ .Values.gateway.name }} {{ .Values.gateway.port }}:{{ .Values.gateway.port }}
+{{- end }}

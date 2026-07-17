@@ -1,0 +1,98 @@
+# Nemo umbrella chart — default values.
+# Defaults give a self-contained single-node install (in-cluster PostgreSQL and
+# RabbitMQ, demo-grade resources). Production: set global.existingSecret, point
+# db/rabbitmq at managed instances, and raise replicas/resources — see
+# values-prod-example.yaml notes in the chart README.
+
+global:
+  imageRegistry: ""            # e.g. registry.example.com/nemo — empty = local images
+  imageTag: latest
+  imagePullPolicy: IfNotPresent
+  # Market pack (C2): ISO country code of the deployment's market.
+  marketPack: KE
+  # Name of an existing Secret carrying JWT_SECRET, LMS_INTERNAL_SERVICE_KEY,
+  # DB_USER, DB_PASSWORD, RABBITMQ_USER, RABBITMQ_PASSWORD. When empty the
+  # chart renders its own Secret from the demo values below (NOT for prod).
+  existingSecret: ""
+
+# Demo-grade credentials, used only when global.existingSecret is empty.
+demoCredentials:
+  jwtSecret: "nemo-demo-jwt-secret-change-me-0000000000"
+  internalServiceKey: "nemo-demo-internal-key"
+  dbUser: athena
+  dbPassword: athena_secret
+  rabbitmqUser: athena
+  rabbitmqPassword: athena_secret
+
+db:
+  host: ""                     # empty = in-cluster postgres service
+  port: 5432
+  sslMode: disable
+
+rabbitmq:
+  host: ""                     # empty = in-cluster rabbitmq service
+  port: 5672
+  vhost: "/"
+  enabled: true                # in-cluster broker
+  image: rabbitmq:3.13-management-alpine
+  storage: 2Gi
+
+postgresql:
+  enabled: true                # in-cluster database
+  image: postgres:16-alpine
+  storage: 8Gi
+
+serviceDefaults:
+  replicas: 1
+  migrateOnStartup: true
+  consumeEnabled: true
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+# The 16 Go services. image defaults to <registry>/nemo-<name>:<tag>.
+# routeKey generates the gateway's ROUTE_<KEY>_URL env.
+services:
+  - {name: account-service,          port: 8086, dbName: athena_accounts,      routeKey: ACCOUNT_SERVICE}
+  - {name: product-service,          port: 8087, dbName: athena_products,      routeKey: PRODUCT_SERVICE}
+  - {name: loan-origination-service, port: 8088, dbName: athena_loans,         routeKey: LOAN_ORIGINATION_SERVICE}
+  - {name: loan-management-service,  port: 8089, dbName: athena_loans,         routeKey: LOAN_MANAGEMENT_SERVICE}
+  - {name: payment-service,          port: 8090, dbName: athena_payments,      routeKey: PAYMENT_SERVICE}
+  - {name: accounting-service,       port: 8091, dbName: athena_accounting,    routeKey: ACCOUNTING_SERVICE}
+  - {name: float-service,            port: 8092, dbName: athena_float,         routeKey: FLOAT_SERVICE}
+  - {name: collections-service,      port: 8093, dbName: athena_collections,   routeKey: COLLECTIONS_SERVICE}
+  - {name: compliance-service,       port: 8094, dbName: athena_compliance,    routeKey: COMPLIANCE_SERVICE}
+  - {name: reporting-service,        port: 8095, dbName: athena_reporting,     routeKey: REPORTING_SERVICE}
+  - {name: ai-scoring-service,       port: 8096, dbName: athena_scoring,       routeKey: AI_SCORING_SERVICE}
+  - {name: overdraft-service,        port: 8097, dbName: athena_overdraft,     routeKey: OVERDRAFT_SERVICE}
+  - {name: media-service,            port: 8098, dbName: athena_media,         routeKey: MEDIA_SERVICE}
+  - {name: notification-service,     port: 8099, dbName: athena_notifications}
+  - name: fraud-detection-service
+    port: 8100
+    dbName: athena_fraud
+    routeKey: FRAUD_DETECTION_SERVICE
+    extraEnv:
+      FRAUD_ML_SERVICE_URL: http://nemo-fraud-ml:8101
+
+gateway:
+  name: lms-api-gateway
+  port: 8105
+  replicas: 1
+  ingress:
+    enabled: false
+    className: ""
+    host: nemo.local
+    tls: []
+
+fraudMl:
+  enabled: true
+  image: ""                    # defaults to <registry>/nemo-fraud-ml:<tag>
+  port: 8101
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+
+portal:
+  enabled: false               # back-office UI; needs a built nginx image
+  image: ""                    # defaults to <registry>/nemo-portal:<tag>
+  port: 80

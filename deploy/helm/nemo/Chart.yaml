@@ -1,0 +1,10 @@
+apiVersion: v2
+name: nemo
+description: >-
+  Nemo — neobank in a box. Umbrella chart installing the full platform:
+  16 Go services, fraud ML sidecar, PostgreSQL, RabbitMQ and the API gateway,
+  configured per market pack. One command: helm install nemo deploy/helm/nemo
+type: application
+version: 0.1.0
+appVersion: "2026.07"
+keywords: [banking, neobank, core-banking, nemo]

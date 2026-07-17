@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-common
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  DB_HOST: {{ include "nemo.dbHost" . | quote }}
+  DB_PORT: {{ .Values.db.port | quote }}
+  DB_SSL_MODE: {{ .Values.db.sslMode | quote }}
+  RABBITMQ_HOST: {{ include "nemo.rabbitHost" . | quote }}
+  RABBITMQ_PORT: {{ .Values.rabbitmq.port | quote }}
+  RABBITMQ_VHOST: {{ .Values.rabbitmq.vhost | quote }}
+  MARKET_PACK: {{ .Values.global.marketPack | quote }}
+  MIGRATE_ON_STARTUP: {{ .Values.serviceDefaults.migrateOnStartup | quote }}

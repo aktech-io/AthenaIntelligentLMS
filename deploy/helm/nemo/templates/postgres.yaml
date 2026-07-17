@@ -1,0 +1,81 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-postgres-init
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+data:
+  # Runs only on first boot (empty PGDATA): create every service database.
+  init-databases.sh: |
+    #!/bin/sh
+    set -e
+    {{- $dbs := list }}
+    {{- range .Values.services }}{{- if .dbName }}{{- $dbs = append $dbs .dbName }}{{- end }}{{- end }}
+    for db in {{ $dbs | uniq | join " " }}; do
+      echo "SELECT 'CREATE DATABASE ' || quote_ident('$db') WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$db')\gexec" \
+        | psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres
+    done
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nemo-postgres
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  serviceName: nemo-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-postgres
+  template:
+    metadata:
+      labels:
+        app: nemo-postgres
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgresql.image }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: {name: {{ include "nemo.secretName" . }}, key: DB_USER}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ include "nemo.secretName" . }}, key: DB_PASSWORD}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: init
+          configMap: {name: nemo-postgres-init}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-postgres
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+{{- end }}
