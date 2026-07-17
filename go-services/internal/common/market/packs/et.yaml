@@ -1,0 +1,45 @@
+# Ethiopia — the second market pack, proving config-over-code (C2).
+# Regulatory content (NBE report set) lands with the F5 reporting work.
+code: ET
+name: Ethiopia
+currency: ETB
+timezone: Africa/Addis_Ababa
+locale: am-ET
+phonePrefix: "+251"
+
+support:
+  phone: "+251 900 000 000"
+  email: support@nemo.et
+
+regulatory:
+  regulator: NBE
+  defaultLicenseType: UNREGULATED  # until the NBE licence profile lands
+  reportingCurrency: ETB
+
+rails:
+  - telebirr
+  - mpesa-et
+  - ethswitch
+creditBureaus: []                  # NBE credit reference bureau adapter TBD
+kycRuleSet: et-nbe
+taxRuleSet: et-mor
+
+holidays:
+  - { name: "Ethiopian Christmas (Genna)", monthDay: "01-07" }
+  - { name: "Epiphany (Timkat)", monthDay: "01-19" }
+  - { name: "Adwa Victory Day", monthDay: "03-02" }
+  - { name: "International Labour Day", monthDay: "05-01" }
+  - { name: "Patriots' Victory Day", monthDay: "05-05" }
+  - { name: "Downfall of the Derg", monthDay: "05-28" }
+  - { name: "Ethiopian New Year (Enkutatash)", monthDay: "09-11" }
+  - { name: "Finding of the True Cross (Meskel)", monthDay: "09-27" }
+  - name: "Ethiopian Good Friday (Siklet)"
+    dates: ["2026-04-10", "2027-04-30"]
+  - name: "Ethiopian Easter (Fasika)"
+    dates: ["2026-04-12", "2027-05-02"]
+  - name: "Eid al-Fitr"
+    dates: ["2026-03-20", "2027-03-10"]
+  - name: "Eid al-Adha"
+    dates: ["2026-05-27", "2027-05-17"]
+  - name: "Mawlid"
+    dates: ["2026-08-25", "2027-08-15"]

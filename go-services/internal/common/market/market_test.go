@@ -84,3 +84,16 @@ func TestValidateRejectsBadPacks(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinEthiopiaPack(t *testing.T) {
+	p, ok := Get("ET")
+	if !ok {
+		t.Fatal("built-in ET pack not registered")
+	}
+	if p.Currency != "ETB" || p.Timezone != "Africa/Addis_Ababa" || p.Regulatory.Regulator != "NBE" {
+		t.Errorf("ET pack fields wrong: %+v", p)
+	}
+	if err := p.Validate(); err != nil {
+		t.Errorf("ET pack invalid: %v", err)
+	}
+}
