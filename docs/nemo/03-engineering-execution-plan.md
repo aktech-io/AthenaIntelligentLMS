@@ -70,7 +70,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 4 — Operate & trust (the "sleep at night" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| H1–H3 | Observability: OTel tracing, business-metric exporters (GL imbalance, event lag, payment success), Alertmanager + SLO pack | C | High-leverage, self-contained. Good next candidate after D1 — the exporters ship *in* the chart. |
+| H1–H3 | Observability: OTel tracing, business-metric exporters (GL imbalance, event lag, payment success), Alertmanager + SLO pack | C | **H2 baseline shipped** (`096a6fe`): /metrics on all 17 services, outbox lag + GL integrity + payment outcome collectors, starter alert pack (`monitoring/prometheus-rules/`), scrape annotations in the chart. Remaining: OTel tracing (H1), Alertmanager routing + on-call (H3), Grafana business dashboards. |
 | H5 | Reconciliation engine (M-Pesa first) | C | Phase 2 start; design alongside G1 connector SDK. |
 | F1/F4 | Security hardening; strong customer auth | C | F4 blocks real A1 launch. mTLS/WAF ride on D1's chart. |
 | F2 | PCI-DSS → ISO 27001 → SOC 2 | C | 12+ month lead — **start gap assessment when B1 partner chosen**. |
@@ -91,5 +91,6 @@ wallet audit). Every completed item: tests green → commit/push → tick here a
 gap analysis. Standing tracks (money-path correctness, regulatory currency, security)
 interleave as audits surface work.
 
-**Immediate queue**: D1 Helm umbrella chart → wallet-audit decision & A1 adaptation plan
-→ H1/H2 observability exporters → C1 tenant provisioning API → E1 decision-engine design.
+**Immediate queue** (D1 ✓, wallet decision ✓, H2 baseline ✓): **C1 tenant
+provisioning API** → A1 Phase 0 (fold wallet BFF into monorepo, brand-pack the app) →
+E1 decision-engine design → H1 OTel tracing → D3 migration gating.
