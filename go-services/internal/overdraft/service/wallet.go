@@ -13,8 +13,10 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/common/decision"
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/overdraft/client"
 	ovEvent "github.com/athena-lms/go-services/internal/overdraft/event"
 	"github.com/athena-lms/go-services/internal/overdraft/model"
@@ -27,6 +29,7 @@ type WalletService struct {
 	publisher     *ovEvent.Publisher
 	audit         *AuditService
 	scoringClient *client.ScoringClient
+	decisionEval  *decision.Evaluator // E1 shadow evaluation (nil = off)
 	logger        *zap.Logger
 }
 
@@ -623,8 +626,31 @@ func (s *WalletService) ApplyOverdraft(ctx context.Context, walletID uuid.UUID, 
 		ExpiryDate:      &expiryDate,
 	}
 
-	if err := s.repo.CreateFacility(ctx, facility); err != nil {
+	// E1 v1 SHADOW: evaluate the overdraft.facility policy in parallel. The
+	// band-config outcome above remains the enforced decision (byte-for-byte
+	// unchanged); the shadow outcome is only recorded. Evaluation failures
+	// never affect the money path (events == nil).
+	decisionEvents := s.shadowDecisionEvents(ctx, tenantID, walletID, wallet.CustomerID, scoreResult)
+
+	// Facility creation and its decision.recorded outbox row commit in ONE
+	// transaction (design §2.3): a facility can never exist without its
+	// decision record, and vice-versa. With shadow evaluation off this is the
+	// legacy single INSERT, just inside an explicit transaction.
+	dbTx, err := s.repo.Pool().Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer dbTx.Rollback(ctx)
+	if err := s.repo.CreateFacilityTx(ctx, dbTx, facility); err != nil {
 		return nil, fmt.Errorf("create facility: %w", err)
+	}
+	for _, evt := range decisionEvents {
+		if err := outbox.Write(ctx, dbTx, evt, facility.ID.String()); err != nil {
+			return nil, fmt.Errorf("record decision: %w", err)
+		}
+	}
+	if err := dbTx.Commit(ctx); err != nil {
+		return nil, err
 	}
 
 	// Charge arrangement fee if applicable

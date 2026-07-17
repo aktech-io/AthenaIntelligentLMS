@@ -21,6 +21,7 @@ func TestTopologyConstants(t *testing.T) {
 	assert.Equal(t, "athena.lms.float.queue", FloatQueue)
 	assert.Equal(t, "athena.lms.account.mobile.queue", AccountMobileQueue)
 	assert.Equal(t, "athena.lms.overdraft.mobile.queue", OverdraftMobileQueue)
+	assert.Equal(t, "athena.lms.decision.queue", DecisionQueue)
 
 	// Routing keys
 	assert.Equal(t, "loan.#", LoanRoutingPattern)
@@ -37,6 +38,7 @@ func TestTopologyConstants(t *testing.T) {
 	assert.Equal(t, "loan.disbursed", LoanDisbursedKey)
 	assert.Equal(t, "loan.application.submitted", LoanSubmittedKey)
 	assert.Equal(t, "account.credit.received", AccountCreditKey)
+	assert.Equal(t, "decision.#", DecisionRoutingPattern)
 }
 
 // TestAllBindings pins the canonical Go topology so binding changes are
@@ -65,6 +67,8 @@ func TestAllBindings(t *testing.T) {
 		FloatQueue:           {AccountCreditKey},
 		AccountMobileQueue:   {MobileRoutingPattern},
 		OverdraftMobileQueue: {MobileRoutingPattern},
+		// Decision spine (Nemo E1): decision.recorded projection feed.
+		DecisionQueue: {DecisionRoutingPattern},
 	}
 
 	// Build actual bindings map from AllBindings

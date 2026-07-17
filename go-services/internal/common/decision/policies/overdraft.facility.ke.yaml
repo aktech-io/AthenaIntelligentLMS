@@ -1,0 +1,30 @@
+# Embedded platform default for the overdraft facility decision (E1 v1).
+#
+# v1 ships in SHADOW: the legacy credit_band_configs path still decides; this
+# policy is evaluated in parallel and logged so the shadow-vs-actual diff can
+# soak before enforcement flips (design §5 increment 1).
+#
+# The band table therefore mirrors the seeded system-tenant
+# credit_band_configs rows byte-for-byte (limits/rates/arrangement fees from
+# migrations/overdraft/000002_seed_data.up.sql) so the diff starts at parity
+# and every divergence the log shows is a real behavioural finding — e.g. a
+# fabricated mock score (MODEL_UNAVAILABLE) or a stale score (SCORE_STALE),
+# both of which the legacy path silently accepts. Tier tightening (C ⇒ REFER,
+# D ⇒ DECLINE) is a later policy version bump, not part of the v1 cut.
+policy: overdraft.facility
+version: 1
+market: KE
+tenant: "*"
+models:
+  credit_score:
+    source: ai-scoring-service
+    required: true # unavailable (or fabricated) score ⇒ on_model_unavailable
+    max_age: 30d   # stale score ⇒ REFER, don't silently reuse
+on_model_unavailable: DECLINE # fail-closed, now declared not implied (HIGH-6)
+rules:
+  - id: OD-BAND
+    table:
+      - { band: A, limit: 100000, rate: 0.15, fee: 1000, outcome: APPROVE }
+      - { band: B, limit: 50000,  rate: 0.20, fee: 750,  outcome: APPROVE }
+      - { band: C, limit: 20000,  rate: 0.25, fee: 500,  outcome: APPROVE }
+      - { band: D, limit: 5000,   rate: 0.30, fee: 250,  outcome: APPROVE }

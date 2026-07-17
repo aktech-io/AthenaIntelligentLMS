@@ -3,16 +3,33 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/common/httputil"
 )
 
-// CreditScoreResult holds the credit score and band for a customer.
+// CreditScoreResult holds the credit score and band for a customer, plus the
+// provenance metadata the decision spine records (E1): which model produced
+// the stored score and when. Provenance is optional on the wire — older
+// scoring responses without it still satisfy the fail-closed contract below.
 type CreditScoreResult struct {
 	Score int    `json:"score"`
 	Band  string `json:"band"`
+
+	LlmProvider string     `json:"llmProvider,omitempty"`
+	LlmModel    string     `json:"llmModel,omitempty"`
+	ScoredAt    *time.Time `json:"scoredAt,omitempty"`
+}
+
+// Trusted reports whether the stored score is a real model output. The
+// upstream scoring service fabricates a deterministic mock score (provider
+// "mock") whenever the external scoring API fails — a fail-open the decision
+// spine must record as MODEL_UNAVAILABLE instead of trusting (design §1.3-2).
+func (r CreditScoreResult) Trusted() bool {
+	return !strings.EqualFold(r.LlmProvider, "mock")
 }
 
 // ScoringClient fetches credit scores from the AI scoring service.
@@ -41,8 +58,11 @@ func (s *ScoringClient) GetLatestScore(ctx context.Context, customerID string) (
 	url := fmt.Sprintf("%s/api/v1/scoring/customers/%s/latest", s.baseURL, customerID)
 
 	var resp struct {
-		FinalScore *int    `json:"finalScore"`
-		ScoreBand  *string `json:"scoreBand"`
+		FinalScore  *int       `json:"finalScore"`
+		ScoreBand   *string    `json:"scoreBand"`
+		LlmProvider string     `json:"llmProvider"`
+		LlmModel    string     `json:"llmModel"`
+		ScoredAt    *time.Time `json:"scoredAt"`
 	}
 
 	if err := s.client.Get(ctx, url, &resp); err != nil {
@@ -61,5 +81,11 @@ func (s *ScoringClient) GetLatestScore(ctx context.Context, customerID string) (
 		zap.String("customerId", customerID),
 		zap.Int("score", *resp.FinalScore),
 		zap.String("band", *resp.ScoreBand))
-	return CreditScoreResult{Score: *resp.FinalScore, Band: *resp.ScoreBand}, nil
+	return CreditScoreResult{
+		Score:       *resp.FinalScore,
+		Band:        *resp.ScoreBand,
+		LlmProvider: resp.LlmProvider,
+		LlmModel:    resp.LlmModel,
+		ScoredAt:    resp.ScoredAt,
+	}, nil
 }

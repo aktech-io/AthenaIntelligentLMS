@@ -383,3 +383,33 @@ straight-through credit (increment 2, tracked as E2).
 4. **Per-tenant policy authority:** can tenant admins edit policies directly, or
    only via our ops (C1 provisioning ships defaults)? Affects the approval-workflow
    depth in increment 4.
+
+Choices made during v1 implementation (conservative defaults, revisit in the
+noted increment):
+
+5. **Embedded default policy = legacy parity.** The shipped
+   `overdraft.facility` v1 band table mirrors the seeded system
+   `credit_band_configs` rows exactly (all bands APPROVE), not the
+   illustrative REFER/DECLINE tiers of §2.2 — so the shadow diff starts at
+   zero and the eventual enforcement flip is behaviour-preserving. Tier
+   tightening is a normal policy version bump.
+6. **decision_log idempotency scope.** Postgres requires the partition key in
+   any unique constraint on a partitioned table, so the projection's key is
+   `(id, decided_at)` — exact per-event, since a redelivery carries an
+   identical payload — plus the standard `processed_events` consumer guard.
+   A single-column global uniqueness on `id` alone waits for the v2
+   hash-chain work (question 1).
+7. **Mock-score provenance in shadow.** The overdraft shadow marks the
+   `credit_score` model unavailable when the stored score's `llmProvider` is
+   `"mock"` (the §1.3-2 fabricated fallback), recording
+   `MODEL_UNAVAILABLE` + the declared DECLINE instead of trusting it. Scores
+   with empty/unknown provenance stay trusted until the scoring API version
+   header contract lands (increment 2, question 2).
+8. **v1 records the facility-creation path only.** Legacy decline paths that
+   return before any state change (scoring client failure, missing band
+   config, existing facility) do not yet emit `decision.recorded` — §6 scopes
+   v1 to the same-transaction-as-facility-creation write. Full every-call
+   coverage (including declines and human decisions) arrives with the
+   evaluator becoming the enforced path in increment 2. If no policy rule
+   matches at all, the evaluator itself fails closed: DECLINE with the
+   registered `POLICY_NO_MATCH` reason.

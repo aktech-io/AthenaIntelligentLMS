@@ -136,4 +136,13 @@ CREATE DATABASE athena_notifications
 GRANT ALL PRIVILEGES ON DATABASE athena_notifications TO athena;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ─── Decision Service (Nemo E1 decision spine) ───────────────────────────────
+SELECT 'Creating athena_decision...' AS step;
+CREATE DATABASE athena_decision
+    WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
+
+\c athena_decision
+GRANT ALL PRIVILEGES ON DATABASE athena_decision TO athena;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 SELECT 'All LMS databases created successfully.' AS result;
