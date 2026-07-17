@@ -21,6 +21,7 @@ func TestTopologyConstants(t *testing.T) {
 	assert.Equal(t, "athena.lms.float.queue", FloatQueue)
 	assert.Equal(t, "athena.lms.account.mobile.queue", AccountMobileQueue)
 	assert.Equal(t, "athena.lms.overdraft.mobile.queue", OverdraftMobileQueue)
+	assert.Equal(t, "athena.wallet.notification.queue", BFFNotificationQueue)
 
 	// Routing keys
 	assert.Equal(t, "loan.#", LoanRoutingPattern)
@@ -65,6 +66,7 @@ func TestAllBindings(t *testing.T) {
 		FloatQueue:           {AccountCreditKey},
 		AccountMobileQueue:   {MobileRoutingPattern},
 		OverdraftMobileQueue: {MobileRoutingPattern},
+		BFFNotificationQueue: {WildcardPattern},
 	}
 
 	// Build actual bindings map from AllBindings

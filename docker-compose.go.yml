@@ -484,6 +484,131 @@ services:
       start_period: 30s
       retries: 3
 
+  # ─── Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet) ──
+  # App-facing: the Flutter app calls these directly (they are NOT routed
+  # through lms-api-gateway; they call INTO it with X-Service-Key). Host ports
+  # follow the 28xxx convention; the 3010x mappings mirror the k3s NodePorts
+  # the unchanged Flutter app is hardcoded to (localhost:30100-30103).
+  go-bff-gateway:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: bff-gateway
+    ports: ["28110:8110", "30100:8110"]
+    environment:
+      <<: *go-env
+      PORT: 8110
+      DB_HOST: postgres
+      DB_NAME: athena_mobile_gateway
+      SERVICE_NAME: go-bff-gateway
+      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      OVERDRAFT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      PRODUCT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      LOAN_ORIGINATION_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      LOAN_MANAGEMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      AI_SCORING_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      COMPLIANCE_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      NOTIFICATION_SERVICE_URL: "http://go-bff-notification:8111"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8110/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  go-bff-notification:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: bff-notification
+    ports: ["28111:8111", "30101:8111"]
+    environment:
+      <<: *go-env
+      PORT: 8111
+      DB_HOST: postgres
+      DB_NAME: athena_bff_notifications
+      SERVICE_NAME: go-bff-notification
+      RABBITMQ_CONSUME_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8111/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  go-bff-billpay-savings:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: bff-billpay-savings
+    ports: ["28112:8112", "30102:8112"]
+    environment:
+      <<: *go-env
+      PORT: 8112
+      DB_HOST: postgres
+      DB_NAME: athena_billpay_savings
+      SERVICE_NAME: go-bff-billpay-savings
+      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8112/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  go-bff-shop:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: bff-shop
+    ports: ["28113:8113", "30103:8113"]
+    environment:
+      <<: *go-env
+      PORT: 8113
+      DB_HOST: postgres
+      DB_NAME: athena_shop
+      SERVICE_NAME: go-bff-shop
+      ACCOUNT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      PAYMENT_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      LOAN_ORIGINATION_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+      AI_SCORING_SERVICE_URL: "http://go-lms-api-gateway:8105/lms"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8113/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
 networks:
   athena-net:
     external: true

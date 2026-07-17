@@ -49,7 +49,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 2 — Customer front end (the "neobank" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| A1 | White-label mobile app | C | **Fork-and-adapt** (04 audit). **Nemo rebrand done** on wallet branch `nemo-rebrand` (deep-water dark theme, stripes logo + launcher icons, Jost display font, "Nemo" naming; analyze clean). Held unmerged pending the Phase-0 BFF/monorepo fold-in; bundle-id + runtime brand packs deferred to flavors work. |
+| A1 | White-label mobile app | C | **Fork-and-adapt** (04 audit). **Nemo rebrand done** on wallet branch `nemo-rebrand` (deep-water dark theme, stripes logo + launcher icons, Jost display font, "Nemo" naming; analyze clean). **Phase-0 BFF fold-in done** (branch `nemo/a1-bff-fold-in`): the wallet's 4 Go BFF services now live in the monorepo as `bff-gateway`/`bff-notification`/`bff-billpay-savings`/`bff-shop` (ports 8110–8113, hosts 28110–28113 + legacy 3010x) on `internal/common` (Viper config, zap, shared auth incl. promoted mobile-JWT issuance, health/metrics/tracing); wallet `shared/` lib retired, migrations ported, compose + Helm wired (no routeKey — app-facing), HTTP surface unchanged. Remaining A1: bundle-id + runtime brand packs (flavors work), app env config, k8s exposure of BFF via D1 ingress. |
 | A2 | Self-service eKYC onboarding | C | API-side first (risk-tiered auto-approve on existing KYC plumbing); vendor (Smile ID class) behind an adapter chosen per market pack. |
 | B2/B3 | P2P by alias, bills/airtime | C | Thin services over existing wallet + transfers; biller catalogue is market-pack content. |
 | B1 | Virtual card issuing | C | Integration play (Paymentology/Interswitch class). Needs partner decision — **business blocker, flag to founder**. PCI scoping (F2) starts with it. |
@@ -93,6 +93,6 @@ interleave as audits surface work.
 
 **Immediate queue** (D1 ✓, C1 API ✓, C2 ✓, H1/H2/H3 baselines ✓, E1 design ✓,
 wallet rebrand merged to wallet `main` ✓, portal Nemo branding ✓):
-**A1 Phase 0** (fold wallet BFF into monorepo) → **E1 v1 implementation**
+**A1 Phase 0** (fold wallet BFF into monorepo — done on branch `nemo/a1-bff-fold-in`, pending merge) → **E1 v1 implementation**
 (decision library + decision_log + overdraft shadow, per 05 design) →
 D3 migration gating → A2 eKYC API skeleton → live-cluster chart install test.

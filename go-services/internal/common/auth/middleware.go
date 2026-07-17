@@ -64,6 +64,9 @@ func (m *Middleware) Handler(next http.Handler) http.Handler {
 					ctx = WithCustomerID(ctx, *claims.CustomerID)
 				}
 			}
+			if claims.MobileUserID != "" {
+				ctx = WithMobileUserID(ctx, claims.MobileUserID)
+			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return

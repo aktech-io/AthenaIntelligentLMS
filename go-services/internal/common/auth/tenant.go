@@ -9,6 +9,7 @@ const (
 	userIDKey      contextKey = "userId"
 	customerIDKey  contextKey = "customerId"
 	customerStrKey contextKey = "customerIdStr"
+	mobileUserKey  contextKey = "mobileUserId"
 	rolesKey       contextKey = "roles"
 	permsKey       contextKey = "permissions"
 	permsSetKey    contextKey = "permissionsPresent"
@@ -71,6 +72,21 @@ func WithCustomerIDStr(ctx context.Context, customerIDStr string) context.Contex
 // CustomerIDStrFromContext extracts the string customer ID from context.
 func CustomerIDStrFromContext(ctx context.Context) string {
 	if v, ok := ctx.Value(customerStrKey).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// WithMobileUserID returns a new context with the mobile app user's UUID set
+// (the "userId" claim stamped by the mobile BFF gateway on app-user tokens).
+func WithMobileUserID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, mobileUserKey, id)
+}
+
+// MobileUserIDFromContext extracts the mobile app user's UUID from context.
+// Empty for staff tokens and service-to-service calls.
+func MobileUserIDFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(mobileUserKey).(string); ok {
 		return v
 	}
 	return ""
