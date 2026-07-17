@@ -111,14 +111,36 @@ observability:
     scrapeInterval: 30s
     storage: ""                # empty = emptyDir (demo); set e.g. 20Gi for a PVC
   alertmanager:
-    enabled: false             # enable once a receiver is configured
+    enabled: false             # enable once a receiver below points somewhere real
     image: prom/alertmanager:v0.27.0
-    # Raw alertmanager.yml content; default routes everything to a black hole.
+    # Raw alertmanager.yml content (H3). The default tree routes by severity:
+    # critical pages immediately and repeats hourly; warning batches to the
+    # ops channel. Replace the receiver stubs with your PagerDuty/Slack/email
+    # endpoints — every alert in the Nemo pack carries a severity label.
     config: |
       route:
-        receiver: default
+        receiver: ops-channel
+        group_by: [alertname, job]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 12h
+        routes:
+          - matchers: [severity = critical]
+            receiver: oncall-page
+            group_wait: 0s
+            repeat_interval: 1h
       receivers:
-        - name: default
+        - name: oncall-page
+          # PagerDuty: add pagerduty_configs with your routing_key, or point
+          # webhook_configs at your paging bridge.
+          webhook_configs:
+            - url: http://alert-bridge.internal/page
+              send_resolved: true
+        - name: ops-channel
+          # Slack: add slack_configs with api_url + channel; email works too.
+          webhook_configs:
+            - url: http://alert-bridge.internal/ops
+              send_resolved: true
   grafana:
     enabled: true
     image: grafana/grafana:11.1.0
