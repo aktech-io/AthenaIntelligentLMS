@@ -39,6 +39,10 @@ type Config struct {
 
 	// Migration
 	MigrateOnStartup bool `mapstructure:"MIGRATE_ON_STARTUP"`
+	// MigrateOnly makes the process run migrations and exit (D3: the Helm
+	// pre-upgrade migration Job); a migration failure is then fatal instead
+	// of a warning, so a bad migration blocks the rollout, not the pods.
+	MigrateOnly bool `mapstructure:"MIGRATE_ONLY"`
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -64,6 +68,7 @@ func Load(serviceName string) (*Config, error) {
 	v.SetDefault("RABBITMQ_VHOST", "/")
 	v.SetDefault("RABBITMQ_CONSUME_ENABLED", true)
 	v.SetDefault("MIGRATE_ON_STARTUP", true)
+	v.SetDefault("MIGRATE_ONLY", false)
 	v.SetDefault("JWT_SECRET", "")
 	v.SetDefault("LMS_INTERNAL_SERVICE_KEY", "")
 

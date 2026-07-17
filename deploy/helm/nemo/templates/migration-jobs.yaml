@@ -1,0 +1,49 @@
+{{- /*
+D3 migration gating: with migrations.gated=true, schema migrations run in
+pre-install/pre-upgrade hook Jobs (one per DB-backed service, MIGRATE_ONLY
+mode — failure blocks the rollout) and the pods themselves skip migrations
+(MIGRATE_ON_STARTUP=false via the common ConfigMap), so a rolling deploy
+never races its own schema changes.
+*/ -}}
+{{- if .Values.migrations.gated }}
+{{- $root := . }}
+{{- range .Values.services }}
+{{- if .dbName }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nemo-migrate-{{ .name }}
+  labels: {{- include "nemo.labels" $root | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: nemo-migrate-{{ .name }}
+        {{- include "nemo.labels" $root | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: {{ include "nemo.serviceImage" (list $root .) }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          envFrom:
+            - configMapRef: {name: nemo-common}
+            - secretRef: {name: {{ include "nemo.secretName" $root }}}
+          env:
+            - name: SERVICE_NAME
+              value: nemo-migrate-{{ .name }}
+            - name: DB_NAME
+              value: {{ .dbName | quote }}
+            - name: MIGRATE_ONLY
+              value: "true"
+            - name: MIGRATE_ON_STARTUP
+              value: "true"
+{{- end }}
+{{- end }}
+{{- end }}

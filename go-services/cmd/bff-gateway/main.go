@@ -63,10 +63,8 @@ func main() {
 	defer pool.Close()
 	sqlxDB := db.NewSQLX(pool)
 
-	if cfg.MigrateOnStartup {
-		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/bff-gateway", logger); err != nil {
-			logger.Warn("Migration failed (may be first run)", zap.Error(err))
-		}
+	if exit := db.MigrateGate(cfg.Config, "file://migrations/bff-gateway", logger); exit {
+		return
 	}
 
 	// RabbitMQ

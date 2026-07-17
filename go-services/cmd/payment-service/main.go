@@ -59,10 +59,8 @@ func main() {
 	defer pool.Close()
 
 	// Run migrations
-	if cfg.MigrateOnStartup {
-		if err := db.RunMigrations(cfg.DatabaseDSN(), "file://migrations/payment", logger); err != nil {
-			logger.Warn("Migration failed (may be first run)", zap.Error(err))
-		}
+	if exit := db.MigrateGate(cfg, "file://migrations/payment", logger); exit {
+		return
 	}
 
 	// RabbitMQ

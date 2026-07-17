@@ -52,6 +52,12 @@ hardening:
   maxReplicas: 6
   targetCPUUtilization: 70
 
+# D3 zero-downtime upgrades: gated=true runs migrations in pre-upgrade hook
+# Jobs (MIGRATE_ONLY) and pods skip startup migrations — a failed migration
+# blocks the rollout instead of racing it. Recommended for production.
+migrations:
+  gated: false
+
 serviceDefaults:
   replicas: 1
   migrateOnStartup: true
