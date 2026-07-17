@@ -49,7 +49,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 2 — Customer front end (the "neobank" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| A1 | White-label mobile app | C | **Decision made: fork-and-adapt** the Flutter wallet (see 04 audit). Phase 0: fold its Go BFF into this monorepo, Nemo-ify branding/flavors. |
+| A1 | White-label mobile app | C | **Fork-and-adapt** (04 audit). **Nemo rebrand done** on wallet branch `nemo-rebrand` (deep-water dark theme, stripes logo + launcher icons, Jost display font, "Nemo" naming; analyze clean). Held unmerged pending the Phase-0 BFF/monorepo fold-in; bundle-id + runtime brand packs deferred to flavors work. |
 | A2 | Self-service eKYC onboarding | C | API-side first (risk-tiered auto-approve on existing KYC plumbing); vendor (Smile ID class) behind an adapter chosen per market pack. |
 | B2/B3 | P2P by alias, bills/airtime | C | Thin services over existing wallet + transfers; biller catalogue is market-pack content. |
 | B1 | Virtual card issuing | C | Integration play (Paymentology/Interswitch class). Needs partner decision — **business blocker, flag to founder**. PCI scoping (F2) starts with it. |
