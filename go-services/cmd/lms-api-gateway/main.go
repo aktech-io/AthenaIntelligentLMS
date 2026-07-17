@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/athena-lms/go-services/internal/common/metrics"
+	"github.com/athena-lms/go-services/internal/common/tracing"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -552,6 +553,10 @@ func main() {
 	if err != nil {
 		logger.Fatal("Failed to load config", zap.Error(err))
 	}
+
+	// Distributed tracing (H1): no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
+	shutdownTracing := tracing.Init(context.Background(), cfg.ServiceName, logger)
+	defer shutdownTracing(context.Background())
 	cfg.Port = envInt("PORT", 8105)
 
 	_, cancel := context.WithCancel(context.Background())
@@ -624,7 +629,7 @@ func main() {
 	// Server
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
-		Handler:      r,
+		Handler:      tracing.WrapHandler(r, cfg.ServiceName),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,

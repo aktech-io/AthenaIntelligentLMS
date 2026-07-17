@@ -12,3 +12,6 @@ data:
   RABBITMQ_VHOST: {{ .Values.rabbitmq.vhost | quote }}
   MARKET_PACK: {{ .Values.global.marketPack | quote }}
   MIGRATE_ON_STARTUP: {{ .Values.serviceDefaults.migrateOnStartup | quote }}
+  {{- with .Values.observability.otlpEndpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
+  {{- end }}

@@ -101,6 +101,9 @@ portal:
 # in the release namespace and evaluates the Nemo business alert pack;
 # Grafana ships with the money-path dashboard provisioned.
 observability:
+  # When set (e.g. http://otel-collector:4318), every service exports OTLP
+  # traces there; empty disables tracing (H1).
+  otlpEndpoint: ""
   prometheus:
     enabled: true
     image: prom/prometheus:v2.53.0

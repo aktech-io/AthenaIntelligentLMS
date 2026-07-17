@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/athena-lms/go-services/internal/common/market"
 	"net/smtp"
@@ -59,7 +60,7 @@ func (s *Service) SendEmail(ctx context.Context, serviceName, to, subject, body 
 	}
 	if config == nil {
 		errorMsg = "Email configuration not found"
-		return fmt.Errorf(errorMsg)
+		return errors.New(errorMsg)
 	}
 
 	if !config.Enabled {
