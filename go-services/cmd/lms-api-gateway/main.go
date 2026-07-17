@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -607,6 +608,8 @@ func main() {
 
 	// Health endpoint (unauthenticated)
 	r.Get("/actuator/health", healthHandler(gw))
+	// Prometheus metrics (H2): unauthenticated, scraped in-cluster only.
+	r.Handle("/metrics", metrics.Handler())
 
 	// Auth middleware. SECURITY (CRIT-1): the public gateway must NOT honour the
 	// internal service key — that path grants SERVICE+ADMIN on a client-supplied

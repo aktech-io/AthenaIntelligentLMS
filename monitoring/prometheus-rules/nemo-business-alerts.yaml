@@ -1,0 +1,59 @@
+# Nemo starter business-alert pack (H2/H3). Load into Prometheus
+# (rule_files) or a PrometheusRule CR. These are the money-path invariants:
+# each firing alert is a real incident, not noise.
+groups:
+  - name: nemo-ledger
+    rules:
+      - alert: GLUnbalancedEntries
+        expr: nemo_gl_unbalanced_entries > 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Double-entry broken: {{ $value }} POSTED journal entries with debits != credits"
+          runbook: "Freeze posting for the affected tenant; find entries via accounting-service /journal-entries; reverse and repost."
+      - alert: GLFlowStalled
+        expr: nemo_gl_entries_posted_24h == 0
+        for: 6h
+        labels: {severity: warning}
+        annotations:
+          summary: "No journal entries posted in 24h+ — event consumers may be stalled"
+
+  - name: nemo-eventbus
+    rules:
+      - alert: OutboxRelayStuck
+        expr: nemo_outbox_oldest_pending_age_seconds > 300
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Outbox backlog age {{ $value }}s on {{ $labels.job }} — events written but not published (F27 class)"
+          runbook: "Check the service's relay logs and RabbitMQ connectivity; backlog drains automatically once publishing resumes."
+      - alert: OutboxDeadEvents
+        expr: nemo_outbox_dead_events > 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $value }} dead-lettered outbox events on {{ $labels.job }} — money-path events permanently undelivered"
+      - alert: OutboxCollectorDown
+        expr: nemo_outbox_collector_up == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Outbox metrics query failing on {{ $labels.job }} — DB unreachable from collector"
+
+  - name: nemo-payments
+    rules:
+      - alert: PaymentsStuckProcessing
+        expr: nemo_payments_stuck_processing > 0
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $value }} payments in PENDING/PROCESSING for >1h — customer money in limbo"
+      - alert: PaymentFailureRateHigh
+        expr: >
+          nemo_payments_failed_24h
+            / clamp_min(nemo_payments_completed_24h + nemo_payments_failed_24h, 1)
+          > 0.05
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Payment failure rate above 5% over the last 24h"

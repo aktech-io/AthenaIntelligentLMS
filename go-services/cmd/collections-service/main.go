@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	"net/http"
 	"os"
 	"os/signal"
@@ -127,6 +128,8 @@ func main() {
 
 	// Health endpoint (unauthenticated -- used by Docker healthcheck)
 	r.Get("/actuator/health", health.Handler(pool, rmqConn))
+	// Prometheus metrics (H2): unauthenticated, scraped in-cluster only.
+	r.Handle("/metrics", metrics.Handler())
 
 	// Protected routes
 	h := handler.NewHandler(svc, logger)

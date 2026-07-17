@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	"net/http"
 	"os"
 	"os/signal"
@@ -89,6 +90,7 @@ func main() {
 	// with their state change) and publishes them at-least-once, surviving
 	// broker outages and restarts (F27 root-cause fix).
 	relay := outbox.NewRelay(pool, pub, logger)
+	metrics.MustRegister(metrics.NewOutboxCollector(relay))
 	go relay.Run(ctx)
 
 	// Disbursement reconciler: a periodic safety net that flags any DISBURSED
@@ -121,6 +123,8 @@ func main() {
 	// Readiness endpoint (unauthenticated — used by the k8s readinessProbe).
 	// Returns 503 unless the database is reachable; reports broker status too.
 	r.Get("/actuator/health", health.Handler(pool, rmqConn))
+	// Prometheus metrics (H2): unauthenticated, scraped in-cluster only.
+	r.Handle("/metrics", metrics.Handler())
 
 	// Protected routes
 	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)

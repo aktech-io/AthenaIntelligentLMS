@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	"net/http"
 	"os"
 	"os/signal"
@@ -89,6 +90,8 @@ func main() {
 	// the journal-entry posting) and publishes them at-least-once, surviving
 	// broker outages and restarts (F27 root-cause fix).
 	relay := outbox.NewRelay(pool, pub, logger)
+	metrics.MustRegister(metrics.NewOutboxCollector(relay))
+	metrics.MustRegister(metrics.NewDBCollector(pool, "gl", metrics.GLGauges()...))
 	go relay.Run(ctx)
 
 	// JWT
@@ -123,6 +126,8 @@ func main() {
 
 	// Health endpoint (unauthenticated -- used by Docker healthcheck)
 	r.Get("/actuator/health", health.Handler(pool, rmqConn))
+	// Prometheus metrics (H2): unauthenticated, scraped in-cluster only.
+	r.Handle("/metrics", metrics.Handler())
 
 	// Protected routes
 	authMw := auth.NewMiddleware(jwtUtil, cfg.InternalServiceKey, logger)

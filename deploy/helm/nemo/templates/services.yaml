@@ -19,6 +19,10 @@ spec:
       labels:
         app: go-{{ $svc.name }}
         {{- include "nemo.labels" $root | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ $svc.port | quote }}
+        prometheus.io/path: /metrics
     spec:
       containers:
         - name: {{ $svc.name }}

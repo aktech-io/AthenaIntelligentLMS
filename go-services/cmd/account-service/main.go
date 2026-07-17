@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/athena-lms/go-services/internal/common/metrics"
 	"net/http"
 	"os"
 	"os/signal"
@@ -90,6 +91,7 @@ func main() {
 	// the balance change) and publishes them at-least-once, surviving broker
 	// outages and restarts (F27 root-cause fix).
 	relay := outbox.NewRelay(pool, pub, logger)
+	metrics.MustRegister(metrics.NewOutboxCollector(relay))
 	go relay.Run(ctx)
 
 	// Service wiring
@@ -129,6 +131,8 @@ func main() {
 
 	// Health endpoint (unauthenticated)
 	r.Get("/actuator/health", health.Handler(pool, rmqConn))
+	// Prometheus metrics (H2): unauthenticated, scraped in-cluster only.
+	r.Handle("/metrics", metrics.Handler())
 
 	// Auth endpoints (unauthenticated)
 	r.Post("/api/auth/login", authHandler.Login)
