@@ -17,9 +17,18 @@ Kenya is now the first data pack (`packs/ke.yaml`), not a hardcode. Currency, ti
 support identity and regulatory seeding read the active pack; `MARKET_PACK=ET` plus one
 YAML file is all a new market needs at the platform-defaults level.
 
-**In flight**: audit of the existing **AthenaMobileWallet Flutter app**
-(`~/projects/aktech/AthenaMobileWallet`) as the reuse candidate for the A1 customer app —
-report lands in [04-wallet-app-reuse-audit.md](04-wallet-app-reuse-audit.md).
+**Decided — A1 app strategy**: the **AthenaMobileWallet Flutter app** audit
+([04-wallet-app-reuse-audit.md](04-wallet-app-reuse-audit.md)) returned
+**fork-and-adapt**. Half the concept already works against the LMS APIs through the
+app's own Go BFF (64/64 e2e green); missing pillars are cards, eKYC, crypto and Nia chat.
+~30–36 engineer-weeks across 5 phases vs 50–70 for a rewrite; phases 0–2 (~13–16 wks)
+deliver the sellable white-label v1. First moves: fold the BFF into this monorepo and
+de-brand the compile-time "Athena" constants into brand packs (C4).
+
+**Also shipped**: **D1 Helm umbrella chart** (`deploy/helm/nemo`, commit `c29a9e6`) —
+one-command install of all 16 services + gateway routes, fraud-ML, in-cluster
+PostgreSQL/RabbitMQ, market-pack env, demo-vs-secret credential model. Remaining
+D-track: image pipeline, offline bundle (D2), migration gating (D3), HA values (D4).
 
 ## 2. The issue list, EM-ordered
 
@@ -40,7 +49,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 2 — Customer front end (the "neobank" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| A1 | White-label mobile app | C | **Audit in flight** — decision: reuse/fork/rewrite the Flutter wallet. Then adaptation milestones from the audit. |
+| A1 | White-label mobile app | C | **Decision made: fork-and-adapt** the Flutter wallet (see 04 audit). Phase 0: fold its Go BFF into this monorepo, Nemo-ify branding/flavors. |
 | A2 | Self-service eKYC onboarding | C | API-side first (risk-tiered auto-approve on existing KYC plumbing); vendor (Smile ID class) behind an adapter chosen per market pack. |
 | B2/B3 | P2P by alias, bills/airtime | C | Thin services over existing wallet + transfers; biller catalogue is market-pack content. |
 | B1 | Virtual card issuing | C | Integration play (Paymentology/Interswitch class). Needs partner decision — **business blocker, flag to founder**. PCI scoping (F2) starts with it. |
