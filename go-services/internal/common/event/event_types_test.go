@@ -51,6 +51,15 @@ func TestEventTypeValues(t *testing.T) {
 		{"FloatRestrictionApplied", FloatRestrictionApplied, "float.restriction.applied"},
 		{"FloatLimitChanged", FloatLimitChanged, "float.limit.changed"},
 
+		// Card issuing (Nemo B1)
+		{"CardIssued", CardIssued, "card.issued"},
+		{"CardActivated", CardActivated, "card.activated"},
+		{"CardFrozen", CardFrozen, "card.frozen"},
+		{"CardUnfrozen", CardUnfrozen, "card.unfrozen"},
+		{"CardBlocked", CardBlocked, "card.blocked"},
+		{"CardClosed", CardClosed, "card.closed"},
+		{"CardLimitsChanged", CardLimitsChanged, "card.limits.changed"},
+
 		// AML / compliance
 		{"AMLAlertRaised", AMLAlertRaised, "aml.alert.raised"},
 		{"AMLSARFiled", AMLSARFiled, "aml.sar.filed"},

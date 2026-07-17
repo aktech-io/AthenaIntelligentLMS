@@ -27,6 +27,7 @@ GO_SERVICES=(
   payment-service accounting-service float-service collections-service
   compliance-service reporting-service ai-scoring-service overdraft-service
   media-service notification-service fraud-detection-service lms-api-gateway
+  card-service
 )
 
 img() { # img <name> -> full image ref
