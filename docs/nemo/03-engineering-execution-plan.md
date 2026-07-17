@@ -70,7 +70,7 @@ each track, chosen for dependency flow, not grade alone.
 ### Track 4 — Operate & trust (the "sleep at night" claim)
 | # | Item | Grade | Status / next action |
 |---|------|-------|---------------------|
-| H1–H3 | Observability: OTel tracing, business-metric exporters (GL imbalance, event lag, payment success), Alertmanager + SLO pack | C | **H2 baseline shipped** (`096a6fe`): /metrics on all 17 services, outbox lag + GL integrity + payment outcome collectors, starter alert pack (`monitoring/prometheus-rules/`), scrape annotations in the chart. Remaining: OTel tracing (H1), Alertmanager routing + on-call (H3), Grafana business dashboards. |
+| H1–H3 | Observability: OTel tracing, business-metric exporters (GL imbalance, event lag, payment success), Alertmanager + SLO pack | C | **H2 baseline shipped** (`096a6fe`): /metrics on all 17 services, outbox lag + GL integrity + payment outcome collectors, starter alert pack (`monitoring/prometheus-rules/`), scrape annotations in the chart. **H1 tracing baseline + in-chart observability shipped** (`b5c9b9d`, `fce929e`): env-gated OTLP spans on all services, Prometheus/Alertmanager/Grafana with the Money Paths dashboard installable from the chart. Remaining: OTel spans on event consumers/DB, Alertmanager receivers + on-call rota (H3), per-service dashboards. |
 | H5 | Reconciliation engine (M-Pesa first) | C | Phase 2 start; design alongside G1 connector SDK. |
 | F1/F4 | Security hardening; strong customer auth | C | F4 blocks real A1 launch. mTLS/WAF ride on D1's chart. |
 | F2 | PCI-DSS → ISO 27001 → SOC 2 | C | 12+ month lead — **start gap assessment when B1 partner chosen**. |
@@ -91,6 +91,9 @@ wallet audit). Every completed item: tests green → commit/push → tick here a
 gap analysis. Standing tracks (money-path correctness, regulatory currency, security)
 interleave as audits surface work.
 
-**Immediate queue** (D1 ✓, wallet decision ✓, H2 baseline ✓): **C1 tenant
-provisioning API** → A1 Phase 0 (fold wallet BFF into monorepo, brand-pack the app) →
-E1 decision-engine design → H1 OTel tracing → D3 migration gating.
+**Immediate queue** (D1 ✓, wallet decision ✓, H2 ✓, H1 baseline ✓, in-chart
+observability ✓): **in flight on agent branches** — C1 tenant provisioning API
+(`nemo/c1-tenant-provisioning`), E1 decision-engine design
+(`nemo/e1-decision-engine-design`), wallet app Nemo rebrand
+(AthenaMobileWallet `nemo-rebrand`). Next after merge: A1 Phase 0 (fold wallet
+BFF into monorepo) → E1 v1 implementation → D3 migration gating → H3 receivers.
