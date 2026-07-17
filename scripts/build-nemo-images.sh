@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Build the image set the Nemo Helm chart (deploy/helm/nemo) installs:
-#   nemo-<service>:<TAG> for the 16 Go services, nemo-fraud-ml, nemo-portal.
+#   nemo-<service>:<TAG> for the 16 Go services, nemo-fraud-ml, nemo-ekyc-ml,
+#   nemo-portal.
 #
 # Usage:
 #   ./scripts/build-nemo-images.sh                # docker-build all, tag latest
@@ -67,6 +68,12 @@ if [[ -z "$ONLY" || "$ONLY" == "fraud-ml" ]]; then
   echo "==> [$(date +%H:%M:%S)] $(img fraud-ml)"
   build "$(img fraud-ml)" "" "${ROOT}/fraud-ml-service" >/dev/null 2>&1 \
     && BUILT+=(fraud-ml) || { echo "    BUILD FAILED: fraud-ml"; FAILED+=(fraud-ml); }
+fi
+
+if [[ -z "$ONLY" || "$ONLY" == "ekyc-ml" ]]; then
+  echo "==> [$(date +%H:%M:%S)] $(img ekyc-ml)"
+  build "$(img ekyc-ml)" "" "${ROOT}/ekyc-ml-service" >/dev/null 2>&1 \
+    && BUILT+=(ekyc-ml) || { echo "    BUILD FAILED: ekyc-ml"; FAILED+=(ekyc-ml); }
 fi
 
 if [[ -z "$ONLY" || "$ONLY" == "portal" ]]; then

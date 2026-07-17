@@ -78,7 +78,17 @@ services:
   - {name: accounting-service,       port: 8091, dbName: athena_accounting,    routeKey: ACCOUNTING_SERVICE}
   - {name: float-service,            port: 8092, dbName: athena_float,         routeKey: FLOAT_SERVICE}
   - {name: collections-service,      port: 8093, dbName: athena_collections,   routeKey: COLLECTIONS_SERVICE}
-  - {name: compliance-service,       port: 8094, dbName: athena_compliance,    routeKey: COMPLIANCE_SERVICE}
+  # A2 in-house eKYC: compliance-service verifies onboarding applicants via
+  # the nemo-ekyc-ml sidecar (EKYC_PROVIDER=sandbox disables it; a commercial
+  # vendor adapter name goes here once registered).
+  - name: compliance-service
+    port: 8094
+    dbName: athena_compliance
+    routeKey: COMPLIANCE_SERVICE
+    extraEnv:
+      EKYC_PROVIDER: inhouse
+      EKYC_ML_SERVICE_URL: http://nemo-ekyc-ml:8102
+      MEDIA_SERVICE_URL: http://go-media-service:8098
   - {name: reporting-service,        port: 8095, dbName: athena_reporting,     routeKey: REPORTING_SERVICE}
   - {name: ai-scoring-service,       port: 8096, dbName: athena_scoring,       routeKey: AI_SCORING_SERVICE}
   - {name: overdraft-service,        port: 8097, dbName: athena_overdraft,     routeKey: OVERDRAFT_SERVICE}
@@ -151,6 +161,17 @@ fraudMl:
   enabled: true
   image: ""                    # defaults to <registry>/nemo-fraud-ml:<tag>
   port: 8101
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+
+# A2 in-house eKYC engine (OCR/MRZ extraction, face match, sanctions/PEP
+# screening). Disable only if EKYC_PROVIDER on compliance-service is set to
+# sandbox or a commercial vendor adapter.
+ekycMl:
+  enabled: true
+  image: ""                    # defaults to <registry>/nemo-ekyc-ml:<tag>
+  port: 8102
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}

@@ -1,0 +1,56 @@
+{{- if .Values.ekycMl.enabled }}
+# A2 in-house eKYC engine (ekyc-ml-service): document OCR/MRZ extraction,
+# document-vs-selfie face match, sanctions/PEP screening. compliance-service
+# calls it via EKYC_ML_SERVICE_URL when EKYC_PROVIDER=inhouse.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-ekyc-ml
+  labels:
+    app: nemo-ekyc-ml
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemo-ekyc-ml
+  template:
+    metadata:
+      labels:
+        app: nemo-ekyc-ml
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: ekyc-ml
+          {{- if .Values.ekycMl.image }}
+          image: {{ .Values.ekycMl.image }}
+          {{- else if .Values.global.imageRegistry }}
+          image: {{ .Values.global.imageRegistry }}/nemo-ekyc-ml:{{ .Values.global.imageTag }}
+          {{- else }}
+          image: nemo-ekyc-ml:{{ .Values.global.imageTag }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ekycMl.port }}
+          readinessProbe:
+            httpGet: {path: /health, port: {{ .Values.ekycMl.port }}}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: {{ .Values.ekycMl.port }}}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources: {{- .Values.ekycMl.resources | toYaml | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-ekyc-ml
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-ekyc-ml
+  ports:
+    - port: {{ .Values.ekycMl.port }}
+      targetPort: {{ .Values.ekycMl.port }}
+{{- end }}
