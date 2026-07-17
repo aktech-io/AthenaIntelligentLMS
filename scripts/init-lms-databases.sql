@@ -145,4 +145,13 @@ CREATE DATABASE athena_decision
 GRANT ALL PRIVILEGES ON DATABASE athena_decision TO athena;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ─── Card Service (Nemo B1 card issuing) ─────────────────────────────────────
+SELECT 'Creating athena_cards...' AS step;
+CREATE DATABASE athena_cards
+    WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
+
+\c athena_cards
+GRANT ALL PRIVILEGES ON DATABASE athena_cards TO athena;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 SELECT 'All LMS databases created successfully.' AS result;

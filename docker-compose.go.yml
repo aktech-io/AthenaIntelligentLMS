@@ -406,6 +406,37 @@ services:
       start_period: 30s
       retries: 3
 
+  # ─── Card Service (Nemo B1 — card issuing via processor adapter) ────────────
+  go-card-service:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: card-service
+    ports: ["28107:8107"]
+    environment:
+      <<: *go-env
+      PORT: 8107
+      DB_HOST: postgres
+      DB_NAME: athena_cards
+      SERVICE_NAME: go-card-service
+      RABBITMQ_CONSUME_ENABLED: "true"
+      # Processor adapter: sandbox until Paymentology credentials arrive
+      # (then set CARD_PROCESSOR=paymentology + PAYMENTOLOGY_* secrets).
+      CARD_PROCESSOR: sandbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8107/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
   # ─── Fraud ML Service (Python sidecar — Isolation Forest + LightGBM) ────────
   fraud-ml-service:
     build:
@@ -526,6 +557,7 @@ services:
       ROUTE_OVERDRAFT_SERVICE_URL: "http://go-overdraft-service:8097"
       ROUTE_MEDIA_SERVICE_URL: "http://go-media-service:8098"
       ROUTE_FRAUD_DETECTION_SERVICE_URL: "http://go-fraud-detection-service:8100"
+      ROUTE_CARD_SERVICE_URL: "http://go-card-service:8107"
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -97,6 +97,16 @@ const (
 	// decision-service. Payload contract: internal/common/decision.Record.
 	DecisionRecorded = "decision.recorded"
 
+	// Card issuing events (Nemo B1). PCI note: payloads carry processorRef +
+	// panLast4 only — never a full PAN/CVV (see internal/card/model).
+	CardIssued        = "card.issued"
+	CardActivated     = "card.activated"
+	CardFrozen        = "card.frozen"
+	CardUnfrozen      = "card.unfrozen"
+	CardBlocked       = "card.blocked"
+	CardClosed        = "card.closed"
+	CardLimitsChanged = "card.limits.changed"
+
 	// Overdraft events
 	OverdraftApplied          = "overdraft.applied"
 	OverdraftDrawn            = "overdraft.drawn"

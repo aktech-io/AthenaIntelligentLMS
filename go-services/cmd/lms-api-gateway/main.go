@@ -153,6 +153,13 @@ func defaultRoutes() []RouteConfig {
 			EnvOverride: "ROUTE_MEDIA_SERVICE_URL",
 		},
 		{
+			// B1 card issuing: staff card operations (issue/freeze/limits).
+			ID:          "card-service",
+			PathPrefix:  "/lms/api/v1/cards/",
+			TargetURL:   "http://card-service.lms.svc.cluster.local:8107",
+			EnvOverride: "ROUTE_CARD_SERVICE_URL",
+		},
+		{
 			ID:          "fraud-detection-service",
 			PathPrefix:  "/lms/api/fraud/",
 			TargetURL:   "http://fraud-detection-service.lms.svc.cluster.local:8100",

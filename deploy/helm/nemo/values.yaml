@@ -103,6 +103,15 @@ services:
   # Decision spine control plane (E1): projects decision.recorded events into
   # the append-only decision_log. Gateway route lands with E1 increment 4.
   - {name: decision-service, port: 8106, dbName: athena_decision}
+  # Card issuing (B1): processor adapter selected by CARD_PROCESSOR — sandbox
+  # until the Paymentology credentials arrive (then paymentology + the
+  # PAYMENTOLOGY_* secrets). PCI: stores processor_ref + pan_last4 only.
+  - name: card-service
+    port: 8107
+    dbName: athena_cards
+    routeKey: CARD_SERVICE
+    extraEnv:
+      CARD_PROCESSOR: sandbox
 
   # Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet).
   # Deliberately NO routeKey: these are app-facing, not gateway-routed. The
