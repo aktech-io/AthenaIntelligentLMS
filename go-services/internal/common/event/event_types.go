@@ -40,15 +40,15 @@ const (
 	PaymentReversed  = "payment.reversed"
 
 	// Float events
-	FloatDrawn             = "float.drawn"
-	FloatRepaid            = "float.repaid"
-	FloatFeeCharged        = "float.fee.charged"
+	FloatDrawn              = "float.drawn"
+	FloatRepaid             = "float.repaid"
+	FloatFeeCharged         = "float.fee.charged"
 	FloatRestrictionApplied = "float.restriction.applied"
-	FloatLimitChanged      = "float.limit.changed"
+	FloatLimitChanged       = "float.limit.changed"
 
 	// AML / compliance events
-	AMLAlertRaised   = "aml.alert.raised"
-	AMLSARFiled      = "aml.sar.filed"
+	AMLAlertRaised    = "aml.alert.raised"
+	AMLSARFiled       = "aml.sar.filed"
 	CustomerKYCPassed = "customer.kyc.passed"
 	CustomerKYCFailed = "customer.kyc.failed"
 
@@ -77,14 +77,19 @@ const (
 	SavingsAutoSaveExecuted = "savings.auto.save.executed"
 
 	// Shop / BNPL events
-	ShopOrderPlaced   = "shop.order.placed"
-	ShopOrderShipped  = "shop.order.shipped"
+	ShopOrderPlaced    = "shop.order.placed"
+	ShopOrderShipped   = "shop.order.shipped"
 	ShopOrderDelivered = "shop.order.delivered"
-	ShopBNPLApproved  = "shop.bnpl.approved"
+	ShopBNPLApproved   = "shop.bnpl.approved"
 
 	// Fraud detection events
 	FraudAlertRaised  = "fraud.alert.raised"
 	FraudBlockAccount = "fraud.block.account"
+
+	// Tenant lifecycle events (Nemo C1 tenant provisioning)
+	TenantProvisioned = "tenant.provisioned"
+	TenantActivated   = "tenant.activated"
+	TenantSuspended   = "tenant.suspended"
 
 	// Overdraft events
 	OverdraftApplied          = "overdraft.applied"
