@@ -38,11 +38,13 @@ SERVICE_KEY = os.getenv(
     "athena-internal-key",
 )
 
+# Demo defaults; override per-account via env when the target has rotated
+# credentials (e.g. LMS_ADMIN_PASSWORD against production).
 DEMO_USERS = {
-    "admin":   {"username": "admin",              "password": "admin123"},
-    "manager": {"username": "manager",            "password": "manager123"},
-    "officer": {"username": "officer",            "password": "officer123"},
-    "teller":  {"username": "teller@athena.com",  "password": "teller123"},
+    "admin":   {"username": "admin",              "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")},
+    "manager": {"username": "manager",            "password": os.getenv("LMS_MANAGER_PASSWORD", "manager123")},
+    "officer": {"username": "officer",            "password": os.getenv("LMS_OFFICER_PASSWORD", "officer123")},
+    "teller":  {"username": "teller@athena.com",  "password": os.getenv("LMS_TELLER_PASSWORD", "teller123")},
 }
 
 TIMEOUT = int(os.getenv("LMS_TIMEOUT", "15"))

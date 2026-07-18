@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Build the image set the Nemo Helm chart (deploy/helm/nemo) installs:
-#   nemo-<service>:<TAG> for the 16 Go services, nemo-fraud-ml, nemo-ekyc-ml,
-#   nemo-portal.
+#   nemo-<service>:<TAG> for the 22 Go services (16 LMS + card + decision +
+#   4 mobile BFF), nemo-fraud-ml, nemo-ekyc-ml, nemo-portal.
 #
 # Usage:
 #   ./scripts/build-nemo-images.sh                # docker-build all, tag latest
@@ -28,7 +28,8 @@ GO_SERVICES=(
   payment-service accounting-service float-service collections-service
   compliance-service reporting-service ai-scoring-service overdraft-service
   media-service notification-service fraud-detection-service lms-api-gateway
-  card-service
+  card-service decision-service
+  bff-gateway bff-notification bff-billpay-savings bff-shop
 )
 
 img() { # img <name> -> full image ref
