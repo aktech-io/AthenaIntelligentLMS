@@ -1,0 +1,42 @@
+# App-facing BFF exposure on the Contabo box — one public origin, path-routed
+# to the four mobile BFF services (their prefixes are disjoint):
+#   /api/v1/mobile                          → bff-gateway         :8110
+#   /api/v1/notifications                   → bff-notification    :8111
+#   /api/v1/billpay, /api/v1/savings        → bff-billpay-savings :8112
+#   /api/v1/shop                            → bff-shop            :8113
+#
+# 1) app.lms.athenafinance.cloud with Let's Encrypt TLS.
+#    BLOCKED on DNS: the athenafinance.cloud zone (Namecheap registrar-servers)
+#    has NO A records for lms/app.lms — add A records → 158.220.112.84, after
+#    which cert-manager completes the pending HTTP-01 orders automatically.
+# 2) The same path rules hostless, so a test APK can target
+#    http://158.220.112.84 by IP until DNS exists.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bff-gateway
+  namespace: lms
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m   # eKYC doc/selfie uploads
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts: [app.lms.athenafinance.cloud]
+    secretName: bff-gateway-tls
+  rules:
+  - host: app.lms.athenafinance.cloud
+    http:
+      paths:
+      - {path: /api/v1/mobile,        pathType: Prefix, backend: {service: {name: bff-gateway,         port: {number: 8110}}}}
+      - {path: /api/v1/notifications, pathType: Prefix, backend: {service: {name: bff-notification,    port: {number: 8111}}}}
+      - {path: /api/v1/billpay,       pathType: Prefix, backend: {service: {name: bff-billpay-savings, port: {number: 8112}}}}
+      - {path: /api/v1/savings,       pathType: Prefix, backend: {service: {name: bff-billpay-savings, port: {number: 8112}}}}
+      - {path: /api/v1/shop,          pathType: Prefix, backend: {service: {name: bff-shop,            port: {number: 8113}}}}
+  - http:
+      paths:
+      - {path: /api/v1/mobile,        pathType: Prefix, backend: {service: {name: bff-gateway,         port: {number: 8110}}}}
+      - {path: /api/v1/notifications, pathType: Prefix, backend: {service: {name: bff-notification,    port: {number: 8111}}}}
+      - {path: /api/v1/billpay,       pathType: Prefix, backend: {service: {name: bff-billpay-savings, port: {number: 8112}}}}
+      - {path: /api/v1/savings,       pathType: Prefix, backend: {service: {name: bff-billpay-savings, port: {number: 8112}}}}
+      - {path: /api/v1/shop,          pathType: Prefix, backend: {service: {name: bff-shop,            port: {number: 8113}}}}
