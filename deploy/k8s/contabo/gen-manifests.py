@@ -83,10 +83,13 @@ GO_SERVICES = [
     }),
 ]
 
-# Python ML sidecars: name, port, image, health path
+# Python ML sidecars: name, port, image, health path, extra env
 ML_SERVICES = [
-    ("nemo-fraud-ml", 8101, image_ref("nemo-fraud-ml"), "/health"),
-    ("nemo-ekyc-ml",  8102, image_ref("nemo-ekyc-ml"), "/health"),
+    # No MLflow on this box — fail model-registry lookups fast instead of
+    # hanging scoring requests (rule-based fallback takes over).
+    ("nemo-fraud-ml", 8101, image_ref("nemo-fraud-ml"), "/health",
+     {"MLFLOW_HTTP_REQUEST_TIMEOUT": "3", "MLFLOW_HTTP_REQUEST_MAX_RETRIES": "1"}),
+    ("nemo-ekyc-ml",  8102, image_ref("nemo-ekyc-ml"), "/health", {}),
 ]
 
 
@@ -168,8 +171,8 @@ for name, port, db, extra in GO_SERVICES:
                           "/actuator/health", ("100m", "128Mi"), ("500m", "512Mi")))
     out.append(service(name, port))
 
-for name, port, image, health in ML_SERVICES:
-    out.append(deployment(name, port, image, {"PORT": str(port)}, health,
+for name, port, image, health, extra in ML_SERVICES:
+    out.append(deployment(name, port, image, {"PORT": str(port), **extra}, health,
                           ("50m", "256Mi"), ("1", "1Gi"),
                           envfrom_secret=False, initial_delay=20))
     out.append(service(name, port))

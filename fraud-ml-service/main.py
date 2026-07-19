@@ -45,11 +45,15 @@ app.include_router(metrics_router, tags=["Metrics"])
 
 @app.get("/health", tags=["Health"])
 async def health():
-    from models.anomaly_detector import get_anomaly_detector
-    from models.fraud_scorer import get_fraud_scorer
+    # Report on already-initialised singletons only — constructing FraudScorer
+    # here reaches out to MLflow, which hangs past the probe timeout when no
+    # tracking server is deployed (k3s box) and crash-loops the pod.
+    from models import anomaly_detector, fraud_scorer
 
-    anomaly_loaded = get_anomaly_detector().model is not None
-    lgbm_loaded = get_fraud_scorer("champion").model is not None
+    champion = fraud_scorer._champion
+    anomaly_loaded = (anomaly_detector._detector is not None
+                      and anomaly_detector._detector.model is not None)
+    lgbm_loaded = champion is not None and champion.model is not None
 
     return {
         "status": "ok",
