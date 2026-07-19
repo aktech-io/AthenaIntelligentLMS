@@ -113,7 +113,7 @@ services:
     extraEnv:
       CARD_PROCESSOR: sandbox
 
-  # Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet).
+  # Mobile BFF services (Nemo A1 Phase 0 — folded in from the wallet app (now NemoWallet)).
   # Deliberately NO routeKey: these are app-facing, not gateway-routed. The
   # Flutter app authenticates against them directly (OTP/PIN/JWT for
   # customers) and they call INTO go-lms-api-gateway with X-Service-Key —

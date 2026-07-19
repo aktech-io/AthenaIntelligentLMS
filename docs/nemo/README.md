@@ -14,7 +14,7 @@ documents define the concept and the path from "lending platform" to "neobank in
 | [01-vision.md](01-vision.md) | Concept, positioning, tenant model, business model, competitive landscape |
 | [02-gap-analysis-and-roadmap.md](02-gap-analysis-and-roadmap.md) | What exists today, every capability gap to close, and the phased roadmap |
 | [03-engineering-execution-plan.md](03-engineering-execution-plan.md) | EM status board: issue list by track, business blockers, immediate queue |
-| [04-wallet-app-reuse-audit.md](04-wallet-app-reuse-audit.md) | AthenaMobileWallet (Flutter) reuse audit for the A1 customer app |
+| [04-wallet-app-reuse-audit.md](04-wallet-app-reuse-audit.md) | NemoWallet (ex-AthenaMobileWallet, Flutter) reuse audit for the A1 customer app |
 | [05-decision-engine-design.md](05-decision-engine-design.md) | E1 unified decision engine: policy spine, decision log, explainability, governance |
 | [Pitch deck v1](https://claude.ai/code/artifact/0e8de1e3-2879-4840-8313-f3d6b6754911) | 12-slide investor/partner deck (Claude artifact, private until shared) |
 | [Pitch deck v2](https://claude.ai/code/artifact/2da0adb6-9eca-4173-85e7-8223bd700023) | v2 with mobile-app mockup imagery — the preferred version |

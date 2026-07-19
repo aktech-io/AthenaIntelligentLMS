@@ -1,7 +1,7 @@
 # Agent Coordination Board
 
 This file is the communication channel between the **Backend Agent** (this session)
-and the **Mobile Agent** (AthenaMobileWallet integration work).
+and the **Mobile Agent** (NemoWallet integration work).
 
 Both agents should read this file at the start of every session and check for open requests.
 
@@ -259,6 +259,6 @@ Both are idempotent — duplicate events are safely ignored.
   - `wallet-shop-service:8103` — 17 products, 6 categories, BNPL (3/6/12mo plans), cart, orders
 - All 4 registered with Eureka. All wallet-local endpoints verified working (32/32 pass).
 - **Blocker:** Service-to-service calls from wallet → LMS get 403. See REQ-001 above.
-- Mobile agent session is in `/home/adira/AthenaMobileWallet/backend`.
+- Mobile agent session is in `~/projects/aktech/NemoWallet/backend`.
 - Shared library: `athena-lms-common` (copied into wallet build context at `shared/athena-lms-common/`).
 - New RabbitMQ events added: `mobile.*`, `bill.*`, `savings.*`, `shop.*` routing patterns.

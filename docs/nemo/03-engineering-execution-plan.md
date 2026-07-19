@@ -17,7 +17,7 @@ Kenya is now the first data pack (`packs/ke.yaml`), not a hardcode. Currency, ti
 support identity and regulatory seeding read the active pack; `MARKET_PACK=ET` plus one
 YAML file is all a new market needs at the platform-defaults level.
 
-**Decided — A1 app strategy**: the **AthenaMobileWallet Flutter app** audit
+**Decided — A1 app strategy**: the **NemoWallet Flutter app** (formerly AthenaMobileWallet) audit
 ([04-wallet-app-reuse-audit.md](04-wallet-app-reuse-audit.md)) returned
 **fork-and-adapt**. Half the concept already works against the LMS APIs through the
 app's own Go BFF (64/64 e2e green); missing pillars are cards, eKYC, crypto and Nia chat.

@@ -569,7 +569,7 @@ services:
       start_period: 30s
       retries: 3
 
-  # ─── Mobile BFF services (Nemo A1 Phase 0 — folded in from AthenaMobileWallet) ──
+  # ─── Mobile BFF services (Nemo A1 Phase 0 — folded in from the wallet app (now NemoWallet)) ──
   # App-facing: the Flutter app calls these directly (they are NOT routed
   # through lms-api-gateway; they call INTO it with X-Service-Key). Host ports
   # follow the 28xxx convention; the 3010x mappings mirror the k3s NodePorts

@@ -1,8 +1,8 @@
-# Nemo — AthenaMobileWallet Reuse Audit
+# Nemo — NemoWallet (ex-AthenaMobileWallet) Reuse Audit
 
 *Version 1.0 — July 2026. Companion to [02-gap-analysis-and-roadmap.md](02-gap-analysis-and-roadmap.md)
 and the [app concept](deck/nemo-app-concept.html). Audited repo:
-`aktech-io/AthenaMobileWallet` @ `f8f9e97` (local: `~/projects/aktech/AthenaMobileWallet`).*
+`aktech-io/NemoWallet` (renamed from AthenaMobileWallet 2026-07-19) @ `f8f9e97` (local: `~/projects/aktech/NemoWallet`).*
 
 **Verdict up front: fork-and-adapt.** The wallet app is not a throwaway prototype — it is a
 real-API Flutter app already wired to the Athena LMS platform through its own Go BFF layer,
