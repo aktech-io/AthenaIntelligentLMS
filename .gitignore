@@ -28,8 +28,9 @@ lms-portal-ui/.vite/
 **/.env.local
 **/.env.*.local
 
-# Docker volumes / data
+# Docker volumes / data (but not portal source under src/data)
 **/data/
+!lms-portal-ui/src/data/
 
 # Logs
 **/*.log
