@@ -440,7 +440,7 @@ services:
   # ─── Fraud ML Service (Python sidecar — Isolation Forest + LightGBM) ────────
   fraud-ml-service:
     build:
-      context: /mnt/storage/AthenaIntelligentLMS/fraud-ml-service
+      context: ./fraud-ml-service
     ports: ["28101:8101"]
     environment:
       DATABASE_URL: "postgresql+asyncpg://athena:${POSTGRES_PASSWORD:-athena_secret_change_me}@postgres:5432/athena_fraud"
