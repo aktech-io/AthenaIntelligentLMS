@@ -1,0 +1,168 @@
+name: Deploy Contabo
+
+# Build the 25-image Nemo set to GHCR, then roll the lms namespace on the
+# Contabo box over SSH (k3s API is firewalled — everything runs on-box).
+# Mirrors the alpa-api deploy pipeline.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-contabo
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/aktech-io
+
+jobs:
+  build-go:
+    name: go ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - account-service
+          - product-service
+          - loan-origination-service
+          - loan-management-service
+          - payment-service
+          - accounting-service
+          - float-service
+          - collections-service
+          - compliance-service
+          - reporting-service
+          - ai-scoring-service
+          - overdraft-service
+          - media-service
+          - notification-service
+          - fraud-detection-service
+          - lms-api-gateway
+          - card-service
+          - decision-service
+          - bff-gateway
+          - bff-notification
+          - bff-billpay-savings
+          - bff-shop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: go-services/go.sum
+
+      # Dockerfile.vendor builds with -mod=vendor and never touches the network
+      - name: Vendor dependencies
+        run: cd go-services && go mod vendor
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: go-services
+          file: go-services/deploy/docker/Dockerfile.vendor
+          build-args: SERVICE=${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/nemo-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/nemo-${{ matrix.service }}:latest
+
+  build-aux:
+    name: aux ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: nemo-fraud-ml
+            context: fraud-ml-service
+          - image: nemo-ekyc-ml
+            context: ekyc-ml-service
+          - image: nemo-portal
+            context: lms-portal-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: [build-go, build-aux]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate manifests
+        run: >
+          python3 deploy/k8s/contabo/gen-manifests.py
+          ${{ github.sha }} ${{ env.REGISTRY }} > lms-nemo-ci.yaml
+
+      - name: Copy deploy files to box
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "lms-nemo-ci.yaml,deploy/k8s/contabo/create-databases.sql"
+          target: /home/deploy/ci
+
+      - name: Roll lms namespace
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -e
+            # Refresh the GHCR pull secret. The ephemeral job token covers the
+            # rollout pulls; cached images cover restarts after it expires. Set
+            # a GHCR_PULL_TOKEN repo secret (fine-grained PAT, read:packages)
+            # to make pulls durable.
+            sudo k3s kubectl -n lms create secret docker-registry ghcr-pull \
+              --docker-server=ghcr.io \
+              --docker-username=${{ github.actor }} \
+              --docker-password='${{ secrets.GHCR_PULL_TOKEN || secrets.GITHUB_TOKEN }}' \
+              --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            # Idempotent DB creation in the shared postgres (alpa namespace);
+            # errors on already-existing databases are expected noise.
+            sudo k3s kubectl -n alpa exec -i deploy/postgres -- \
+              psql -U admin -d postgres \
+              < /home/deploy/ci/deploy/k8s/contabo/create-databases.sql || true
+            sudo k3s kubectl apply -f /home/deploy/ci/lms-nemo-ci.yaml
+            sudo k3s kubectl -n lms rollout status deploy --timeout=600s
+            sudo k3s kubectl -n lms get pods

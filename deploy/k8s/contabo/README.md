@@ -16,7 +16,18 @@ chart's `go-*` names. Shared infra lives elsewhere: PostgreSQL in `alpa`
 - `create-databases.sql` — idempotent-ish DB creation for the shared PG
   (run in the `alpa` postgres pod; skips errors on existing DBs).
 
-## Upgrade procedure (proven 2026-07-18)
+## Deploy — CI (the normal path, since 2026-07-20)
+Push to `master` → `.github/workflows/deploy.yml` (mirrors alpa-api's pipeline)
+builds the 25-image set to `ghcr.io/aktech-io/nemo-*:<sha>`, then over SSH
+refreshes the `ghcr-pull` secret, runs `create-databases.sql` (idempotent),
+applies `gen-manifests.py <sha> ghcr.io/aktech-io` output and waits for rollout.
+Repo secrets: `DEPLOY_SSH_KEY` (dedicated CI key in `deploy`'s authorized_keys),
+`CONTABO_HOST`; optional `GHCR_PULL_TOKEN` (fine-grained PAT, read:packages) to
+make image pulls durable beyond the job-token lifetime — without it, pulls after
+image GC need a re-run of the deploy job. One-time box prep (done 2026-07-20):
+`lms-secrets` applied, `ROUTE_CARD_SERVICE_URL` in the ConfigMap, new DBs.
+
+## Upgrade procedure — manual fallback (proven 2026-07-18)
 1. Build: `TAG=<tag> ./scripts/build-nemo-images.sh` (needs dockerd running).
 2. Ship: `docker save -o nemo-<tag>.tar <all 25 image refs>` → `scp` to the box
    (**never** stream through ssh — streamed import drops layers) →

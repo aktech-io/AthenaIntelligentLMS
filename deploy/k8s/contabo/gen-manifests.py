@@ -7,12 +7,25 @@ ones (account-service, ...), NOT the Helm chart's go-* names. This generator is
 the single source of truth for that box; regenerate + `kubectl apply` to roll.
 
 Usage:
-  ./gen-manifests.py [TAG]        # default: latest
+  ./gen-manifests.py [TAG] [REGISTRY]   # default: latest, local images
+  ./gen-manifests.py abc123 ghcr.io/aktech-io   # CI: registry-prefixed images
+                                                # + imagePullSecrets ghcr-pull
 """
 import sys
 
 TAG = sys.argv[1] if len(sys.argv) > 1 else "latest"
+REGISTRY = sys.argv[2] if len(sys.argv) > 2 else ""
 NS = "lms"
+
+
+def image_ref(name):
+    ref = f"{name}:{TAG}"
+    return f"{REGISTRY}/{ref}" if REGISTRY else ref
+
+
+# registry pulls need the ghcr-pull dockerconfigjson secret (refreshed by CI)
+PULL_SECRETS = ("      imagePullSecrets:\n      - name: ghcr-pull\n"
+                if REGISTRY else "")
 
 # name, port, db_name (None = no DB), extra env dict
 GO_SERVICES = [
@@ -72,8 +85,8 @@ GO_SERVICES = [
 
 # Python ML sidecars: name, port, image, health path
 ML_SERVICES = [
-    ("nemo-fraud-ml", 8101, f"nemo-fraud-ml:{TAG}", "/health"),
-    ("nemo-ekyc-ml",  8102, f"nemo-ekyc-ml:{TAG}", "/health"),
+    ("nemo-fraud-ml", 8101, image_ref("nemo-fraud-ml"), "/health"),
+    ("nemo-ekyc-ml",  8102, image_ref("nemo-ekyc-ml"), "/health"),
 ]
 
 
@@ -101,7 +114,7 @@ spec:
     metadata:
       labels: {{app: {name}}}
     spec:
-      containers:
+{PULL_SECRETS}      containers:
       - name: {name}
         image: {image}
         imagePullPolicy: IfNotPresent
@@ -151,7 +164,7 @@ for name, port, db, extra in GO_SERVICES:
     if db:
         env["DB_NAME"] = db
     env.update(extra)
-    out.append(deployment(name, port, f"nemo-{name}:{TAG}", env,
+    out.append(deployment(name, port, image_ref(f"nemo-{name}"), env,
                           "/actuator/health", ("100m", "128Mi"), ("500m", "512Mi")))
     out.append(service(name, port))
 
@@ -177,9 +190,9 @@ spec:
     metadata:
       labels: {{app: lms-portal-ui}}
     spec:
-      containers:
+{PULL_SECRETS}      containers:
       - name: lms-portal-ui
-        image: nemo-portal:{TAG}
+        image: {image_ref("nemo-portal")}
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
