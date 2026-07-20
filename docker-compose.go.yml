@@ -13,6 +13,8 @@ x-go-env: &go-env
   LMS_INTERNAL_SERVICE_KEY: ${LMS_INTERNAL_SERVICE_KEY:-athena-internal-key}
   DB_USER: ${POSTGRES_USER:-athena}
   DB_PASSWORD: ${POSTGRES_PASSWORD:-athena_secret}
+  # Local dev only — production (k8s) sets LMS_AUTH_ADMIN_PASSWORD via lms-secrets
+  LMS_AUTH_ALLOW_DEFAULT_PASSWORDS: ${LMS_AUTH_ALLOW_DEFAULT_PASSWORDS:-true}
 
 services:
   go-account-service:
@@ -699,4 +701,4 @@ services:
 
 networks:
   athena-net:
-    external: true
+    name: athena-net
