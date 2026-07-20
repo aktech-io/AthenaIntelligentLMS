@@ -113,6 +113,12 @@ scoring by-customer lookup ParseInt'ing varchar IDs (fail-closed every overdraft
 Credentials rotated (admin/manager/officer/teller from `lms-secrets`; admin123
 dead), 6 loan products seeded. Suite vs box: **320 pass**; remaining ~111 errors
 +16 fails are one cause — **no NemoScore/scoring backend on the box** (overdraft +
-loan review/approve fail closed, HIGH-6 by design). Founder/EM decision: deploy
-NemoScore stack to Contabo vs accept the gap → then A1 APK against
-app.lms.athenafinance.cloud (BFF ingress manifest ready).
+loan review/approve fail closed, HIGH-6 by design). **NemoScore-to-Contabo decided and in flight** (separate session; handshake via
+docs/AGENT_COORDINATION.md `NEMOSCORE_READY`, contract in
+docs/nemo/06-nemoscore-lms-integration-notes.md). Public edge is DONE
+(2026-07-20): DNS live for lms + app.lms.athenafinance.cloud, Let's Encrypt
+certs issued on both, BFF ingress applied and smoke-tested
+(onboarding 400-validates, dashboard 401s pre-auth), portal login verified with
+rotated creds. Next after NemoScore lands: wire ConfigMap/Secret + band seed
+(notes §5/§7), full suite rerun, then **A1 APK** against
+app.lms.athenafinance.cloud.
