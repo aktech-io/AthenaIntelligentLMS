@@ -103,3 +103,16 @@ wallet rebrand merged to wallet `main` ✓, portal Nemo branding ✓):
 **A1 Phase 0** (fold wallet BFF into monorepo — done on branch `nemo/a1-bff-fold-in`, pending merge) → **E1 v1 implementation**
 (decision library + decision_log + overdraft shadow, per 05 design) →
 D3 migration gating → A2 eKYC API skeleton → live-cluster chart install test.
+
+**Contabo production (2026-07-20)**: full Nemo image set live via the new **CI
+pipeline** (`.github/workflows/deploy.yml`: push to master → 25 images to GHCR →
+SSH rollout; tar/scp retired to offline-fallback). Shakedown fixed three latent
+bugs — portal `src/data` swallowed by `**/data/` gitignore; account migrations
+frozen since March by a 000005 version collision (all envs silently unmigrated);
+scoring by-customer lookup ParseInt'ing varchar IDs (fail-closed every overdraft).
+Credentials rotated (admin/manager/officer/teller from `lms-secrets`; admin123
+dead), 6 loan products seeded. Suite vs box: **320 pass**; remaining ~111 errors
++16 fails are one cause — **no NemoScore/scoring backend on the box** (overdraft +
+loan review/approve fail closed, HIGH-6 by design). Founder/EM decision: deploy
+NemoScore stack to Contabo vs accept the gap → then A1 APK against
+app.lms.athenafinance.cloud (BFF ingress manifest ready).
