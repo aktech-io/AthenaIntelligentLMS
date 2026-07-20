@@ -28,6 +28,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/health"
 	commonmw "github.com/athena-lms/go-services/internal/common/middleware"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
+	scoringclient "github.com/athena-lms/go-services/internal/scoring/client"
 )
 
 func init() { decimal.MarshalJSONWithoutQuotes = true }
@@ -105,6 +106,13 @@ func main() {
 
 	// Service
 	svc := service.NewCollectionsService(caseRepo, actionRepo, ptpRepo, strategyRepo, officerRepo, auditRepo, collPub, logger)
+
+	// NemoScore collections-priority (contract 1.5.0). Fail-closed: any error
+	// on the scoring call keeps the DPD-threshold rules, so wiring it is safe
+	// even when the scoring stack is down.
+	scoringURL := envStr("SCORING_API_URL", "http://kong:8000")
+	scoringKey := envStr("SCORING_API_KEY", "dev-key")
+	svc.SetPriorityScorer(scoringclient.NewAthenaScoreClient(scoringURL, scoringKey, logger))
 
 	// PTP scheduler + follow-up SLA checker
 	ptpScheduler := scheduler.NewPtpCheckScheduler(ptpRepo, svc, logger)

@@ -191,3 +191,47 @@ func TestToPtpResponse(t *testing.T) {
 	assert.Equal(t, p.Notes, resp.Notes)
 	assert.Equal(t, p.CreatedBy, resp.CreatedBy)
 }
+
+// -----------------------------------------------------------------------
+// Collections-priority (NemoScore contract 1.5.0)
+// -----------------------------------------------------------------------
+
+func TestDpdRulePriority(t *testing.T) {
+	tests := []struct {
+		name     string
+		dpd      int
+		current  model.CasePriority
+		expected model.CasePriority
+	}{
+		{"under 60 keeps current", 45, model.CasePriorityNormal, model.CasePriorityNormal},
+		{"under 60 keeps manual escalation", 45, model.CasePriorityCritical, model.CasePriorityCritical},
+		{"over 60 escalates to HIGH", 61, model.CasePriorityNormal, model.CasePriorityHigh},
+		{"over 90 escalates to CRITICAL", 91, model.CasePriorityNormal, model.CasePriorityCritical},
+		{"over 60 never downgrades CRITICAL", 61, model.CasePriorityCritical, model.CasePriorityCritical},
+		{"empty current defaults to NORMAL", 10, "", model.CasePriorityNormal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, dpdRulePriority(tt.dpd, tt.current))
+		})
+	}
+}
+
+func TestMaxPriority(t *testing.T) {
+	assert.Equal(t, model.CasePriorityCritical, maxPriority(model.CasePriorityHigh, model.CasePriorityCritical))
+	assert.Equal(t, model.CasePriorityCritical, maxPriority(model.CasePriorityCritical, model.CasePriorityLow))
+	assert.Equal(t, model.CasePriorityNormal, maxPriority(model.CasePriorityLow, model.CasePriorityNormal))
+	assert.Equal(t, model.CasePriorityHigh, maxPriority(model.CasePriorityHigh, model.CasePriorityHigh))
+}
+
+func TestBandToPriority(t *testing.T) {
+	for _, band := range []string{"LOW", "NORMAL", "HIGH", "CRITICAL"} {
+		p, ok := bandToPriority(band)
+		assert.True(t, ok, band)
+		assert.Equal(t, model.CasePriority(band), p)
+	}
+	for _, bad := range []string{"", "critical", "URGENT", "P1"} {
+		_, ok := bandToPriority(bad)
+		assert.False(t, ok, bad)
+	}
+}

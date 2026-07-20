@@ -28,6 +28,8 @@ type CollectionsService struct {
 	publisher    *event.Publisher
 	logger       *zap.Logger
 	auditor      *audit.Logger
+	// priorityScorer is optional (SetPriorityScorer); nil → DPD-rule priorities only.
+	priorityScorer PriorityScorer
 }
 
 // NewCollectionsService creates a new CollectionsService.
@@ -81,10 +83,6 @@ func (s *CollectionsService) OpenOrUpdateCase(ctx context.Context, loanID uuid.U
 		if dpd < 1 {
 			return nil
 		}
-		priority := model.CasePriorityNormal
-		if dpd > 90 {
-			priority = model.CasePriorityCritical
-		}
 		amt := decimal.Zero
 		if outstandingAmount != nil {
 			amt = *outstandingAmount
@@ -95,11 +93,11 @@ func (s *CollectionsService) OpenOrUpdateCase(ctx context.Context, loanID uuid.U
 			CustomerID:        customerID,
 			CaseNumber:        generateCaseNumber(tenantID),
 			Status:            model.CaseStatusOpen,
-			Priority:          priority,
 			CurrentDPD:        dpd,
 			CurrentStage:      mapStage(stage),
 			OutstandingAmount: amt,
 		}
+		newCase.Priority = s.resolvePriority(ctx, newCase, model.CasePriorityNormal)
 		saved, err := s.caseRepo.Save(ctx, newCase)
 		if err != nil {
 			return fmt.Errorf("save new case: %w", err)
@@ -120,9 +118,7 @@ func (s *CollectionsService) OpenOrUpdateCase(ctx context.Context, loanID uuid.U
 		existing.OutstandingAmount = *outstandingAmount
 	}
 	existing.CurrentStage = mapStage(stage)
-	if dpd > 90 {
-		existing.Priority = model.CasePriorityCritical
-	}
+	existing.Priority = s.resolvePriority(ctx, existing, existing.Priority)
 	_, err = s.caseRepo.Save(ctx, existing)
 	return err
 }
@@ -149,11 +145,7 @@ func (s *CollectionsService) UpdateDPD(ctx context.Context, loanID uuid.UUID, dp
 	if outstandingAmount != nil {
 		existing.OutstandingAmount = *outstandingAmount
 	}
-	if dpd > 90 {
-		existing.Priority = model.CasePriorityCritical
-	} else if dpd > 60 {
-		existing.Priority = model.CasePriorityHigh
-	}
+	existing.Priority = s.resolvePriority(ctx, existing, existing.Priority)
 	_, err = s.caseRepo.Save(ctx, existing)
 	return err
 }

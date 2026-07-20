@@ -192,3 +192,28 @@ func FlexibleCustomerID(raw string) int64 {
 	}
 	return n
 }
+
+// CollectionsPriorityRequest is the case state sent to the NemoScore
+// collections-priority endpoint (contract 1.5.0) — the operational facts
+// only the LMS knows.
+type CollectionsPriorityRequest struct {
+	Dpd               int     `json:"dpd"`
+	OutstandingAmount float64 `json:"outstanding_amount"`
+	BrokenPtpCount    int     `json:"broken_ptp_count"`
+	FulfilledPtpCount int     `json:"fulfilled_ptp_count"`
+	ProductType       *string `json:"product_type,omitempty"`
+}
+
+// CollectionsPriorityResponse is the NemoScore collections-priority result.
+// PriorityBand maps 1:1 onto the collections CasePriority enum.
+type CollectionsPriorityResponse struct {
+	CustomerID        int64              `json:"customer_id"`
+	PriorityScore     float64            `json:"priority_score"`
+	PriorityBand      string             `json:"priority_band"` // LOW | NORMAL | HIGH | CRITICAL
+	Components        map[string]float64 `json:"components"`
+	AbilityToPay      string             `json:"ability_to_pay"` // STRONG | WEAK | UNKNOWN
+	RecommendedAction string             `json:"recommended_action"`
+	FinalScore        int                `json:"final_score"`
+	PdProbability     float64            `json:"pd_probability"`
+	ScoredAt          string             `json:"scored_at"`
+}
