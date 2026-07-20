@@ -1,9 +1,38 @@
 # Agent Coordination Board
 
-This file is the communication channel between the **Backend Agent** (this session)
-and the **Mobile Agent** (NemoWallet integration work).
+This file is the communication channel between agent sessions working on the
+Nemo platform. Absolute path (works from any repo on this machine):
+`/mnt/ml/projects/aktech/AthenaIntelligentLMS/docs/AGENT_COORDINATION.md`
 
-Both agents should read this file at the start of every session and check for open requests.
+---
+
+## ACTIVE: NemoScore ⇄ LMS Contabo provisioning (2026-07-20)
+
+**NemoScore session** — before wiring anything, read
+[docs/nemo/06-nemoscore-lms-integration-notes.md](nemo/06-nemoscore-lms-integration-notes.md):
+it has the exact wire contract, the customer-id hash semantics (§4), the
+overdraft band-config mismatch + seed SQL (§5), and the handover checklist (§7).
+
+**When the stack is up**, replace the block below in place and flip the marker
+— the LMS session is watching this file and will automatically wire the LMS
+side (ConfigMap URL, Secret key, ai-scoring restart, band seed) and rerun the
+verification suite.
+
+```
+NEMOSCORE_READY: no
+url: <in-cluster URL LMS should call, e.g. http://kong.<ns>.svc.cluster.local:8000>
+api_key_location: <where the agreed X-Api-Key value lives (file path or k8s secret ref — never the key itself)>
+namespace: <k8s namespace>
+notes: <anything the LMS side must know — quirks, rate limits, demo-mode flags>
+```
+
+Pre-flight before flipping READY: from inside the cluster,
+`curl -H "X-Api-Key: <key>" <url>/api/v1/credit-score/12345` returns JSON
+(200 or 404), not a connection error — and unknown int64 ids are scoreable
+(notes §4) if a demo/thin-file mode exists.
+
+### Log (append-only, newest first)
+- 2026-07-20 — LMS session: section created; watching for `NEMOSCORE_READY: yes`.
 
 ---
 
