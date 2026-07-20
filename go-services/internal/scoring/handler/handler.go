@@ -145,11 +145,14 @@ func (h *Handler) getLatestResultByCustomer(w http.ResponseWriter, r *http.Reque
 	tenantID := resolveTenantID(r)
 	customerIDStr := chi.URLParam(r, "customerId")
 
-	customerID, err := strconv.ParseInt(customerIDStr, 10, 64)
-	if err != nil {
+	// Same coercion as the event consumer's resolveCustomerID: platform
+	// customer IDs are varchar (e.g. "CUST-A1B2"), stored hashed — a plain
+	// ParseInt 400s every lookup for them and fail-closes overdraft approval.
+	if customerIDStr == "" {
 		httputil.WriteBadRequest(w, "Invalid customerId: "+customerIDStr, r.URL.Path)
 		return
 	}
+	customerID := model.FlexibleCustomerID(customerIDStr)
 
 	resp, err := h.svc.GetLatestResultByCustomer(r.Context(), customerID, tenantID)
 	if err != nil {
