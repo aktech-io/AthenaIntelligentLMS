@@ -151,7 +151,7 @@ provider must fail closed on errors like the in-house one.
 | **ID R&D IDLive Face** | iBeta L1+L2 single-image passive liveness, on-prem SDK | Tier-3 liveness option; keeps biometrics on-prem (helps the ODPC/DPIA argument) |
 | **AWS Rekognition Face Liveness** | Managed, ~$0.015/check, iBeta-benchmarked (not certified) | Budget Tier-3 fallback, not flagship |
 | **VeriFayda 2** | Ethiopia's national eKYC platform (EthSwitch) | The ET provider where the NBE Fayda mandate applies — same seam |
-| **Bridge SDK (MiniAiLive/KBY-AI class)** | iBeta-L2 on-prem SDK, ~$2–8k/yr | Planned Stage-0 stopgap so "Level 2 certified" is claimable while the in-house stack is built and certified |
+| **Bridge SDK (MiniAiLive/KBY-AI class)** | iBeta-L2 on-prem SDK, ~$2–8k/yr | **Dropped (founder decision 2026-08-01)** — no vendor licenses; the in-house model goes to iBeta L1→L2 itself, and no certified claim is made until it passes |
 
 The liveness seam mirrors this: a `LivenessProvider` interface
 ({frames} → {liveScore, decision, provider, auditRef}) lets Tier 3 products drop

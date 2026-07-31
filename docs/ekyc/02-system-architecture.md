@@ -86,9 +86,9 @@ flowchart LR
     REG -.planned.-> SM["smileid / veriff-class"]
     REG -.planned.-> VF["VeriFayda 2 (Ethiopia)"]
     IN --> LREG{"liveness.Provider registry<br/>selected by LIVENESS_PROVIDER<br/>(default inhouse)"}
-    LREG --> T2["inhouse — Tier-2 PAD<br/>MiniFASNetV2 (shadow)<br/>via ekyc-ml /v1/face/liveness"]
-    LREG -.planned.-> BR["bridge SDK<br/>iBeta-L2 certified (Stage 0)"]
+    LREG --> T2["inhouse — Tier-2 PAD<br/>MiniFASNetV2 (shadow)<br/>via ekyc-ml /v1/face/liveness<br/>→ certification target (L1→L2)"]
     LREG -.planned.-> VFL["VeriFayda liveness (ET)"]
+    LREG -.dropped 2026-08-01.-> BR["bridge SDK<br/>(no vendors — own model only)"]
 ```
 
 - `ekyc.Provider` = `Name()` + `Verify(ctx, Request) (Result, error)`

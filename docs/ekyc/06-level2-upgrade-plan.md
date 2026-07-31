@@ -9,6 +9,15 @@ consolidates three planning documents — [docs/nemo/08-liveness-plan.md](../nem
 [docs/nemo/10-liveness-stage0-and-data-campaign.md](../nemo/10-liveness-stage0-and-data-campaign.md)
 (Stage-0 execution and the NLD-EA dataset) — into one plan of record.*
 
+> **Plan-of-record change (founder decision, 2026-08-01): no vendor licenses —
+> own model only.** The Stage-0 bridge SDK (doc 10 Part 1) is **dropped**. The only
+> external spend is what certification itself requires: iBeta lab fees (Level 1,
+> then Level 2 — iBeta requires a passed L1 before L2 testing), the NLD-EA
+> training-data campaign, and red-team attack materials (including L2-class 3D
+> masks). Consequence accepted: no "Level 2 certified" claim can be made until our
+> own model passes the L2 test. Sections below are updated accordingly; struck
+> content is kept for the record in doc 10.
+
 ---
 
 ## 1. Goal
@@ -20,30 +29,29 @@ false-reject behavior on darker skin tones and low light is unverified (doc 08's
 calibration warning). The plan moves from that position to a certified, owned product
 in three deliberate steps:
 
-1. **Immediate (Stage 0)** — license an iBeta-Level-2-certified bridge SDK behind a
-   `LivenessProvider` seam (planned in doc 08; the [audit](05-current-state-audit.md)
-   confirms it must first be extracted from `inhouse.go`), so sales can truthfully
-   claim "Level 2 certified liveness" within weeks, while the in-house stack keeps
-   scoring 100% of traffic in shadow.
-2. **Owned and certified (Stages 1–2)** — upgrade the in-house model via multi-frame
-   fusion and a domain-generalization teacher→student pipeline trained on the NLD-EA
-   dataset, then certify it at **iBeta Level 1** (~$25–40k, months 4–6).
-3. **Level 2 when it pays for itself** — defer the L2 submission (3D mask attacks,
-   +$30–50k) until liveness is revenue-attributable; the bridge SDK covers L2 claims
-   in the interim. The end state is **"Nemo KYC"**: the full scan-first onboarding,
-   OCR, face-match, screening, and liveness stack as a white-label per-check API,
-   certified and calibrated on East African faces — a regional-calibration claim no
-   incumbent vendor matches (doc 09 §4).
+1. **Build (Stage 1, with NLD-EA running concurrently)** — upgrade the in-house
+   model via multi-frame fusion and a domain-generalization teacher→student
+   pipeline trained on the NLD-EA dataset. The `LivenessProvider` seam (extracted
+   2026-08-01) stays: it now serves VeriFayda 2 routing for Ethiopia and A/B model
+   comparison, not vendors.
+2. **Certify Level 1 (Stage 2)** — internal red-team rig to 0/500 APCER, then the
+   iBeta Level 1 test (~$25–40k incl. retest reserve). L1 is not optional: iBeta
+   requires a passed Level 1 before Level 2 testing.
+3. **Certify Level 2 (Stage 3 — the goal)** — proceed directly after L1: extend the
+   red-team rig with 3D attacks (silicone/latex/resin masks), sustain the internal
+   bar, book the L2 test (~$30–50k). The end state is **"Nemo KYC"**: the full
+   scan-first onboarding, OCR, face-match, screening, and liveness stack as a
+   white-label per-check API, **Level-2 certified on our own model** and calibrated
+   on East African faces — a regional-calibration claim no incumbent vendor matches
+   (doc 09 §4). Until L2 passes, we make no certified-liveness claim.
 
 ## 2. Staged timeline
 
 ```mermaid
 gantt
-    title Liveness certification roadmap (month 0 = August 2026)
+    title Liveness certification roadmap — own model only (month 0 = August 2026)
     dateFormat YYYY-MM-DD
     axisFormat %b %d
-    section Stage 0 — bridge SDK
-    Vendor eval (days 1–4 bench, 5–7 shadow)  :s0, 2026-08-04, 14d
     section NLD-EA campaign
     Capture campaign (400 subjects, 8 wk)     :nld, 2026-08-04, 56d
     G1 — DPIA filed with ODPC                 :milestone, g1, 2026-08-14, 0d
@@ -53,10 +61,15 @@ gantt
     Multi-frame fusion                        :s1a, 2026-08-18, 42d
     Teacher fine-tune + distillation          :s1b, after s1a, 60d
     section Stage 2 — certify L1
-    Internal red-team rig (3–4 handsets)      :s2a, 2026-11-16, 28d
+    Internal red-team rig, L1 attacks         :s2a, 2026-11-16, 28d
     Sustain 0/500 internal APCER              :s2b, after s2a, 21d
-    Book iBeta Level 1                        :milestone, m1, 2027-01-04, 0d
-    Level 2 — deferred (revenue trigger)      :crit, l2, 2027-01-04, 28d
+    iBeta Level 1 test (4–12 wk window)       :s2c, 2027-01-04, 42d
+    L1 letter                                 :milestone, m1, 2027-02-15, 0d
+    section Stage 3 — certify L2 (the goal)
+    3D-mask fabrication + rig extension       :s3a, 2026-12-14, 42d
+    Sustain internal L2 bar (APCER ≤1%)       :s3b, after s2c, 21d
+    iBeta Level 2 test                        :crit, s3c, 2027-03-08, 42d
+    L2 letter — certified claim unlocked      :milestone, m2, 2027-04-19, 0d
 ```
 
 The NLD-EA campaign runs concurrently with Stage 1: gate G2 (200 subjects at week 5)
@@ -72,8 +85,8 @@ flowchart TD
     C["DG teacher: FLIP or FoundPAD<br/>fine-tuned on CelebA-Spoof + NLD-EA"]
     D["Distilled MobileNetV3-class ONNX student<br/>same 80×80 deployment shape as today"]
     E["Internal red-team rig<br/>NLD-EA red-team shard — never trained on"]
-    F["iBeta Level 1<br/>0% APCER / ~900 presentations"]
-    G["iBeta Level 2<br/>deferred — 3D masks, APCER ≤1%"]
+    F["iBeta Level 1<br/>0% APCER / ~900 presentations<br/>(required gateway to L2)"]
+    G["iBeta Level 2 — THE GOAL<br/>3D masks, APCER ≤1%<br/>certified claim unlocked here"]
     NLD[("NLD-EA dataset<br/>~3,200 genuine + ~2,000 attack clips")]
 
     A --> B --> C --> D --> E --> F --> G
@@ -85,42 +98,20 @@ The student model ships in the exact deployment shape the service runs today —
 80×80 face-crop ONNX classifier behind `cv2.dnn` — so the swap is a model-file
 drop-in, not a service rewrite.
 
-## 4. Stage 0 — bridge SDK (weeks 1–2)
+## 4. Stage 0 — bridge SDK: **DROPPED** (founder decision, 2026-08-01)
 
-**Why.** Certification of the owned model is months away, but bank partners and
-prospects ask for the iBeta letter *now*. A certified on-prem SDK mounted as a second
-`LivenessProvider` implementation lets sales claim Level 2 immediately at a fixed
-annual cost — explicitly **not** per-check SaaS, for both data-residency and
-unit-economics reasons (doc 09 §3).
+The doc-10 Stage-0 plan (license a MiniAiLive/KBY-AI-class iBeta-L2 on-prem SDK,
+~$2–8k/yr, as an interim certified provider) is **not proceeding**: no vendor
+licenses — the only external spend is what our own certification requires.
+Accepted consequence: **no "Level 2 certified" claim until our own model passes the
+iBeta L2 test** (~month 8 on the §2 timeline); until then the truthful positioning
+is "liveness certification in progress, calibrated on East African data".
 
-**Shortlist** (all hold current iBeta L2 confirmation letters):
-
-| Vendor | Est. price | Form factor | Notes |
-|---|---|---|---|
-| MiniAiLive | ~$3–8k/yr | Linux/Docker on-prem | Primary candidate |
-| KBY-AI | ~$2–6k/yr | Server + mobile SDKs | Primary candidate |
-| Facia | quote | on-prem | Fallback if both fail gates |
-
-**Evaluation protocol (2 weeks from receipt of eval builds):**
-
-- **Days 1–4 — bench**: run each SDK against our held-out genuine/attack captures;
-  measure APCER, BPCER, and latency on the production box CPU.
-- **Days 5–7 — shadow**: side-by-side with `ekyc-ml` on staging; measure the
-  disagreement rate against the in-house scorer.
-- **In parallel — license diligence**: on-prem terms; **white-label/resale rights
-  (REQUIRED — without them the SDK cannot back the Nemo KYC product)**; the iBeta
-  letter must match the shipped SDK version; no phone-home telemetry.
-
-**Decision gates**: APCER ≤1% on our attack set · BPCER ≤10% on our genuine set ·
-price ceiling $8k/yr. Any failure → next vendor on the shortlist.
-
-**Integration**: mounts behind the `LivenessProvider` seam
-(`{frames} → {liveScore, decision, provider, auditRef}`) as a second registered
-implementation. **Prerequisite**: the seam does not exist in code yet — liveness is
-inlined in the `inhouse` eKYC provider; extracting it is ranked action 3 of the
-[audit](05-current-state-audit.md#4-recommended-next-actions-ranked-feeding-doc-06). The in-house scorer stays on 100% of traffic in shadow regardless of
-which provider decides. Ethiopia routes to VeriFayda 2 (national eKYC via EthSwitch)
-behind the same seam either way (doc 08, regulatory notes).
+The `LivenessProvider` seam built for Stage 0 is kept — it serves VeriFayda 2
+(Ethiopia's mandated national eKYC route), A/B comparison of our own model
+generations, and leaves the vendor door open should the decision ever be revisited.
+The original shortlist, eval protocol and diligence gates remain recorded in doc 10
+Part 1.
 
 ## 5. NLD-EA — the East-African training-data campaign (weeks 1–8)
 
@@ -227,16 +218,23 @@ gap — in the field and, critically, in the certification lab.
 on); book iBeta **only after sustaining 0/500 internal APCER**. Small teams
 demonstrably pass — iBeta's letter list includes 2-to-10-person shops at both levels.
 
-**Level 2 deferral logic**: L2 adds 3D attacks (silicone/latex/resin masks, APCER
-≤1%) and roughly **+$30–50k** plus mask-fabrication skills. Trigger: **liveness
-becomes revenue-attributable** (Nemo KYC per-check sales, or a contract naming L2 for
-the in-house stack). Until then the Stage-0 bridge SDK legitimately covers L2 claims.
+## 7b. Stage 3 — certify Level 2 (the goal, months 6–9)
+
+L2 adds 3D attacks (silicone/latex/resin masks) with a pass bar of **APCER ≤1%**,
+costing roughly **+$30–50k** in lab fees plus mask fabrication. Per the 2026-08-01
+decision this proceeds **directly after the L1 letter** (no revenue trigger, no
+bridge): 3D-mask fabrication and rig extension start during the L1 test window so
+the internal L2 bar can be sustained before booking. Mask fabrication is a real
+skill investment (custom silicone/latex masks of red-team subjects, from the NLD-EA
+consent pool where the consent covers it) — budget it with the attack-materials
+line, and get the L2 quote from both iBeta and BixeLab at L1-booking time so the
+slot can be reserved early.
 
 ## 8. Business case — build vs buy
 
 | | Buy (Smile ID-class) | Build + certify (this plan) |
 |---|---|---|
-| Cost model | $0.30–1.00 per check, forever | One-time ~$35k L1 + ~$8.6k data + bridge $2–8k/yr |
+| Cost model | $0.30–1.00 per check, forever | One-time: ~$25–40k L1 + ~$30–50k L2 + ~$8.6k data + attack materials. No recurring vendor fees |
 | Break-even | — | Low tens of thousands of checks |
 | Data residency | Vendor cloud | Fully on-prem |
 | Regional calibration | Generic | Trained on NLD-EA (East African faces, Kenyan device fleet) |
@@ -250,11 +248,10 @@ vendor matches the East-African calibration claim (doc 09 §4).
 
 | # | Decision | Blocks | Status |
 |---|---|---|---|
-| 1 | Send Stage-0 outreach emails (MiniAiLive + KBY-AI; drafts in the doc-10 artifact §1.4) | Stage-0 eval clock | Pending |
+| 1 | ~~Send Stage-0 outreach emails (MiniAiLive + KBY-AI)~~ | — | **Decided 2026-08-01: dropped — no vendors; certification-only spend (own model, L1→L2)** |
 | 2 | Approve $8.6k NLD-EA budget + KES 800/subject compensation rate | Campaign start, gate G1 | Pending |
 | 3 | Name counsel for the DPIA | Gate G1 (hard gate — no capture before filing) | Pending |
-
-Everything technical for Stage 0 is ready on receipt of vendor eval builds (doc 10).
+| 4 | Approve certification budget envelope: L1 ~$25–40k + L2 ~$30–50k (quotes from iBeta and BixeLab at booking time) | Stage-2/3 lab bookings (~month 5) | Pending — not needed until the internal APCER gate is near |
 
 ## 10. Risks & mitigations
 
@@ -264,7 +261,8 @@ Everything technical for Stage 0 is ready on receipt of vendor eval builds (doc 
 | CelebA-Spoof license unsuitable for commercial training | Teacher fine-tune loses its largest public corpus | License check scheduled before Stage-1 step 2; fallback is NLD-EA + other permissive PAD sets with a heavier NLD-EA weighting |
 | MiniFASNet class-order assumption wrong for a given ONNX export | Live/attack classes swapped in shadow scores | Documented in `liveness.py` (index 1 = live per the reference repo); shadow-mode score distributions on real traffic will surface an inversion before enforcement |
 | iBeta retest(s) required | +weeks and +$10k-class cost per retest | Budgeted explicitly ($25–40k includes a retest reserve); internal 0/500 APCER gate before booking; BixeLab competing quote |
-| Bridge vendor diligence failure (telemetry, letter/SDK version mismatch, no resale rights) | L2 claim unsound; Nemo KYC white-label blocked | Diligence items are explicit Stage-0 gates: no telemetry, letter must match shipped version, white-label/resale rights required — any failure moves to the next shortlisted vendor |
+| **Certification claim gap** (no bridge): no "L2 certified" statement possible until ~month 8–9 | Sales/partner conversations in the interim | Truthful interim positioning ("certification in progress, East-Africa-calibrated, on-prem"); shadow-mode metrics as evidence; timeline compression via early L2 slot reservation |
+| 3D-mask fabrication capability (new skill, L2 red-team) | Internal L2 bar unverifiable → walking into the $30–50k test blind | Start fabrication during the L1 window; source from NLD-EA consented subjects; budget in attack-materials line; consider a fabrication contractor if in-house quality lags |
 | Field-capture quality drift (lux, labels, quotas) | Dataset undertrained in exactly the target domains | Per-clip metadata (device, lux, station, Monk tone), lighting-station protocol, G2 mid-campaign checkpoint at 200 subjects |
 
 ## 11. Sources
