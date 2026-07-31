@@ -192,8 +192,25 @@ documentType through the stack (`5f50ebd`: pack kycDocuments for KE/ET,
 compliance migration 6, ekyc provider passthrough) and ekyc-ml
 per-document profiles (`b9f480e`: passport-mrz MRZ-primary, et-fayda
 FAN-16, dispatch-level tests; note ekyc-ml-service lives in THIS repo,
-symlinked into AthenaCreditScore for its image build). Dart MrzParser +
-15 tests staged in the NemoWallet working tree (WS-2 in progress —
-remaining: ML Kit capture screens, doc-type picker, prefilled
-confirmation flow). WS-4 (synthetic KE/ET passport + Fayda fixtures,
-emulator E2E per doc) queued.
+symlinked into AthenaCreditScore for its image build). Dart MrzParser in
+wallet `071b812`.
+
+**WS-2 + WS-4 SHIPPED (2026-07-31 night)**: full scan-first flow live in
+the app (wallet `544fe94` + `bce7d8e`): market-served doc-type picker (BFF
+`/onboarding/documents`, `6fd5b9c`), ML Kit on-device OCR with MRZ
+**fragment recovery** (ML Kit truncates `<` filler runs — recovery parses
+the line-2 prefix whose per-field check digits still verify), pre-filled
+"Confirm your details" screen with Scanned badges, documentType on submit.
+**Verified on-emulator in RELEASE build**: synthetic KE passport scan
+pre-filled name/number/DOB; only phone typed manually. WS-4 shipped
+(`56ab5a9`): deterministic specimen generator (KE id, KE/ET passports with
+valid TD3 check digits, Fayda FAN-16) + test_35 documentType API tests —
+4/4 green vs Contabo. OCR plan (doc 07) fully landed; remaining polish:
+live-camera MRZ retry loop, real-device capture QA, ET emulator pass.
+
+**Liveness (doc 08, approved 2026-07-31)**: Tier-2 passive PAD endpoint
+shipped (`1f51eb1`, ekyc-ml `/v1/face/liveness`, MiniFASNetV2 fallback-safe,
+model file = ops drop-in). Remaining: MiniFASNetV2 ONNX into the image
+build, inhouse-provider wiring in shadow mode, Tier-1 ML Kit challenge
+screen in the app, threshold calibration on real traffic before
+enforcement.
