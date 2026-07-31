@@ -1,0 +1,6 @@
+id,name,aliases,country,program
+DEMO-SDN-001,Abdi Farah Warsame,Warsame Abdi;A. F. Warsame,SO,DEMO-TERROR
+DEMO-SDN-002,Viktor Nikolayevich Orlov,Viktor Orlov;V. N. Orlov,RU,DEMO-OFAC
+DEMO-SDN-003,Test Sanctioned Person,Sanctioned Test Person,XX,DEMO-TEST
+DEMO-SDN-004,Chen Wei Long,Wei Long Chen,CN,DEMO-PROLIF
+DEMO-SDN-005,Ibrahim Khalil Mansour,I. K. Mansour,SY,DEMO-OFAC

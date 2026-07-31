@@ -28,9 +28,11 @@ lms-portal-ui/.vite/
 **/.env.local
 **/.env.*.local
 
-# Docker volumes / data (but not portal source under src/data)
+# Docker volumes / data (but not portal source under src/data, and not the
+# ekyc demo screening lists — this rule has now swallowed source twice)
 **/data/
 !lms-portal-ui/src/data/
+!ekyc-ml-service/data/
 
 # Logs
 **/*.log
