@@ -223,3 +223,59 @@ LIVENESS[mode=shadow score=0.00 frames=1]` — no PROVIDER_ERROR, every
 subsystem reporting real verdicts. Remaining: real-device challenge QA
 (emulator camera can't blink), threshold calibration on real traffic,
 then LIVENESS_ENFORCE.
+
+---
+
+## Continuity snapshot — end of session 2026-08-01
+
+*Written for the next session (context reset). Everything below is committed
+and pushed; the CI deploy for `d8ebbbf` was queued at time of writing —
+verify it completed (`gh run list --workflow="Deploy Contabo"`), then do the
+one outstanding verification step.*
+
+**State of the world:**
+- Suite vs box 482/0/0. NemoScore chain, OCR-first onboarding (doc 07),
+  liveness both tiers in shadow (doc 08), screening lists, mobile overdraft
+  money path: all live and verified on Contabo. APK (116MB, camera+ML Kit):
+  wallet repo `main`; rebuild with
+  `flutter build apk --release --dart-define=NEMO_BASE_URL=https://app.lms.athenafinance.cloud`.
+- **Last commit `d8ebbbf` (deploy may still be rolling)**: tenant-mismatch
+  fix — compliance onboarding endpoints honor `?tenantId=` for
+  ADMIN/MANAGER/SERVICE (`*` = all tenants); new portal page “Onboarding
+  Referrals” under the compliance nav lists with `tenantId=*` and decides
+  with each row's own tenant.
+- **NEXT STEP (only unverified item)**: after the deploy lands, log into
+  https://lms.athenafinance.cloud (admin + rotated password from gitignored
+  deploy/k8s/contabo/lms-secrets.yaml), open Onboarding Referrals, confirm
+  applications `1213838e` (REFERRED) and `cb646dd3`/`99785acd` (APPROVED)
+  appear, and approve/reject something end-to-end from the UI.
+
+**Plan documents (docs/nemo/)**: 07 OCR-first (shipped) · 08 liveness tiers
+(shipped, shadow) · 09 build-and-certify strategy (approved direction) ·
+10 Stage-0 procurement + NLD-EA data campaign (awaiting founder actions).
+Illustrated program document (figures, budget, outreach draft):
+https://claude.ai/code/artifact/0b3b78e4-8ace-48cd-8909-b7d33c2d5183
+
+**Founder decisions pending (doc 10)**: 1) send Stage-0 outreach to
+MiniAiLive + KBY-AI (draft in artifact §1.4); 2) approve $8.6k NLD-EA
+budget + KES 800/subject rate; 3) name DPIA counsel. Plus standing:
+Paymentology/DTB call (PCI clock), thin-file-demo-mode stance for investor
+demos.
+
+**Engineering queue after the portal verification** (order): real-device
+liveness QA + threshold calibration → LIVENESS_ENFORCE; F4 mobile hardening
+(session refresh — tokens expire ~30min with no refresh; re-login RESETS
+PIN via pin/setup; no PIN attempt throttle; dev-OTP returned in release);
+`mobile.user.registered` consumers (account/customer auto-create — dashboard
+balance empty until then); doc-09 Stage 1 (multi-frame fusion, then
+FLIP/FoundPAD distilled student once NLD-EA G2 data exists); B2/B3 P2P +
+bills; identity federation LMS→NemoScore (notes §4); ET Fayda emulator pass;
+APK size (ABI splits).
+
+**Gotchas that will bite again** (also in auto-memory): `**/data/` gitignore
+has eaten source three times (portal src/data, ekyc demo lists) — check it
+first when files "vanish"; ekyc-ml-service source LIVES in this repo
+(AthenaCreditScore symlinks it); ALTERs on live pg need a service restart
+(pgx cached plans, 0A000); ML Kit truncates MRZ `<` runs (parseMrzFragments
+handles it); `pkill -f` from the Bash tool can match its own shell;
+emulator taps while the keyboard is open land on shifted coordinates.
