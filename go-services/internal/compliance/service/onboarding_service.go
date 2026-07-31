@@ -83,17 +83,24 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 	}
 
 	res, verr := s.provider.Verify(ctx, ekyc.Request{
-		FullName:     req.FullName,
-		NationalID:   req.NationalID,
-		DocumentType: docType,
-		OCRProfile:   ocrProfile,
-		Phone:        req.Phone,
-		DateOfBirth:  deref(req.DateOfBirth),
-		DocumentRef:  deref(req.DocumentRef),
-		SelfieRef:    deref(req.SelfieRef),
+		FullName:        req.FullName,
+		NationalID:      req.NationalID,
+		DocumentType:    docType,
+		OCRProfile:      ocrProfile,
+		Phone:           req.Phone,
+		DateOfBirth:     deref(req.DateOfBirth),
+		DocumentRef:     deref(req.DocumentRef),
+		SelfieRef:       deref(req.SelfieRef),
+		SelfieFrameRefs: req.SelfieFrameRefs,
 	})
 
 	tier, status, reasons := tierDecision(res, verr)
+	// Observability, not decision input: record the passive-PAD outcome so
+	// shadow-mode scores are auditable per application (docs/nemo/08).
+	if res.LivenessMode != "" {
+		reasons = append(reasons, fmt.Sprintf("LIVENESS[mode=%s score=%.2f frames=%d]",
+			res.LivenessMode, res.LivenessScore, 1+len(req.SelfieFrameRefs)))
+	}
 	now := time.Now()
 	providerName := s.provider.Name()
 	reasonsStr := strings.Join(reasons, "; ")

@@ -67,6 +67,8 @@ type SubmitOnboardingRequest struct {
 	DateOfBirth  *string `json:"dateOfBirth,omitempty"`
 	DocumentRef  *string `json:"documentRef,omitempty"`
 	SelfieRef    *string `json:"selfieRef,omitempty"`
+	// SelfieFrameRefs: Tier-1 liveness challenge frames (docs/nemo/08).
+	SelfieFrameRefs []string `json:"selfieFrameRefs,omitempty"`
 }
 
 // Next-step hints the app can switch on after submit/poll.
@@ -116,6 +118,9 @@ func (s *OnboardingService) Submit(ctx context.Context, req SubmitOnboardingRequ
 	}
 	if req.SelfieRef != nil {
 		body["selfieRef"] = *req.SelfieRef
+	}
+	if len(req.SelfieFrameRefs) > 0 {
+		body["selfieFrameRefs"] = req.SelfieFrameRefs
 	}
 	// Note: no customerId — the applicant has no account yet; it is bound on
 	// the approval path once the user completes OTP registration.

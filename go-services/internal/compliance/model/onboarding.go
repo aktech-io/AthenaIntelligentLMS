@@ -58,6 +58,9 @@ type SubmitOnboardingRequest struct {
 	// PASSPORT per the market pack's kycDocuments). Empty = NATIONAL_ID.
 	DocumentType string  `json:"documentType,omitempty"`
 	DateOfBirth  *string `json:"dateOfBirth,omitempty"`
+	// SelfieFrameRefs: media refs of Tier-1 liveness challenge frames
+	// (docs/nemo/08); optional, in addition to the primary selfieRef.
+	SelfieFrameRefs []string `json:"selfieFrameRefs,omitempty"`
 	DocumentRef *string `json:"documentRef,omitempty"`
 	SelfieRef   *string `json:"selfieRef,omitempty"`
 	// CustomerID lets the caller bind the application to an already-created

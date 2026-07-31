@@ -22,11 +22,18 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # files in /app/models (see README "Model & data files").
 ARG YUNET_URL=https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
 ARG SFACE_URL=https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+# MiniFASNetV2 passive PAD (docs/nemo/08; Apache-2.0, minivision-ai
+# Silent-Face-Anti-Spoofing, ONNX export). Same best-effort semantics:
+# absent model → /v1/face/liveness returns UNKNOWN capped at 0.5.
+ARG MINIFASNET_URL=https://huggingface.co/garciafido/minifasnet-v2-anti-spoofing-onnx/resolve/main/minifasnet_v2.onnx
 RUN mkdir -p /app/models && \
     (curl -fsSL -o /app/models/face_detection_yunet_2023mar.onnx "$YUNET_URL" && \
      curl -fsSL -o /app/models/face_recognition_sface_2021dec.onnx "$SFACE_URL" \
      || (echo "WARNING: face models not downloaded; service will use fallback comparator" && \
-         rm -f /app/models/*.onnx))
+         rm -f /app/models/face_detection_yunet_2023mar.onnx /app/models/face_recognition_sface_2021dec.onnx)) && \
+    (curl -fsSL -o /app/models/minifasnet_v2.onnx "$MINIFASNET_URL" \
+     || (echo "WARNING: PAD model not downloaded; liveness runs in UNKNOWN fallback" && \
+         rm -f /app/models/minifasnet_v2.onnx))
 
 COPY . .
 

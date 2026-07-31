@@ -26,6 +26,9 @@ type Request struct {
 	DateOfBirth  string // ISO date, optional in v1
 	DocumentRef  string // media ref of the ID document image
 	SelfieRef    string // media ref of the liveness selfie
+	// SelfieFrameRefs are the Tier-1 challenge frames (docs/nemo/08), when
+	// the app captured a live challenge; empty for single-shot selfies.
+	SelfieFrameRefs []string
 }
 
 // Result is the provider's verdict. The risk-tiering policy interprets it;
@@ -37,6 +40,13 @@ type Result struct {
 	SanctionsHit     bool
 	PEPHit           bool
 	ProviderRef      string // vendor-side id for audit
+
+	// Passive-PAD observability (docs/nemo/08). LivenessMode is "" when no
+	// PAD ran, "shadow" (scored, never decides), "shadow-error" (engine
+	// unreachable in shadow — tolerated), or "enforce". LivenessScore is
+	// P(live) in [0,1], -1 when unavailable.
+	LivenessScore float64
+	LivenessMode  string
 }
 
 // Provider is one eKYC vendor integration.

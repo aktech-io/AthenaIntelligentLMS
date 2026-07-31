@@ -12,14 +12,17 @@ import (
 
 // fakeEngine is a stub ekyc-ml-service: per-endpoint canned JSON or status.
 type fakeEngine struct {
-	extractBody string
-	extractCode int
-	faceBody    string
-	faceCode    int
-	screenBody  string
-	screenCode  int
+	extractBody  string
+	extractCode  int
+	faceBody     string
+	faceCode     int
+	screenBody   string
+	screenCode   int
+	livenessBody string
+	livenessCode int
 
 	screenRequests []map[string]any
+	livenessFrames []int // frame count per /v1/face/liveness call
 }
 
 func (f *fakeEngine) server(t *testing.T) *httptest.Server {
@@ -56,6 +59,23 @@ func (f *fakeEngine) server(t *testing.T) *httptest.Server {
 			_ = json.NewDecoder(r.Body).Decode(&req)
 			f.screenRequests = append(f.screenRequests, req)
 			writeCanned(f.screenCode, f.screenBody)
+		case "/v1/face/liveness":
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				t.Errorf("liveness: bad multipart: %v", err)
+			}
+			frames := 0
+			if r.MultipartForm != nil {
+				frames = len(r.MultipartForm.File["frame"])
+			}
+			if frames == 0 {
+				t.Error("liveness: no frame parts")
+			}
+			f.livenessFrames = append(f.livenessFrames, frames)
+			body := f.livenessBody
+			if body == "" {
+				body = `{"liveScore":0.5,"label":"UNKNOWN","model":"fallback"}`
+			}
+			writeCanned(f.livenessCode, body)
 		default:
 			t.Errorf("engine: unexpected path %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -428,4 +448,88 @@ func TestDocNumbersMatch(t *testing.T) {
 			t.Errorf("docNumbersMatch(%q,%q) = %v, want %v", tc.a, tc.b, got, tc.want)
 		}
 	}
+}
+
+// Passive-PAD wiring (docs/nemo/08): shadow observes, enforce decides.
+func TestInhouseLiveness(t *testing.T) {
+	media := map[string][]byte{
+		"doc-1": []byte("doc-image"), "selfie-1": []byte("selfie-image"),
+		"frame-1": []byte("f1"), "frame-2": []byte("f2"),
+	}
+
+	t.Run("shadow records score without deciding", func(t *testing.T) {
+		eng := fakeEngine{extractBody: goodExtract, faceBody: goodFace, screenBody: cleanScreen,
+			livenessBody: `{"liveScore":0.12,"label":"SPOOF","model":"minifasnet_v2"}`}
+		es := eng.server(t)
+		defer es.Close()
+		ms := fakeMedia(t, media)
+		defer ms.Close()
+		p := NewInhouse(InhouseConfig{EngineURL: es.URL, MediaURL: ms.URL, ServiceKey: "test-key"})
+
+		req := goodRequest()
+		req.SelfieFrameRefs = []string{"frame-1", "frame-2"}
+		res, err := p.Verify(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if res.LivenessMode != "shadow" || res.LivenessScore != 0.12 {
+			t.Errorf("liveness = (%s, %v), want (shadow, 0.12)", res.LivenessMode, res.LivenessScore)
+		}
+		if !res.LivenessPassed {
+			t.Error("shadow mode must not override the face-found heuristic")
+		}
+		if len(eng.livenessFrames) != 1 || eng.livenessFrames[0] != 3 {
+			t.Errorf("liveness frames = %v, want one call with 3 (selfie + 2 challenge frames)", eng.livenessFrames)
+		}
+	})
+
+	t.Run("shadow tolerates engine failure", func(t *testing.T) {
+		eng := fakeEngine{extractBody: goodExtract, faceBody: goodFace, screenBody: cleanScreen,
+			livenessCode: 503}
+		es := eng.server(t)
+		defer es.Close()
+		ms := fakeMedia(t, media)
+		defer ms.Close()
+		p := NewInhouse(InhouseConfig{EngineURL: es.URL, MediaURL: ms.URL, ServiceKey: "test-key"})
+
+		res, err := p.Verify(context.Background(), goodRequest())
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if res.LivenessMode != "shadow-error" || res.LivenessScore != -1 {
+			t.Errorf("liveness = (%s, %v), want (shadow-error, -1)", res.LivenessMode, res.LivenessScore)
+		}
+	})
+
+	t.Run("enforce applies the verdict and fails closed", func(t *testing.T) {
+		eng := fakeEngine{extractBody: goodExtract, faceBody: goodFace, screenBody: cleanScreen,
+			livenessBody: `{"liveScore":0.12,"label":"SPOOF","model":"minifasnet_v2"}`}
+		es := eng.server(t)
+		defer es.Close()
+		ms := fakeMedia(t, media)
+		defer ms.Close()
+		p := NewInhouse(InhouseConfig{EngineURL: es.URL, MediaURL: ms.URL, ServiceKey: "test-key",
+			LivenessEnforce: true})
+
+		res, err := p.Verify(context.Background(), goodRequest())
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if res.LivenessPassed {
+			t.Error("enforce with score 0.12 must fail LivenessPassed")
+		}
+		if res.LivenessMode != "enforce" {
+			t.Errorf("mode = %s, want enforce", res.LivenessMode)
+		}
+
+		eng2 := fakeEngine{extractBody: goodExtract, faceBody: goodFace, screenBody: cleanScreen,
+			livenessCode: 503}
+		es2 := eng2.server(t)
+		defer es2.Close()
+		p2 := NewInhouse(InhouseConfig{EngineURL: es2.URL, MediaURL: ms.URL, ServiceKey: "test-key",
+			LivenessEnforce: true})
+		if _, err := p2.Verify(context.Background(), goodRequest()); err == nil {
+			t.Error("enforce mode must fail closed on engine error")
+		}
+	})
 }

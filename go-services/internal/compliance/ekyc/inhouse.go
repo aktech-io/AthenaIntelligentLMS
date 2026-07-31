@@ -37,6 +37,12 @@ const (
 	defaultMinFieldConfidence = 0.60
 	// defaultNameMatchThreshold gates declared-vs-extracted name agreement.
 	defaultNameMatchThreshold = 0.75
+	// defaultLivenessThreshold is a PLACEHOLDER until shadow-mode
+	// calibration on real traffic (docs/nemo/08 — MiniFASNet false-reject
+	// risk in low light / on darker skin tones).
+	defaultLivenessThreshold = 0.5
+	// maxLivenessFrames caps frames sent to the PAD engine (its API limit).
+	maxLivenessFrames = 5
 )
 
 // InhouseConfig wires the in-house provider. All fields are required except
@@ -47,6 +53,13 @@ type InhouseConfig struct {
 	ServiceKey         string  // X-Service-Key for media-service (LMS_INTERNAL_SERVICE_KEY)
 	MinFieldConfidence float64 // 0 → defaultMinFieldConfidence
 	NameMatchThreshold float64 // 0 → defaultNameMatchThreshold
+
+	// Passive-PAD rollout (docs/nemo/08): shadow by default — score and
+	// record, never decide. LIVENESS_ENFORCE=true flips LivenessPassed to
+	// the PAD verdict and makes engine errors fail closed. Threshold must
+	// be calibrated on real traffic before enforcement.
+	LivenessEnforce   bool    // LIVENESS_ENFORCE
+	LivenessThreshold float64 // 0 → defaultLivenessThreshold
 }
 
 // Inhouse implements Provider against the ekyc-ml-service engine.
@@ -66,6 +79,9 @@ func NewInhouse(cfg InhouseConfig) *Inhouse {
 	if cfg.NameMatchThreshold <= 0 {
 		cfg.NameMatchThreshold = defaultNameMatchThreshold
 	}
+	if cfg.LivenessThreshold <= 0 {
+		cfg.LivenessThreshold = defaultLivenessThreshold
+	}
 	return &Inhouse{
 		cfg:    cfg,
 		engine: &http.Client{Timeout: 60 * time.Second},
@@ -83,9 +99,10 @@ func NewInhouse(cfg InhouseConfig) *Inhouse {
 // MEDIA_SERVICE_URL and LMS_INTERNAL_SERVICE_KEY.
 func NewInhouseFromEnv() *Inhouse {
 	return NewInhouse(InhouseConfig{
-		EngineURL:  strings.TrimRight(os.Getenv("EKYC_ML_SERVICE_URL"), "/"),
-		MediaURL:   strings.TrimRight(os.Getenv("MEDIA_SERVICE_URL"), "/"),
-		ServiceKey: os.Getenv("LMS_INTERNAL_SERVICE_KEY"),
+		EngineURL:       strings.TrimRight(os.Getenv("EKYC_ML_SERVICE_URL"), "/"),
+		MediaURL:        strings.TrimRight(os.Getenv("MEDIA_SERVICE_URL"), "/"),
+		ServiceKey:      os.Getenv("LMS_INTERNAL_SERVICE_KEY"),
+		LivenessEnforce: os.Getenv("LIVENESS_ENFORCE") == "true",
 	})
 }
 
@@ -178,7 +195,51 @@ func (p *Inhouse) Verify(ctx context.Context, req Request) (Result, error) {
 		res.LivenessPassed = fm.SelfieFaceFound
 	}
 
+	// Passive PAD (docs/nemo/08): challenge frames when the app captured a
+	// Tier-1 sequence, else the single selfie. Shadow mode observes only;
+	// enforcement flips both the verdict and the error semantics.
+	frames := selfieFrames(selfieBytes)
+	for _, ref := range req.SelfieFrameRefs {
+		if len(frames) >= maxLivenessFrames {
+			break
+		}
+		b, err := p.fetchMedia(ctx, ref)
+		if err != nil {
+			if p.cfg.LivenessEnforce {
+				return Result{}, err
+			}
+			continue
+		}
+		frames = append(frames, b)
+	}
+	if len(frames) > 0 {
+		res.LivenessScore = -1
+		lv, err := p.liveness(ctx, frames)
+		switch {
+		case err != nil && p.cfg.LivenessEnforce:
+			return Result{}, err
+		case err != nil:
+			res.LivenessMode = "shadow-error"
+		case p.cfg.LivenessEnforce:
+			res.LivenessMode = "enforce"
+			res.LivenessScore = lv.LiveScore
+			res.LivenessPassed = lv.LiveScore >= p.cfg.LivenessThreshold
+		default:
+			res.LivenessMode = "shadow"
+			res.LivenessScore = lv.LiveScore
+		}
+	}
+
 	return res, nil
+}
+
+// selfieFrames seeds the PAD frame list with the primary selfie when the app
+// sent no dedicated challenge frames.
+func selfieFrames(selfie []byte) [][]byte {
+	if selfie == nil {
+		return nil
+	}
+	return [][]byte{selfie}
 }
 
 // documentVerified applies the field-confidence and declared-value checks.
@@ -244,6 +305,51 @@ func (p *Inhouse) extract(ctx context.Context, doc []byte, docType, profile stri
 		map[string][]byte{"file": doc}, fields, &out)
 	if err != nil {
 		return nil, err
+	}
+	return &out, nil
+}
+
+// livenessResponse mirrors ekyc-ml-service POST /v1/face/liveness.
+type livenessResponse struct {
+	LiveScore float64 `json:"liveScore"`
+	Label     string  `json:"label"`
+	Model     string  `json:"model"`
+}
+
+// liveness scores 1..maxLivenessFrames selfie frames with the passive-PAD
+// engine. The endpoint takes repeated multipart parts all named "frame".
+func (p *Inhouse) liveness(ctx context.Context, frames [][]byte) (*livenessResponse, error) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for i, frame := range frames {
+		fw, err := mw.CreateFormFile("frame", fmt.Sprintf("frame%d.jpg", i))
+		if err != nil {
+			return nil, fmt.Errorf("inhouse ekyc: build liveness form: %w", err)
+		}
+		if _, err := fw.Write(frame); err != nil {
+			return nil, fmt.Errorf("inhouse ekyc: build liveness form: %w", err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, fmt.Errorf("inhouse ekyc: build liveness form: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.cfg.EngineURL+"/v1/face/liveness", &buf)
+	if err != nil {
+		return nil, fmt.Errorf("inhouse ekyc: build liveness request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := p.engine.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("inhouse ekyc: engine /v1/face/liveness: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("inhouse ekyc: engine /v1/face/liveness: status %d: %s", resp.StatusCode, body)
+	}
+	var out livenessResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("inhouse ekyc: decode liveness response: %w", err)
 	}
 	return &out, nil
 }
