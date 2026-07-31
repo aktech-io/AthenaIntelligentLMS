@@ -47,10 +47,17 @@ func (r *Repository) CreateOnboarding(ctx context.Context, a *model.OnboardingAp
 }
 
 // GetOnboardingByID fetches one application scoped to the tenant.
+// GetOnboardingByID scopes to a tenant; empty tenantID means any tenant —
+// the handler only grants that to ADMIN/MANAGER/SERVICE callers (the mobile
+// channel submits under the BFF's pre-auth tenant, staff carry their own).
 func (r *Repository) GetOnboardingByID(ctx context.Context, id uuid.UUID, tenantID string) (*model.OnboardingApplication, error) {
-	row := r.pool.QueryRow(ctx,
-		`SELECT `+onboardingCols+` FROM onboarding_applications WHERE id = $1 AND tenant_id = $2`,
-		id, tenantID)
+	query := `SELECT ` + onboardingCols + ` FROM onboarding_applications WHERE id = $1 AND tenant_id = $2`
+	args := []any{id, tenantID}
+	if tenantID == "" {
+		query = `SELECT ` + onboardingCols + ` FROM onboarding_applications WHERE id = $1`
+		args = args[:1]
+	}
+	row := r.pool.QueryRow(ctx, query, args...)
 	a, err := scanOnboarding(row)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -63,11 +70,16 @@ func (r *Repository) GetOnboardingByID(ctx context.Context, id uuid.UUID, tenant
 
 // ListOnboarding lists applications, optionally by status, newest first.
 func (r *Repository) ListOnboarding(ctx context.Context, tenantID string, status *model.OnboardingStatus, page, size int) ([]model.OnboardingApplication, int64, error) {
-	where := `WHERE tenant_id = $1`
-	args := []any{tenantID}
+	// Empty tenantID = all tenants (privileged staff queue; see GetOnboardingByID).
+	where := `WHERE 1=1`
+	args := []any{}
+	if tenantID != "" {
+		args = append(args, tenantID)
+		where += fmt.Sprintf(` AND tenant_id = $%d`, len(args))
+	}
 	if status != nil {
-		where += ` AND status = $2`
 		args = append(args, *status)
+		where += fmt.Sprintf(` AND status = $%d`, len(args))
 	}
 
 	var total int64

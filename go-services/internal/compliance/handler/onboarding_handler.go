@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -56,6 +57,29 @@ func (h *OnboardingHandler) RegisterRoutes(r chi.Router) {
 	})
 }
 
+// staffTenant resolves the effective tenant for the officer-facing endpoints.
+// Mobile submissions arrive under the BFF's pre-auth tenant while portal
+// staff JWTs carry their own, so a privileged caller (ADMIN/MANAGER, or an
+// internal SERVICE call) may pass ?tenantId= explicitly; "*" means all
+// tenants (mapped to the repository's empty-tenant scope). Everyone else is
+// pinned to their own tenant.
+func staffTenant(r *http.Request) string {
+	q := strings.TrimSpace(r.URL.Query().Get("tenantId"))
+	if q == "" {
+		return resolveTenantID(r)
+	}
+	for _, role := range auth.RolesFromContext(r.Context()) {
+		switch strings.ToUpper(role) {
+		case "ADMIN", "MANAGER", "SERVICE":
+			if q == "*" {
+				return ""
+			}
+			return q
+		}
+	}
+	return resolveTenantID(r)
+}
+
 func (h *OnboardingHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	var req model.SubmitOnboardingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -76,7 +100,7 @@ func (h *OnboardingHandler) Get(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteBadRequest(w, "Invalid application id", r.URL.Path)
 		return
 	}
-	app, err := h.svc.Get(r.Context(), id, resolveTenantID(r))
+	app, err := h.svc.Get(r.Context(), id, staffTenant(r))
 	if err != nil {
 		h.handleError(w, r, err)
 		return
@@ -95,7 +119,7 @@ func (h *OnboardingHandler) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil || size <= 0 || size > 200 {
 		size = 20
 	}
-	resp, err := h.svc.List(r.Context(), resolveTenantID(r), status, page, size)
+	resp, err := h.svc.List(r.Context(), staffTenant(r), status, page, size)
 	if err != nil {
 		h.handleError(w, r, err)
 		return
@@ -116,7 +140,7 @@ func (h *OnboardingHandler) decideFn(approve bool) http.HandlerFunc {
 			return
 		}
 		officer := auth.UserIDFromContext(r.Context())
-		app, err := h.svc.Decide(r.Context(), id, approve, req, resolveTenantID(r), officer)
+		app, err := h.svc.Decide(r.Context(), id, approve, req, staffTenant(r), officer)
 		if err != nil {
 			h.handleError(w, r, err)
 			return

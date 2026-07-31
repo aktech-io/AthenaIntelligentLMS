@@ -35,6 +35,7 @@ import FraudCasesPage from "./pages/FraudCasesPage";
 import FraudRulesPage from "./pages/FraudRulesPage";
 import SARReportsPage from "./pages/SARReportsPage";
 import WatchlistPage from "./pages/WatchlistPage";
+import OnboardingReferralsPage from "./pages/OnboardingReferralsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import FloatPage from "./pages/FloatPage";
 import WalletsPage from "./pages/WalletsPage";
@@ -146,6 +147,7 @@ const AppRoutes = () => (
       <Route path="/fraud-rules" element={<P><FraudRulesPage /></P>} />
       <Route path="/sar-reports" element={<P><SARReportsPage /></P>} />
       <Route path="/watchlist" element={<P><WatchlistPage /></P>} />
+      <Route path="/onboarding-referrals" element={<P><OnboardingReferralsPage /></P>} />
       <Route path="/audit" element={<P><AuditLogsPage /></P>} />
       <Route path="/float" element={<P><FloatPage /></P>} />
       <Route path="/wallets" element={<P><WalletsPage /></P>} />

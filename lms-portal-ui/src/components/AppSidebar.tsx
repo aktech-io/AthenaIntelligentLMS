@@ -47,6 +47,7 @@ import {
   Briefcase,
   Settings2,
   CheckCheck,
+  ScanFace,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -125,6 +126,7 @@ const complianceNav = [
   { title: "Investigation Cases", url: "/fraud-cases", icon: Briefcase },
   { title: "Detection Rules", url: "/fraud-rules", icon: Settings2 },
   { title: "SAR / CTR Reports", url: "/sar-reports", icon: FileWarning },
+  { title: "Onboarding Referrals", url: "/onboarding-referrals", icon: ScanFace },
   { title: "Watchlist", url: "/watchlist", icon: ShieldCheck },
   { title: "Audit Logs", url: "/audit", icon: Lock },
 ];
