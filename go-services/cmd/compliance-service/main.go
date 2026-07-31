@@ -6,6 +6,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/metrics"
 	"github.com/athena-lms/go-services/internal/common/tracing"
 	"github.com/athena-lms/go-services/internal/compliance/ekyc"
+	"github.com/athena-lms/go-services/internal/compliance/liveness"
 	"net/http"
 	"os"
 	"os/signal"
@@ -99,10 +100,18 @@ func main() {
 	hdlr := handler.New(svc, logger)
 
 	// Self-service eKYC onboarding (A2): provider from EKYC_PROVIDER
-	// (default sandbox); risk-tiered auto-approve with officer referrals.
-	// The in-house engine (ekyc-ml-service) registers here; it fails closed
-	// at Verify time if EKYC_ML_SERVICE_URL / MEDIA_SERVICE_URL are unset.
-	ekyc.Register(ekyc.NewInhouseFromEnv())
+	// (unset is fatal — the sandbox auto-approves, so it is never a silent
+	// default); risk-tiered auto-approve with officer referrals. The PAD
+	// scorer resolves from LIVENESS_PROVIDER (default inhouse) behind the
+	// liveness.Provider seam (docs/nemo/08/09) and plugs into the in-house
+	// eKYC engine, which fails closed at Verify time if
+	// EKYC_ML_SERVICE_URL / MEDIA_SERVICE_URL are unset.
+	liveness.Register(liveness.NewInhouseFromEnv())
+	livenessProvider, err := liveness.FromEnv()
+	if err != nil {
+		logger.Fatal("Failed to resolve liveness provider", zap.Error(err))
+	}
+	ekyc.Register(ekyc.NewInhouseFromEnv(livenessProvider))
 	ekycProvider, err := ekyc.FromEnv()
 	if err != nil {
 		logger.Fatal("Failed to resolve eKYC provider", zap.Error(err))

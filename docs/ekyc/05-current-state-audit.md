@@ -18,8 +18,8 @@ part of this audit.*
 | Face match (1:1) | ✅ built | `engine/facematch.py` (YuNet detect + SFace embed); Go call `ekyc/inhouse.go:357-365`; threshold 0.85 `service/onboarding_service.go:22` | Runs in **fallback mode** (Haar + correlation, capped 0.75 at `facematch.py:35,173`) whenever ONNX files are absent — see model provisioning row |
 | Tier-1 active challenge (blink/turn/smile) | ✅ built (app-side) | NemoWallet `lib/core/kyc/liveness_challenge.dart:12` (`enum LivenessChallenge { blink, turnLeft, turnRight, smile }`), `face_signals_adapter.dart`, `kyc_selfie_screen.dart`, commit `d5d0c14`; frames flow as `selfieFrameRefs` end-to-end | Challenge completion is **client-verified only** — the server receives frames but cannot prove a challenge happened; a tampered client can send arbitrary frames |
 | Tier-2 passive liveness (MiniFASNetV2) | 🟡 partial | `engine/liveness.py` (full ONNX pipeline, 2.7× crop, class-index-1 = live), endpoint `api/face.py`; Go call `ekyc/inhouse.go:200-231` | **Model file not present** (`models/` holds only `.gitkeep`); Dockerfile download source unverified (HF community conversion, `Dockerfile:28`); threshold 0.5 is an explicit placeholder (`liveness.py:42`, `inhouse.go:40-43`) |
-| Liveness enforcement / shadow | 🟡 shadow only | `inhouse.go:61,105` (`LIVENESS_ENFORCE`, default false), shadow/enforce branch `inhouse.go:215-231`; score recorded in reasons `service/onboarding_service.go:100-103` | `LIVENESS_ENFORCE` set in **no** deploy manifest (compose/Helm/k8s) — shadow everywhere, which is intended, but shadow scores land only in the free-text `decision_reasons` column: no dedicated DB column, no metric — weak substrate for calibration |
-| Tier-3 bridge SDK (doc-09 Stage 0) | 🔴 not started | No code. `grep -rn LivenessProvider go-services/` → 0 hits | Docs 09/10 describe mounting the bridge "behind the existing LivenessProvider seam" — **that seam does not exist**; liveness is inlined in the `Inhouse` eKYC provider. Vendor outreach is a pending founder action (doc 10) |
+| Liveness enforcement / shadow | 🟡 shadow only | `inhouse.go:61,105` (`LIVENESS_ENFORCE`, default false), shadow/enforce branch `inhouse.go:215-231`; score recorded in reasons `service/onboarding_service.go:100-103` | `LIVENESS_ENFORCE` set in **no** deploy manifest (compose/Helm/k8s) — shadow everywhere, which is intended, but shadow scores land only in the free-text `decision_reasons` column: no dedicated DB column, no metric — weak substrate for calibration. **Addressed 2026-08-01**: structured `liveness_score`/`liveness_mode`/`liveness_provider` columns (migration 7) now persist alongside the reason string; a metric is still open |
+| Tier-3 bridge SDK (doc-09 Stage 0) | 🔴 not started | No code. `grep -rn LivenessProvider go-services/` → 0 hits | Docs 09/10 describe mounting the bridge "behind the existing LivenessProvider seam" — **that seam does not exist**; liveness is inlined in the `Inhouse` eKYC provider. Vendor outreach is a pending founder action (doc 10). **Seam addressed 2026-08-01**: `internal/compliance/liveness` registry (`LIVENESS_PROVIDER`, default `inhouse`) now exists; the bridge SDK itself remains not started |
 | Screening lists | 🟡 demo only | Matcher: `engine/screening.py`, `engine/names.py` (fuzzy, threshold 0.85); data: `data/sanctions_demo.csv`, `data/pep_demo.csv` — 5+5 **fictional** entries | No real OFAC/UN/EU lists anywhere in the repo; no ops cron/refresh tooling exists; nothing prevents demo lists reaching production |
 | Referral queue / officer portal | ✅ built | `service/onboarding_service.go:200-247` (List status=REFERRED, Decide), `lms-portal-ui/src/pages/OnboardingReferralsPage.tsx`, cross-tenant officer queue (commit `d8ebbbf`), migration `5_onboarding.up.sql` | Referral view shows `decision_reasons` text; no structured display of per-check evidence (scores, extracted fields) |
 | DPIA / compliance artifacts | 🔴 not started | `grep -rl DPIA docs/` → plan references only (docs/nemo/08:55, 10:33) | Required by the Kenya DPA before liveness/face-match at scale, and gates the NLD-EA capture campaign (doc 10 G1) |
@@ -71,6 +71,8 @@ the code implements them as described:
   deploy targets pin `inhouse` (compose `docker-compose.go.yml:281`, Helm
   `values.yaml:89`, k8s `deploy/k8s/contabo/lms-nemo.yaml:505`), but a
   misconfigured environment fails **open**, not closed.
+  **Addressed 2026-08-01**: unset `EKYC_PROVIDER` is now a startup error
+  (dev escape hatch `EKYC_ALLOW_SANDBOX_DEFAULT=true`, set in no manifest).
 - **Inhouse provider** (`ekyc/inhouse.go`): orchestrates media fetch → extract
   (with `doc_type` + `profile` from the market pack) → face match → screen →
   liveness. Thresholds: field-confidence floor 0.60, name-match 0.75, liveness
@@ -89,6 +91,9 @@ the code implements them as described:
   (docType column). **No column for liveness score/mode** — shadow output
   exists only inside the `decision_reasons` string
   (`onboarding_service.go:100-103`).
+  **Addressed 2026-08-01**: `7_liveness_observability.up.sql` adds
+  `liveness_score`/`liveness_mode`/`liveness_provider` (nullable), populated
+  by Submit and exposed through the API and the referral portal dialog.
 
 ### 2.3 Mobile app (NemoWallet — separate repo, `/home/adira/projects/aktech/NemoWallet`)
 
@@ -158,9 +163,15 @@ require the full docker-compose stack.
    seam that is not in the code — liveness is welded into the `inhouse` eKYC
    provider. The bridge SDK, VeriFayda routing, and in-house-vs-bridge shadow
    comparison all need this refactor first.
+   **Addressed 2026-08-01** — `internal/compliance/liveness` registry
+   (`Provider` = `Name()` + `Score(ctx, frames)`, `LIVENESS_PROVIDER` env,
+   in-house scorer extracted from `inhouse.go`); bridge SDK can now register.
 6. **Shadow scores are unqueryable.** Liveness mode/score live in a free-text
    `decision_reasons` column. Threshold calibration on real traffic (doc 08's
    stated must-do) needs a structured store (column or event) plus a metric.
+   **Addressed 2026-08-01** (columns) — migration 7 adds
+   `liveness_score`/`liveness_mode`/`liveness_provider`; a Prometheus
+   histogram is still open.
 7. **Tier-1 challenge is client-attestable only.** The server cannot
    distinguish genuine challenge frames from a replayed video of someone doing
    a challenge; Tier 2 (not yet enforcing) is the only server-side check.
@@ -168,6 +179,9 @@ require the full docker-compose stack.
    (`ekyc.go:68-70`), which auto-approves. Deploy manifests all pin `inhouse`,
    but the safe default would be to refuse to start (or default to `inhouse`)
    in production builds.
+   **Addressed 2026-08-01** — `ekyc.FromEnv` now errors on an unset
+   `EKYC_PROVIDER` unless `EKYC_ALLOW_SANDBOX_DEFAULT=true` (dev only; verified
+   set in no compose/Helm/k8s manifest — all three still pin `inhouse`).
 9. **DPIA not started** — legally gates both production
    liveness/face-match enforcement in Kenya and the NLD-EA data campaign.
 
@@ -180,9 +194,12 @@ require the full docker-compose stack.
 2. **Structure the shadow data**: add `liveness_score`/`liveness_mode` columns
    (or a compliance event) + a Prometheus histogram, so calibration has a
    dataset from day one of real traffic.
+   *Addressed 2026-08-01 (columns + provider column, API + portal display;
+   histogram still open).*
 3. **Extract the LivenessProvider seam** (`{frames} → {liveScore, decision,
    provider, auditRef}` registry, doc 08 style) out of `inhouse.go` — the
    prerequisite for Stage-0 bridge SDK, VeriFayda (ET), and A/B shadow.
+   *Addressed 2026-08-01 (`internal/compliance/liveness`).*
 4. **Kill the demo-list hazard**: ship a list-sync job (OFAC/UN/EU → CSV,
    daily), refuse to report clean screens when only `*_demo.csv` files are
    loaded in production mode, and alert on list staleness.
@@ -197,6 +214,8 @@ require the full docker-compose stack.
    running sidecar — today all confidence rests on synthetic fixtures.
 8. **Close the fail-open default**: make an unset `EKYC_PROVIDER` fatal (or
    `inhouse`) outside dev builds.
+   *Addressed 2026-08-01 (unset is fatal; `EKYC_ALLOW_SANDBOX_DEFAULT=true`
+   is the dev escape hatch, set in no manifest).*
 9. **Enforcement switch dry-run**: once calibrated, stage `LIVENESS_ENFORCE`
    into compose/Helm/k8s manifests explicitly (it appears in none today) with
    referral-not-reject UX confirmed.

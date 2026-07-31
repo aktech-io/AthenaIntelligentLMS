@@ -42,11 +42,17 @@ type OnboardingApplication struct {
 	Provider        *string          `json:"provider,omitempty"`
 	ProviderRef     *string          `json:"providerRef,omitempty"`
 	DecisionReasons *string          `json:"decisionReasons,omitempty"`
-	CustomerID      *string          `json:"customerId,omitempty"`
-	DecidedBy       *string          `json:"decidedBy,omitempty"`
-	DecidedAt       *time.Time       `json:"decidedAt,omitempty"`
-	CreatedAt       time.Time        `json:"createdAt"`
-	UpdatedAt       time.Time        `json:"updatedAt"`
+	// Passive-PAD observability (docs/nemo/08): structured liveness outcome
+	// per application, mirroring ekyc.Result. All nil when no PAD ran;
+	// LivenessScore stays nil on shadow-error (score unavailable).
+	LivenessScore    *float64   `json:"livenessScore,omitempty"`
+	LivenessMode     *string    `json:"livenessMode,omitempty"`
+	LivenessProvider *string    `json:"livenessProvider,omitempty"`
+	CustomerID       *string    `json:"customerId,omitempty"`
+	DecidedBy        *string    `json:"decidedBy,omitempty"`
+	DecidedAt        *time.Time `json:"decidedAt,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
 // SubmitOnboardingRequest is the customer-channel submission (via the BFF).
@@ -61,8 +67,8 @@ type SubmitOnboardingRequest struct {
 	// SelfieFrameRefs: media refs of Tier-1 liveness challenge frames
 	// (docs/nemo/08); optional, in addition to the primary selfieRef.
 	SelfieFrameRefs []string `json:"selfieFrameRefs,omitempty"`
-	DocumentRef *string `json:"documentRef,omitempty"`
-	SelfieRef   *string `json:"selfieRef,omitempty"`
+	DocumentRef     *string  `json:"documentRef,omitempty"`
+	SelfieRef       *string  `json:"selfieRef,omitempty"`
 	// CustomerID lets the caller bind the application to an already-created
 	// customer identity; empty means the caller assigns it on approval.
 	CustomerID *string `json:"customerId,omitempty"`

@@ -122,6 +122,21 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 	if verr == nil {
 		app.ProviderRef = &res.ProviderRef
 	}
+	// Structured PAD columns beside the LIVENESS[...] reason string (kept for
+	// backward compatibility): NULL mode = no PAD ran, NULL score = score
+	// unavailable (-1, e.g. shadow-error). Calibration queries read these.
+	if res.LivenessMode != "" {
+		mode := res.LivenessMode
+		app.LivenessMode = &mode
+		if res.LivenessScore >= 0 {
+			score := res.LivenessScore
+			app.LivenessScore = &score
+		}
+		if res.LivenessProvider != "" {
+			livenessProvider := res.LivenessProvider
+			app.LivenessProvider = &livenessProvider
+		}
+	}
 	if status == model.OnboardingAutoApproved {
 		decider := "ekyc:" + providerName
 		app.DecidedBy = &decider
