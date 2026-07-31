@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/athena-lms/go-services/internal/scoring/client"
@@ -198,14 +199,26 @@ func (s *Service) GetResultByApplication(ctx context.Context, applicationID, ten
 	return &resp, nil
 }
 
-// GetLatestResultByCustomer returns the latest ScoringResult for a customer.
+// GetLatestResultByCustomer returns the latest ScoringResult for a customer,
+// scoring on demand when none is stored (docs/nemo/06 §3: only loan events
+// trigger scoring, so an overdraft applicant with no loan application would
+// otherwise 404 forever). TriggerScoring keeps the fail-closed contract — a
+// FAILED or SKIPPED (insufficient-data) outcome stores no result, we still
+// return nil, and callers reject the credit decision.
 func (s *Service) GetLatestResultByCustomer(ctx context.Context, customerID int64, tenantID string) (*model.ScoringResultResponse, error) {
 	res, err := s.repo.FindLatestResultByCustomer(ctx, customerID)
 	if err != nil {
 		return nil, err
 	}
 	if res == nil {
-		return nil, nil
+		s.TriggerScoring(ctx, uuid.NewString(), customerID, "score.on.read.miss", tenantID)
+		res, err = s.repo.FindLatestResultByCustomer(ctx, customerID)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil {
+			return nil, nil
+		}
 	}
 	resp := toResultResponse(res)
 	return &resp, nil
