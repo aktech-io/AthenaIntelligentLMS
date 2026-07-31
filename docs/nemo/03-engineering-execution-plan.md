@@ -111,14 +111,43 @@ bugs — portal `src/data` swallowed by `**/data/` gitignore; account migrations
 frozen since March by a 000005 version collision (all envs silently unmigrated);
 scoring by-customer lookup ParseInt'ing varchar IDs (fail-closed every overdraft).
 Credentials rotated (admin/manager/officer/teller from `lms-secrets`; admin123
-dead), 6 loan products seeded. Suite vs box: **320 pass**; remaining ~111 errors
-+16 fails are one cause — **no NemoScore/scoring backend on the box** (overdraft +
-loan review/approve fail closed, HIGH-6 by design). **NemoScore-to-Contabo decided and in flight** (separate session; handshake via
-docs/AGENT_COORDINATION.md `NEMOSCORE_READY`, contract in
-docs/nemo/06-nemoscore-lms-integration-notes.md). Public edge is DONE
-(2026-07-20): DNS live for lms + app.lms.athenafinance.cloud, Let's Encrypt
-certs issued on both, BFF ingress applied and smoke-tested
-(onboarding 400-validates, dashboard 401s pre-auth), portal login verified with
-rotated creds. Next after NemoScore lands: wire ConfigMap/Secret + band seed
-(notes §5/§7), full suite rerun, then **A1 APK** against
-app.lms.athenafinance.cloud.
+dead), 6 loan products seeded. Public edge DONE (2026-07-20): DNS live for lms +
+app.lms.athenafinance.cloud, Let's Encrypt certs on both, BFF ingress applied,
+portal login verified with rotated creds.
+
+**NemoScore ⇄ LMS integration COMPLETE (2026-07-31)**: the scoring stack had
+been live in the `nemoscore` namespace since 07-20 (that session also wired the
+LMS ConfigMap/Secret and seeded the six bands, but died before flipping the
+coordination marker). The 07-31 session verified the chain and cleared five
+stacked defects the old "one cause" diagnosis was hiding:
+1. **Test-suite credential rot** (`e16d2cc`) — six test files hardcoded
+   admin123; on the rotated box every login tripped the HIGH-3 per-username
+   lockout and cascaded 429s that masqueraded as ~111 "scoring" errors.
+2. **NemoScore thin-file demo mode** (AthenaCreditScore `4c9ec6a`,
+   `NEMOSCORE_THIN_FILE_DEMO` — demo box only): score-on-miss serves the
+   scorecard floor as SCORED/PARTIAL for unknown LMS-hashed ids instead of
+   honest-but-blocking INSUFFICIENT_DATA (notes §4's sanctioned path).
+3. **Aborted-transaction 500 + box schema drift** (AthenaCreditScore
+   `699bf75`): missing `bank_transactions` (init SQL 13–15 never ran — the DB
+   predates them) aborted the score-event insert; schema applied + the
+   score-on-miss path now commits the placeholder row first and rolls back on
+   feature-pipeline failure.
+4. **LMS score-on-miss** (`f2d0af1`): ai-scoring's by-customer GET now runs
+   TriggerScoring synchronously on miss (trigger `score.on.read.miss`) — an
+   overdraft applicant with no loan application finally gets scored; FAILED/
+   SKIPPED still store nothing so every caller keeps failing closed (HIGH-6).
+5. **Schema relics**: overdraft `credit_band` VARCHAR(1) (built for A–D,
+   rejected "POOR") → migration 000006; loans `reviewer_id` UUID (code stores
+   usernames) → migration 15. Both applied to the box.
+
+Suite vs box after: **482 pass / 0 fail / 0 error** (from 320 pass + ~127 red);
+remaining skips are environment-conditional. Two test-model updates rode along:
+test_27 got a 900s timeout marker (500 sequential HTTP calls over WAN/tunnel)
+and its balance audit now nets out the arrangement fee the deposit waterfall
+settles (BLOCKER-6 behaviour it predated); test_26 accepts the canonical band
+names alongside legacy A–D. **A1 APK BUILT** (2026-07-31):
+`NemoWallet/build/nemo-wallet-contabo-20260731.apk`, release, against
+`https://app.lms.athenafinance.cloud` (wallet `main` `efb5356`). Follow-ups:
+real identity federation LMS→NemoScore (notes §4, design item), decide whether
+thin-file demo mode stays acceptable for investor demos, device smoke-test of
+the APK.

@@ -16,6 +16,16 @@ from conftest import url, unique_id, TIMEOUT
 
 # ── Configuration ────────────────────────────────────────────────────────────
 NUM_WALLETS = 10
+
+# Arrangement fee charged at overdraft apply, keyed by credit band — mirrors
+# credit_band_configs (legacy A–D seed + docs/nemo/06 §5 canonical bands).
+# The deposit waterfall (BLOCKER-6) settles this fee out of the first
+# deposit(s) before crediting the wallet balance.
+ARRANGEMENT_FEE_BY_BAND = {
+    "A": 1000.0, "B": 750.0, "C": 500.0, "D": 250.0,
+    "EXCELLENT": 1000.0, "VERY_GOOD": 800.0, "GOOD": 750.0,
+    "FAIR": 500.0, "MARGINAL": 400.0, "POOR": 250.0,
+}
 DEPOSITS_PER_WALLET = 20        # 200 total
 WITHDRAWALS_PER_WALLET = 20     # 200 total
 OD_DRAWS_PER_WALLET = 5         # 50 total (withdraw beyond balance)
@@ -124,6 +134,7 @@ def _get_transactions(headers, wallet_id, page=0, size=500):
 
 
 @pytest.mark.load
+@pytest.mark.timeout(900)  # class fixture does ~500 sequential HTTP calls; WAN/tunnel runs need headroom
 class TestLoadAndAudit:
     """
     Generates 500+ transactions, then audits every balance, facility,
@@ -339,16 +350,19 @@ class TestLoadAndAudit:
             wallet = _get_wallet(admin_headers, wid)
             actual_balance = float(wallet.get("currentBalance", 0))
 
-            expected_balance = ledger[wid]["total_deposited"] - ledger[wid]["total_withdrawn"]
-
-            # Get facility to check if interest reduced the balance
+            # Get facility: its arrangement fee is settled out of deposits by
+            # the waterfall (fees -> accrued interest -> principal), so the
+            # wallet balance nets it out. Deposits here are always >> fee, so
+            # the fee is fully paid. No deposits happen after EOD accrual in
+            # this scenario, so no interest repayment is netted.
             facility = _get_facility(admin_headers, wid)
-            accrued_interest = 0
-            if facility and facility.get("hasOD"):
-                accrued_interest = float(facility.get("accruedInterest", 0))
+            fee_paid = 0.0
+            if facility:
+                fee_paid = ARRANGEMENT_FEE_BY_BAND.get(facility.get("creditBand"), 0.0)
 
-            # Balance should match deposits - withdrawals
-            # (interest doesn't change wallet balance, only facility drawn amount)
+            expected_balance = (ledger[wid]["total_deposited"]
+                                - ledger[wid]["total_withdrawn"]
+                                - fee_paid)
             diff = abs(actual_balance - expected_balance)
             status = "PASS" if diff < TOLERANCE else "FAIL"
             if status == "FAIL":

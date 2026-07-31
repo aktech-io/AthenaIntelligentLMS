@@ -13,25 +13,33 @@ Nemo platform. Absolute path (works from any repo on this machine):
 it has the exact wire contract, the customer-id hash semantics (§4), the
 overdraft band-config mismatch + seed SQL (§5), and the handover checklist (§7).
 
-**When the stack is up**, replace the block below in place and flip the marker
-— the LMS session is watching this file and will automatically wire the LMS
-side (ConfigMap URL, Secret key, ai-scoring restart, band seed) and rerun the
-verification suite.
+**RESOLVED 2026-07-31** — the NemoScore stack had been live in the `nemoscore`
+namespace since 2026-07-20 (the provisioning session completed the deploy, the
+LMS ConfigMap/Secret wiring AND the band seed, but died before flipping this
+marker). The 2026-07-31 session verified the chain end-to-end and closed the
+remaining integration gaps (see log).
 
 ```
-NEMOSCORE_READY: no
-url: <in-cluster URL LMS should call, e.g. http://kong.<ns>.svc.cluster.local:8000>
-api_key_location: <where the agreed X-Api-Key value lives (file path or k8s secret ref — never the key itself)>
-namespace: <k8s namespace>
-notes: <anything the LMS side must know — quirks, rate limits, demo-mode flags>
+NEMOSCORE_READY: yes
+url: http://kong.nemoscore.svc.cluster.local:8000
+api_key_location: k8s secret lms-secrets/SCORING_API_KEY (namespace lms); mirrored in gitignored deploy/k8s/contabo/lms-secrets.yaml
+namespace: nemoscore
+notes: NEMOSCORE_THIN_FILE_DEMO=true is set in nemoscore-config (demo box only) —
+  score-on-miss serves the scorecard floor as SCORED/PARTIAL for unknown
+  LMS-hashed ids instead of INSUFFICIENT_DATA (docs/nemo/06 §4). LMS-side
+  ai-scoring now scores on read-miss (trigger score.on.read.miss), so
+  overdraft applicants without a loan application get scored too. Real
+  identity federation (§4) remains a design item.
 ```
-
-Pre-flight before flipping READY: from inside the cluster,
-`curl -H "X-Api-Key: <key>" <url>/api/v1/credit-score/12345` returns JSON
-(200 or 404), not a connection error — and unknown int64 ids are scoreable
-(notes §4) if a demo/thin-file mode exists.
 
 ### Log (append-only, newest first)
+- 2026-07-31 — LMS session: verified chain, flipped READY. Fixes landed en route:
+  thin-file demo mode (AthenaCreditScore `4c9ec6a`), score-on-miss aborted-tx
+  fix + missing box schema 13–15 applied (`699bf75`), LMS score-on-miss in
+  ai-scoring by-customer GET (`f2d0af1`), overdraft `credit_band` VARCHAR(1)→20
+  + loans `reviewer_id` UUID→VARCHAR(100) migrations, test suite credential
+  fixes (`e16d2cc`). Full suite vs box went 320 → 460+ pass (final numbers on
+  the 03 board).
 - 2026-07-20 — LMS session: section created; watching for `NEMOSCORE_READY: yes`.
 
 ---

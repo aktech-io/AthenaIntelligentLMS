@@ -55,7 +55,11 @@ class TestFacilityLifecycle:
         # Verify facility has all required fields
         assert data.get("status") == "ACTIVE", f"Expected ACTIVE, got {data.get('status')}"
         assert data.get("creditScore", 0) > 0, "Credit score should be positive"
-        assert data.get("creditBand") in ("A", "B", "C", "D"), f"Invalid band: {data.get('creditBand')}"
+        # Legacy A–D bands plus the canonical NemoScore taxonomy (docs/nemo/06 §5)
+        assert data.get("creditBand") in (
+            "A", "B", "C", "D",
+            "EXCELLENT", "VERY_GOOD", "GOOD", "FAIR", "MARGINAL", "POOR",
+        ), f"Invalid band: {data.get('creditBand')}"
         assert float(data.get("approvedLimit", 0)) > 0, "Approved limit should be positive"
         assert float(data.get("interestRate", 0)) > 0, "Interest rate should be positive"
         assert data.get("nplStage") == "PERFORMING", f"Initial NPL stage should be PERFORMING"
