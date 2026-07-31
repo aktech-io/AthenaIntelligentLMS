@@ -10,7 +10,8 @@ app = FastAPI(
     title="Nemo eKYC ML Service",
     description="In-house eKYC engine sidecar for compliance-service: "
     "ID-document OCR + MRZ extraction (Tesseract), document-vs-selfie "
-    "face match (YuNet + SFace ONNX, deterministic fallback), and "
+    "face match (YuNet + SFace ONNX, deterministic fallback), passive "
+    "liveness / PAD (MiniFASNetV2 ONNX, deterministic fallback), and "
     "sanctions/PEP name screening.",
     version="1.0.0",
 )
@@ -23,6 +24,7 @@ app.include_router(screening_router, prefix="/v1", tags=["Screening"])
 @app.get("/health", tags=["Health"])
 async def health():
     from engine.facematch import models_available
+    from engine.liveness import model_available as liveness_model_available
     from engine.ocr import tesseract_available
     from engine.screening import get_screener
 
@@ -32,6 +34,9 @@ async def health():
         "service": "ekyc-ml-service",
         "ocr": "tesseract" if tesseract_available() else "unavailable",
         "faceEngine": "sface" if models_available() else "fallback",
+        "livenessEngine": "minifasnet_v2"
+        if liveness_model_available()
+        else "fallback",
         "screeningLists": screener.files,
         "screeningEntries": len(screener.entries),
     }
