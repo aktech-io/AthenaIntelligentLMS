@@ -50,16 +50,19 @@ func (s *OverdraftProxyService) GetOverdraftStatus(ctx context.Context, customer
 		return result, nil
 	}
 
-	result["hasFacility"] = true
-	result["overdraftLimit"] = facility["approvedLimit"]
-	result["usedAmount"] = facility["drawnAmount"]
-	result["availableAmount"] = facility["availableOverdraft"]
-	result["apr"] = facility["interestRate"]
+	// GET /wallets/{id}/overdraft returns the facility STATUS shape
+	// (limit/drawn/available/hasOD), not the apply-response field names.
+	result["hasFacility"] = facility["hasOD"] == true
+	result["overdraftLimit"] = facility["limit"]
+	result["usedAmount"] = facility["drawn"]
+	result["availableAmount"] = facility["available"]
 	if rate, ok := facility["interestRate"].(float64); ok {
-		result["dailyRate"] = rate / 365
+		result["apr"] = rate * 100       // 0.3 -> 30 (%)
+		result["dailyRate"] = rate / 365 * 100
 	}
 	result["accruedInterest"] = facility["accruedInterest"]
 	result["scoreBand"] = facility["creditBand"]
+	result["status"] = facility["status"]
 
 	return result, nil
 }
