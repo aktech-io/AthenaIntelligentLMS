@@ -28,6 +28,17 @@ creditBureaus:
 kycRuleSet: ke-poca-2009
 taxRuleSet: ke-kra
 
+# Accepted onboarding identity documents (docs/nemo/07).
+kycDocuments:
+  - type: NATIONAL_ID
+    label: "Kenyan National ID"
+    numberPattern: "^[0-9]{7,9}$"
+    ocrProfile: ke-national-id
+  - type: PASSPORT
+    label: "Kenyan Passport"
+    numberPattern: "^[A-Z][0-9]{6,7}$"
+    ocrProfile: passport-mrz
+
 holidays:
   - { name: "New Year's Day", monthDay: "01-01" }
   - { name: "Labour Day", monthDay: "05-01" }

@@ -18,12 +18,14 @@ import (
 // Document and selfie images live in the media service; only their refs
 // travel here.
 type Request struct {
-	FullName    string
-	NationalID  string
-	Phone       string
-	DateOfBirth string // ISO date, optional in v1
-	DocumentRef string // media ref of the ID document image
-	SelfieRef   string // media ref of the liveness selfie
+	FullName     string
+	NationalID   string
+	DocumentType string // NATIONAL_ID | PASSPORT (market-pack taxonomy)
+	OCRProfile   string // ekyc-ml extraction profile id from the market pack
+	Phone        string
+	DateOfBirth  string // ISO date, optional in v1
+	DocumentRef  string // media ref of the ID document image
+	SelfieRef    string // media ref of the liveness selfie
 }
 
 // Result is the provider's verdict. The risk-tiering policy interprets it;

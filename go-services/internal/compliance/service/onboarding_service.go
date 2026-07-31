@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/common/dto"
 	"github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/common/market"
 	"github.com/athena-lms/go-services/internal/compliance/ekyc"
 	"github.com/athena-lms/go-services/internal/compliance/model"
 )
@@ -58,13 +60,37 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 		return nil, errors.BadRequest("nationalId is required")
 	}
 
+	docType := strings.ToUpper(strings.TrimSpace(req.DocumentType))
+	if docType == "" {
+		docType = "NATIONAL_ID"
+	}
+	// The market pack defines which documents this market accepts and what
+	// their numbers look like (docs/nemo/07). Packs without kycDocuments
+	// impose no restriction (pre-taxonomy behaviour).
+	ocrProfile := ""
+	if pack := market.Current(); len(pack.KYCDocuments) > 0 {
+		doc := pack.KYCDocumentByType(docType)
+		if doc == nil {
+			return nil, errors.BadRequest("documentType " + docType + " is not accepted in market " + pack.Code)
+		}
+		if doc.NumberPattern != "" {
+			re, err := regexp.Compile(doc.NumberPattern)
+			if err == nil && !re.MatchString(strings.TrimSpace(req.NationalID)) {
+				return nil, errors.BadRequest("document number does not match the expected " + doc.Label + " format")
+			}
+		}
+		ocrProfile = doc.OCRProfile
+	}
+
 	res, verr := s.provider.Verify(ctx, ekyc.Request{
-		FullName:    req.FullName,
-		NationalID:  req.NationalID,
-		Phone:       req.Phone,
-		DateOfBirth: deref(req.DateOfBirth),
-		DocumentRef: deref(req.DocumentRef),
-		SelfieRef:   deref(req.SelfieRef),
+		FullName:     req.FullName,
+		NationalID:   req.NationalID,
+		DocumentType: docType,
+		OCRProfile:   ocrProfile,
+		Phone:        req.Phone,
+		DateOfBirth:  deref(req.DateOfBirth),
+		DocumentRef:  deref(req.DocumentRef),
+		SelfieRef:    deref(req.SelfieRef),
 	})
 
 	tier, status, reasons := tierDecision(res, verr)
@@ -77,6 +103,7 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 		Phone:           req.Phone,
 		FullName:        req.FullName,
 		NationalID:      req.NationalID,
+		DocumentType:    docType,
 		DateOfBirth:     req.DateOfBirth,
 		DocumentRef:     req.DocumentRef,
 		SelfieRef:       req.SelfieRef,

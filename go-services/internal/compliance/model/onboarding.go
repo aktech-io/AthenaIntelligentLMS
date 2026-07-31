@@ -33,6 +33,7 @@ type OnboardingApplication struct {
 	Phone           string           `json:"phone"`
 	FullName        string           `json:"fullName"`
 	NationalID      string           `json:"nationalId"`
+	DocumentType    string           `json:"documentType"`
 	DateOfBirth     *string          `json:"dateOfBirth,omitempty"`
 	DocumentRef     *string          `json:"documentRef,omitempty"`
 	SelfieRef       *string          `json:"selfieRef,omitempty"`
@@ -50,10 +51,13 @@ type OnboardingApplication struct {
 
 // SubmitOnboardingRequest is the customer-channel submission (via the BFF).
 type SubmitOnboardingRequest struct {
-	Phone       string  `json:"phone"`
-	FullName    string  `json:"fullName"`
-	NationalID  string  `json:"nationalId"`
-	DateOfBirth *string `json:"dateOfBirth,omitempty"`
+	Phone      string `json:"phone"`
+	FullName   string `json:"fullName"`
+	NationalID string `json:"nationalId"`
+	// DocumentType is the identity document presented (NATIONAL_ID |
+	// PASSPORT per the market pack's kycDocuments). Empty = NATIONAL_ID.
+	DocumentType string  `json:"documentType,omitempty"`
+	DateOfBirth  *string `json:"dateOfBirth,omitempty"`
 	DocumentRef *string `json:"documentRef,omitempty"`
 	SelfieRef   *string `json:"selfieRef,omitempty"`
 	// CustomerID lets the caller bind the application to an already-created

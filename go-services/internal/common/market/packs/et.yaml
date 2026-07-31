@@ -24,6 +24,19 @@ creditBureaus: []                  # NBE credit reference bureau adapter TBD
 kycRuleSet: et-nbe
 taxRuleSet: et-mor
 
+# Accepted onboarding identity documents (docs/nemo/07).
+# Fayda uses the 16-digit FAN printed on the card (decided 2026-07-31);
+# the 12-digit FIN is out of scope for v1.
+kycDocuments:
+  - type: NATIONAL_ID
+    label: "Fayda National ID"
+    numberPattern: "^[0-9]{16}$"
+    ocrProfile: et-fayda
+  - type: PASSPORT
+    label: "Ethiopian Passport"
+    numberPattern: "^[A-Z]{2}[0-9]{7}$"
+    ocrProfile: passport-mrz
+
 holidays:
   - { name: "Ethiopian Christmas (Genna)", monthDay: "01-07" }
   - { name: "Epiphany (Timkat)", monthDay: "01-19" }

@@ -162,7 +162,7 @@ func (p *Inhouse) Verify(ctx context.Context, req Request) (Result, error) {
 	}
 
 	if docBytes != nil {
-		ext, err := p.extract(ctx, docBytes)
+		ext, err := p.extract(ctx, docBytes, req.DocumentType, req.OCRProfile)
 		if err != nil {
 			return Result{}, err
 		}
@@ -231,10 +231,17 @@ func (p *Inhouse) fetchMedia(ctx context.Context, ref string) ([]byte, error) {
 	return b, nil
 }
 
-func (p *Inhouse) extract(ctx context.Context, doc []byte) (*extractResponse, error) {
+func (p *Inhouse) extract(ctx context.Context, doc []byte, docType, profile string) (*extractResponse, error) {
+	fields := map[string]string{}
+	if docType != "" {
+		fields["doc_type"] = docType
+	}
+	if profile != "" {
+		fields["profile"] = profile
+	}
 	var out extractResponse
 	err := p.postMultipart(ctx, "/v1/document/extract",
-		map[string][]byte{"file": doc}, &out)
+		map[string][]byte{"file": doc}, fields, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +251,7 @@ func (p *Inhouse) extract(ctx context.Context, doc []byte) (*extractResponse, er
 func (p *Inhouse) faceMatch(ctx context.Context, doc, selfie []byte) (*faceMatchResponse, error) {
 	var out faceMatchResponse
 	err := p.postMultipart(ctx, "/v1/face/match",
-		map[string][]byte{"document": doc, "selfie": selfie}, &out)
+		map[string][]byte{"document": doc, "selfie": selfie}, nil, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +274,7 @@ func (p *Inhouse) screen(ctx context.Context, fullName string) (*screenResponse,
 }
 
 // postMultipart posts image parts to the engine and decodes JSON into out.
-func (p *Inhouse) postMultipart(ctx context.Context, path string, parts map[string][]byte, out any) error {
+func (p *Inhouse) postMultipart(ctx context.Context, path string, parts map[string][]byte, fields map[string]string, out any) error {
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	// deterministic part order for testability
@@ -282,6 +289,16 @@ func (p *Inhouse) postMultipart(ctx context.Context, path string, parts map[stri
 			return fmt.Errorf("inhouse ekyc: build %s form: %w", path, err)
 		}
 		if _, err := fw.Write(parts[name]); err != nil {
+			return fmt.Errorf("inhouse ekyc: build %s form: %w", path, err)
+		}
+	}
+	fieldNames := make([]string, 0, len(fields))
+	for name := range fields {
+		fieldNames = append(fieldNames, name)
+	}
+	sort.Strings(fieldNames)
+	for _, name := range fieldNames {
+		if err := mw.WriteField(name, fields[name]); err != nil {
 			return fmt.Errorf("inhouse ekyc: build %s form: %w", path, err)
 		}
 	}

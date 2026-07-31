@@ -103,8 +103,8 @@ once MRZ ships) → ET Fayda (only genuinely new extraction work).
 
 ## 5. Open decisions
 
-1. **Fayda field set**: which FIN/FAN format do we require for the ET
-   test case (12-digit FIN vs 16-digit FAN on the printed card)?
+1. **Fayda field set** — **DECIDED (2026-07-31): FAN, 16-digit** (the
+   number printed on the card). FIN stays out of scope for v1.
 2. **NFC later**: both KE/ET passports are e-passports; ML Kit MRZ gives
    us the BAC key (doc no + DOB + expiry) — an NFC chip-read (true
    authenticity check) is a natural Phase-2 upgrade, not in this scope.

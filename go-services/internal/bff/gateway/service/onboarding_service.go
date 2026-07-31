@@ -57,13 +57,16 @@ func NewOnboardingService(compliance ComplianceAPI, media MediaAPI) *OnboardingS
 // BFF's pre-auth tenant resolution convention (same as VerifyOTPRequest):
 // taken from the body, defaulting to "default" — the applicant has no JWT yet.
 type SubmitOnboardingRequest struct {
-	TenantID    string  `json:"tenantId"`
-	Phone       string  `json:"phone"`
-	FullName    string  `json:"fullName"`
-	NationalID  string  `json:"nationalId"`
-	DateOfBirth *string `json:"dateOfBirth,omitempty"`
-	DocumentRef *string `json:"documentRef,omitempty"`
-	SelfieRef   *string `json:"selfieRef,omitempty"`
+	TenantID   string `json:"tenantId"`
+	Phone      string `json:"phone"`
+	FullName   string `json:"fullName"`
+	NationalID string `json:"nationalId"`
+	// DocumentType: NATIONAL_ID (default) | PASSPORT, per the market pack's
+	// accepted kycDocuments (docs/nemo/07).
+	DocumentType string  `json:"documentType,omitempty"`
+	DateOfBirth  *string `json:"dateOfBirth,omitempty"`
+	DocumentRef  *string `json:"documentRef,omitempty"`
+	SelfieRef    *string `json:"selfieRef,omitempty"`
 }
 
 // Next-step hints the app can switch on after submit/poll.
@@ -101,6 +104,9 @@ func (s *OnboardingService) Submit(ctx context.Context, req SubmitOnboardingRequ
 		"phone":      req.Phone,
 		"fullName":   req.FullName,
 		"nationalId": req.NationalID,
+	}
+	if dt := strings.ToUpper(strings.TrimSpace(req.DocumentType)); dt != "" {
+		body["documentType"] = dt
 	}
 	if req.DateOfBirth != nil {
 		body["dateOfBirth"] = *req.DateOfBirth

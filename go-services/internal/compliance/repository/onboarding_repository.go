@@ -10,13 +10,13 @@ import (
 	"github.com/athena-lms/go-services/internal/compliance/model"
 )
 
-const onboardingCols = `id, tenant_id, phone, full_name, national_id, date_of_birth,
+const onboardingCols = `id, tenant_id, phone, full_name, national_id, document_type, date_of_birth,
 	document_ref, selfie_ref, status, risk_tier, provider, provider_ref,
 	decision_reasons, customer_id, decided_by, decided_at, created_at, updated_at`
 
 func scanOnboarding(row interface{ Scan(...any) error }) (*model.OnboardingApplication, error) {
 	var a model.OnboardingApplication
-	err := row.Scan(&a.ID, &a.TenantID, &a.Phone, &a.FullName, &a.NationalID, &a.DateOfBirth,
+	err := row.Scan(&a.ID, &a.TenantID, &a.Phone, &a.FullName, &a.NationalID, &a.DocumentType, &a.DateOfBirth,
 		&a.DocumentRef, &a.SelfieRef, &a.Status, &a.RiskTier, &a.Provider, &a.ProviderRef,
 		&a.DecisionReasons, &a.CustomerID, &a.DecidedBy, &a.DecidedAt, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
@@ -31,12 +31,12 @@ func scanOnboarding(row interface{ Scan(...any) error }) (*model.OnboardingAppli
 func (r *Repository) CreateOnboarding(ctx context.Context, a *model.OnboardingApplication) (*model.OnboardingApplication, error) {
 	row := r.pool.QueryRow(ctx, `
 		INSERT INTO onboarding_applications
-			(tenant_id, phone, full_name, national_id, date_of_birth, document_ref,
+			(tenant_id, phone, full_name, national_id, document_type, date_of_birth, document_ref,
 			 selfie_ref, status, risk_tier, provider, provider_ref, decision_reasons,
 			 customer_id, decided_by, decided_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING `+onboardingCols,
-		a.TenantID, a.Phone, a.FullName, a.NationalID, a.DateOfBirth, a.DocumentRef,
+		a.TenantID, a.Phone, a.FullName, a.NationalID, a.DocumentType, a.DateOfBirth, a.DocumentRef,
 		a.SelfieRef, a.Status, a.RiskTier, a.Provider, a.ProviderRef, a.DecisionReasons,
 		a.CustomerID, a.DecidedBy, a.DecidedAt)
 	created, err := scanOnboarding(row)

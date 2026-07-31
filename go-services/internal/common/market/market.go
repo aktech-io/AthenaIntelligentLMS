@@ -67,7 +67,32 @@ type Pack struct {
 	CreditBureaus []string `yaml:"creditBureaus"` // bureau adapter ids
 	KYCRuleSet  string     `yaml:"kycRuleSet"`    // KYC/AML rule-set id
 	TaxRuleSet  string     `yaml:"taxRuleSet"`    // tax rule-set id
+	KYCDocuments []KYCDocument `yaml:"kycDocuments"` // accepted onboarding documents
 	Holidays    []Holiday  `yaml:"holidays"`
+}
+
+// KYCDocument is an identity document the market accepts for customer
+// onboarding (docs/nemo/07). Type is the platform taxonomy
+// (NATIONAL_ID | PASSPORT); NumberPattern validates the declared document
+// number; OCRProfile names the ekyc-ml extraction profile.
+type KYCDocument struct {
+	Type          string `yaml:"type"`
+	Label         string `yaml:"label"`
+	NumberPattern string `yaml:"numberPattern"`
+	OCRProfile    string `yaml:"ocrProfile"`
+}
+
+// KYCDocumentByType returns the pack's config for a document type, or nil
+// when the market does not accept it. Packs that predate kycDocuments
+// (no entries) return nil for everything — callers treat that as
+// "no restriction" for backwards compatibility.
+func (p *Pack) KYCDocumentByType(docType string) *KYCDocument {
+	for i := range p.KYCDocuments {
+		if p.KYCDocuments[i].Type == docType {
+			return &p.KYCDocuments[i]
+		}
+	}
+	return nil
 }
 
 // Validate reports the first structural problem with the pack, if any.
