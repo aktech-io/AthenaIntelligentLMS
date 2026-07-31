@@ -19,6 +19,7 @@ import (
 
 	"github.com/athena-lms/go-services/internal/bff/gateway/service"
 	apperrors "github.com/athena-lms/go-services/internal/common/errors"
+	"github.com/athena-lms/go-services/internal/common/market"
 )
 
 // maxOnboardingUploadBytes caps a single document/selfie upload (media-service
@@ -36,8 +37,30 @@ func NewOnboardingHandler(svc *service.OnboardingService) *OnboardingHandler {
 func (h *OnboardingHandler) Routes(r chi.Router) {
 	r.Route("/api/v1/mobile/onboarding", func(r chi.Router) {
 		r.Post("/", h.Submit)
+		r.Get("/documents", h.Documents)
 		r.Get("/{id}", h.Get)
 		r.Post("/media", h.UploadMedia)
+	})
+}
+
+// Documents handles GET /api/v1/mobile/onboarding/documents — the market
+// pack's accepted identity documents (docs/nemo/07), so the app's doc-type
+// picker and on-device OCR profiles are config, not hardcodes. Pre-auth,
+// like the rest of onboarding.
+func (h *OnboardingHandler) Documents(w http.ResponseWriter, r *http.Request) {
+	pack := market.Current()
+	docs := make([]map[string]any, 0, len(pack.KYCDocuments))
+	for _, d := range pack.KYCDocuments {
+		docs = append(docs, map[string]any{
+			"type":          d.Type,
+			"label":         d.Label,
+			"numberPattern": d.NumberPattern,
+			"ocrProfile":    d.OCRProfile,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"market":    pack.Code,
+		"documents": docs,
 	})
 }
 
