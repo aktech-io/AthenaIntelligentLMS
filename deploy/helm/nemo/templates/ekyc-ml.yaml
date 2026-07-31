@@ -32,15 +32,54 @@ spec:
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.ekycMl.port }}
+          env:
+            # Production posture: refuse to serve /v1/screen (503, fail
+            # closed) when only *_demo.csv fictional lists are loaded.
+            # Provision real lists via scripts/sync-screening-lists.py.
+            - name: EKYC_ALLOW_DEMO_LISTS
+              value: {{ .Values.ekycMl.allowDemoLists | default "false" | quote }}
+            {{- with .Values.ekycMl.expectedEngines }}
+            {{- if .face }}
+            - name: EXPECTED_FACE_ENGINE
+              value: {{ .face | quote }}
+            {{- end }}
+            {{- if .liveness }}
+            - name: EXPECTED_LIVENESS_ENGINE
+              value: {{ .liveness | quote }}
+            {{- end }}
+            {{- end }}
+          # Readiness gates on /health, which answers 503 when the live
+          # engine mode differs from ekycMl.expectedEngines (or on the
+          # demo-list guard above) — a degraded pod stays out of the
+          # Service. Liveness is process-alive only (TCP) so a degraded-
+          # but-running pod is quarantined, not restart-thrashed.
           readinessProbe:
             httpGet: {path: /health, port: {{ .Values.ekycMl.port }}}
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
-            httpGet: {path: /health, port: {{ .Values.ekycMl.port }}}
+            tcpSocket: {port: {{ .Values.ekycMl.port }}}
             initialDelaySeconds: 30
             periodSeconds: 15
+          {{- if or .Values.ekycMl.modelsPvc .Values.ekycMl.modelsVolume }}
+          volumeMounts:
+            # ONNX model drop-in (YuNet/SFace/MiniFASNetV2) — overrides
+            # whatever the image build downloaded. See README "Model & data
+            # files" for filenames and env overrides.
+            - name: models
+              mountPath: /app/models
+          {{- end }}
           resources: {{- .Values.ekycMl.resources | toYaml | nindent 12 }}
+      {{- if .Values.ekycMl.modelsPvc }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ .Values.ekycMl.modelsPvc }}
+      {{- else if .Values.ekycMl.modelsVolume }}
+      volumes:
+        - name: models
+          {{- .Values.ekycMl.modelsVolume | toYaml | nindent 10 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

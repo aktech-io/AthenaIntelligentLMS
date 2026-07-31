@@ -181,6 +181,22 @@ ekycMl:
   enabled: true
   image: ""                    # defaults to <registry>/nemo-ekyc-ml:<tag>
   port: 8102
+  # Screening-list production guard: "false" (the chart default) makes
+  # /v1/screen fail 503 (fail closed) and /health report degraded when ONLY
+  # *_demo.csv fictional lists are loaded — a real SDN name would otherwise
+  # screen clean. Provision real lists (scripts/sync-screening-lists.py into
+  # a volume at EKYC_DATA_DIR) or set "true" for demo installs.
+  allowDemoLists: "false"
+  # Optional ONNX model drop-in mounted at /app/models (overrides the
+  # image's baked-in downloads). Disabled by default — the image build
+  # normally provisions checksummed models itself. Exactly one of:
+  modelsPvc: ""                # name of an existing PVC holding the .onnx files
+  modelsVolume: {}             # raw volume source, e.g. {hostPath: {path: /srv/nemo/models, type: Directory}}
+  # Readiness gating: when set, /health answers 503 unless the live engine
+  # mode matches, keeping a degraded (fallback-mode) pod out of the Service.
+  # Disabled by default (any mode is healthy). Enable in production once
+  # models are provisioned:
+  expectedEngines: {}          # e.g. {face: sface, liveness: minifasnet_v2}
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}

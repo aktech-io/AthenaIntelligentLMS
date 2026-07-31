@@ -73,16 +73,22 @@ and the onboarding flow refers the applicant to a human (fail closed).
 ## Model & data files (deploy-time responsibilities)
 
 **Face models** — the Dockerfile downloads both from the OpenCV model zoo at
-build time (best effort; an offline build still succeeds and runs in fallback
-mode). To provision manually, place in `/app/models` (or point the env vars
-elsewhere):
+build time and **verifies pinned SHA-256 checksums** (`YUNET_SHA256`,
+`SFACE_SHA256` build args). Semantics: an offline build (download *fails*)
+still succeeds and runs in fallback mode, but a download that *succeeds with
+the wrong hash fails the build loudly* — a URL answering with unexpected
+bytes is the supply-chain event the pins exist to catch. To provision
+manually, place in `/app/models` (or point the env vars elsewhere; in Helm,
+mount a volume via `ekycMl.modelsPvc` / `ekycMl.modelsVolume`):
 
 ```
 FACE_DETECTOR_MODEL  /app/models/face_detection_yunet_2023mar.onnx
 FACE_EMBEDDER_MODEL  /app/models/face_recognition_sface_2021dec.onnx
 ```
 Source: https://github.com/opencv/opencv_zoo (face_detection_yunet,
-face_recognition_sface). Verify `/health` reports `"faceEngine": "sface"`.
+face_recognition_sface). Verify `/health` reports `"faceEngine": "sface"` —
+or make the deployment enforce it with `EXPECTED_FACE_ENGINE=sface`
+(readiness gating below).
 
 **PP-OCR models** — downloaded at build time with **pinned SHA256 checksums**
 (offline build → Tesseract fallback; checksum mismatch → build fails). To
@@ -97,8 +103,9 @@ Source: https://huggingface.co/SWHL/RapidOCR (RapidOCR's ONNX exports of the
 PaddleOCR nets; checksums in the Dockerfile). Verify `/health` reports
 `"ocr": "ppocr"`.
 
-**Liveness model** — MiniFASNetV2 is an ops drop-in the same way (no
-build-time download wired up yet). Place the ONNX file at:
+**Liveness model** — MiniFASNetV2 is downloaded at build time the same way
+(`MINIFASNET_URL` + `MINIFASNET_SHA256` args, same checksum-or-fail /
+offline-fallback semantics), or dropped in by ops at:
 
 ```
 FACE_LIVENESS_MODEL  /app/models/minifasnet_v2.onnx
@@ -106,13 +113,36 @@ FACE_LIVENESS_MODEL  /app/models/minifasnet_v2.onnx
 
 Source: the reference weights are MiniVision
 https://github.com/minivision-ai/Silent-Face-Anti-Spoofing (Apache-2.0,
-PyTorch `.pth`); ready-made ONNX conversions exist, e.g.
-https://github.com/johnraivenolazo/face-antispoof-onnx or Hugging Face
-`garciafido/minifasnet-v2-anti-spoofing-onnx`. Verify `/health` reports
-`"livenessEngine": "minifasnet_v2"`. **Until the file is present**
-`/v1/face/liveness` still answers, but always with `label: UNKNOWN` and
-`liveScore <= 0.5` (deterministic fallback — same capped-fallback pattern as
-face match: an unprovisioned box can never claim `LIVE`).
+PyTorch `.pth`); the pinned build-time download is the Hugging Face
+conversion `garciafido/minifasnet-v2-anti-spoofing-onnx`
+(sha256 `d7b3cd9b…`, computed 2026-08-01);
+https://github.com/johnraivenolazo/face-antispoof-onnx is an alternative
+conversion (override `MINIFASNET_URL`/`MINIFASNET_SHA256` to use it — the
+class-order sanity eval in docs/ekyc/05 §top-risks applies to any
+conversion). Verify `/health` reports `"livenessEngine": "minifasnet_v2"`,
+or enforce with `EXPECTED_LIVENESS_ENGINE=minifasnet_v2`. **Until the file
+is present** `/v1/face/liveness` still answers, but always with
+`label: UNKNOWN` and `liveScore <= 0.5` (deterministic fallback — same
+capped-fallback pattern as face match: an unprovisioned box can never claim
+`LIVE`).
+
+**Readiness gating** — the safe-degradation modes above are deliberate, but
+a *silently* degraded pod is still an ops problem (fallback face scores all
+land with a human; fallback liveness data is useless for calibration). Set
+the deployment's expectations and `/health` turns them into readiness:
+
+```
+EXPECTED_FACE_ENGINE      sface | fallback   (empty/unset = don't care)
+EXPECTED_LIVENESS_ENGINE  minifasnet_v2 | fallback
+```
+
+When set and the live mode differs, `GET /health` answers **503** with a
+`degraded` list naming each mismatch, so a Kubernetes readinessProbe keeps
+the pod out of the Service instead of letting it quietly serve fallback
+verdicts (in the Helm chart: `ekycMl.expectedEngines: {face: sface,
+liveness: minifasnet_v2}`; its livenessProbe is TCP-only so a degraded pod
+is quarantined, not restart-thrashed). Unset = today's behavior: any mode
+is healthy.
 
 **Screening lists** — the matcher loads every `sanctions*.csv` and `pep*.csv`
 in `EKYC_DATA_DIR` (default: the packaged `data/`). The shipped
@@ -130,6 +160,35 @@ In Kubernetes, mount a volume/ConfigMap at `EKYC_DATA_DIR` and remove the
 demo files. `/v1/screen` returns `listsLoaded` and `/health` returns entry
 counts so ops can alert on stale/empty data.
 
+**Demo-list production guard** — `EKYC_ALLOW_DEMO_LISTS` (default: allow,
+dev-friendly). When set to `false` and ONLY `*_demo.csv` files are loaded,
+`/v1/screen` answers **503** (fail closed, same as the no-lists case — a
+real SDN name screened against fictional rows would otherwise come back
+clean) and `/health` reports `screeningListsMode: demo-only` + degraded
+(503). The Helm chart sets `false` (production posture,
+`ekycMl.allowDemoLists`); the compose overlay leaves the default.
+
+**List-sync tooling** — `scripts/sync-screening-lists.py` (repo root, pure
+stdlib) downloads OFAC SDN + Consolidated and the UN consolidated XML —
+plus the EU FSF export when you pass your tokened URL — and converts them
+to the CSV shape above as `sanctions_ofac.csv` / `sanctions_un.csv` /
+`sanctions_eu.csv`. Writes are temp-file + atomic rename and a failed or
+suspiciously small download can never clobber a good previous file; any
+source failing exits nonzero for alerting. `--verify` (no downloads) checks
+the files exist, are populated and are fresher than `--max-age-hours`.
+
+```bash
+# daily refresh into the mounted EKYC_DATA_DIR (03:10, then freshness-check at 09:00)
+10 3 * * * /usr/bin/python3 /opt/nemo/scripts/sync-screening-lists.py /srv/nemo/screening-lists \
+    --eu-url "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=<your-token>" \
+    >> /var/log/nemo/list-sync.log 2>&1
+0 9 * * * /usr/bin/python3 /opt/nemo/scripts/sync-screening-lists.py /srv/nemo/screening-lists --verify \
+    || echo "screening lists stale" | mail -s "nemo list-sync ALERT" ops@example.com
+```
+
+PEP lists remain a manual/commercial responsibility (no free consolidated
+source to automate); drop them in as `pep*.csv` alongside.
+
 ## Configuration
 
 | Env | Default | Purpose |
@@ -139,9 +198,12 @@ counts so ops can alert on stale/empty data.
 | `PPOCR_DET_MODEL` | `/app/models/ppocr_det.onnx` | PP-OCR detection ONNX |
 | `PPOCR_REC_MODEL` | `/app/models/ppocr_rec.onnx` | PP-OCR recognition ONNX |
 | `PPOCR_REC_DICT` | `/app/models/ppocr_keys_en.txt` | recognition charset (PaddleOCR dict format) |
+| `EKYC_ALLOW_DEMO_LISTS` | `true` (allow) | `false` → 503 on `/v1/screen` + degraded `/health` when only `*_demo.csv` lists are loaded (production guard; Helm sets `false`) |
 | `FACE_DETECTOR_MODEL` | `/app/models/face_detection_yunet_2023mar.onnx` | YuNet ONNX |
 | `FACE_EMBEDDER_MODEL` | `/app/models/face_recognition_sface_2021dec.onnx` | SFace ONNX |
 | `FACE_LIVENESS_MODEL` | `/app/models/minifasnet_v2.onnx` | MiniFASNetV2 PAD ONNX |
+| `EXPECTED_FACE_ENGINE` | unset (don't care) | `sface`\|`fallback` — `/health` 503s when the live face engine mode differs (readiness gating) |
+| `EXPECTED_LIVENESS_ENGINE` | unset (don't care) | `minifasnet_v2`\|`fallback` — same gating for the liveness engine |
 
 Go-side (compliance-service): `EKYC_PROVIDER=inhouse`,
 `EKYC_ML_SERVICE_URL`, `MEDIA_SERVICE_URL` (+ `LMS_INTERNAL_SERVICE_KEY` for
@@ -156,11 +218,13 @@ cd ekyc-ml-service && python3 -m pytest tests/ -v
 ```
 
 Pure-logic only (MRZ check digits, field post-processing, name matcher,
-screening) — no tesseract/OpenCV/model files needed, stdlib imports only.
-Exception: `test_liveness.py` exercises the liveness fallback path and the
-endpoint contract; it needs numpy/OpenCV (and FastAPI for the endpoint
-tests) but **skips itself** when they're missing and never needs model
-files. The OCR and face pipelines are exercised via the running service.
+screening, readiness gating, list-sync parsers) — no tesseract/OpenCV/model
+files needed, stdlib imports only. Exceptions: `test_liveness.py` exercises
+the liveness fallback path and endpoint contract, and `test_readiness.py`
+exercises the `/health` gating endpoint; both need numpy/OpenCV/FastAPI for
+those parts but **skip themselves** when they're missing and never need
+model files. The OCR and face pipelines are exercised via the running
+service.
 
 ## Plugging in a commercial vendor instead
 
