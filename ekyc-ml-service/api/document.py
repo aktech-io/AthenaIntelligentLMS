@@ -1,16 +1,19 @@
 """POST /v1/document/extract — OCR field extraction from an ID-document image."""
 from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 router = APIRouter()
 
 
 @router.post("/document/extract")
-async def extract_document(file: UploadFile = File(...)):
+async def extract_document(
+    file: UploadFile = File(...),
+    doc_type: str | None = Form(None),  # NATIONAL_ID | PASSPORT (reserved)
+    profile: str | None = Form(None),  # ke-national-id | passport-mrz | et-fayda
+):
     from engine import ocr
-    from engine.fields import extract_fields, merge_mrz
-    from engine.mrz import parse_mrz
+    from engine.profiles import extract_with_profile
 
     if not ocr.tesseract_available():
         # Fail loudly, never fabricate fields — the Go side fails closed on 5xx.
@@ -27,12 +30,15 @@ async def extract_document(file: UploadFile = File(...)):
     except Exception as e:  # unreadable image, tesseract crash, ...
         raise HTTPException(422, f"could not OCR image: {e}") from e
 
-    mrz = parse_mrz(out.text)
-    fields = merge_mrz(extract_fields(out.words), mrz)
+    # Dispatch is by profile id; missing/unknown -> default (pre-profile)
+    # behaviour. doc_type is accepted for forward compatibility but the
+    # profile id alone selects the strategy today.
+    result = extract_with_profile(out.words, out.text, profile)
+    mrz = result.mrz
 
-    return {
+    resp = {
         "engine": "tesseract",
-        "fields": {k: v.as_dict() for k, v in fields.items()},
+        "fields": {k: v.as_dict() for k, v in result.fields.items()},
         "mrz": None
         if mrz is None
         else {
@@ -47,3 +53,9 @@ async def extract_document(file: UploadFile = File(...)):
         },
         "wordCount": len(out.words),
     }
+    # Additive only (the Go extractResponse ignores unknown JSON fields);
+    # omitted entirely on the default path so existing callers see the
+    # byte-identical pre-profile response.
+    if result.document_type_detected:
+        resp["documentTypeDetected"] = result.document_type_detected
+    return resp
