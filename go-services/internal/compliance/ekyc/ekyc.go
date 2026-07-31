@@ -5,6 +5,12 @@
 // real vendor adapters register alongside it and are selected with the
 // EKYC_PROVIDER env var (market packs carry the kycRuleSet id that will pick
 // per-market defaults once vendor adapters exist).
+//
+// Fail-closed selection: EKYC_PROVIDER must be set explicitly — the sandbox
+// provider auto-approves anything with media refs, so an unset variable is a
+// startup error, never a silent sandbox default. The dev escape hatch is
+// EKYC_ALLOW_SANDBOX_DEFAULT=true (exact string), which restores the sandbox
+// default for local demos; no deploy manifest may set it.
 package ekyc
 
 import (
@@ -44,9 +50,13 @@ type Result struct {
 	// Passive-PAD observability (docs/nemo/08). LivenessMode is "" when no
 	// PAD ran, "shadow" (scored, never decides), "shadow-error" (engine
 	// unreachable in shadow — tolerated), or "enforce". LivenessScore is
-	// P(live) in [0,1], -1 when unavailable.
-	LivenessScore float64
-	LivenessMode  string
+	// P(live) in [0,1], -1 when unavailable. LivenessProvider/LivenessAuditRef
+	// identify which PAD engine scored (liveness.Provider seam) and its
+	// audit reference; both empty when no PAD ran or the engine failed.
+	LivenessScore    float64
+	LivenessMode     string
+	LivenessProvider string
+	LivenessAuditRef string
 }
 
 // Provider is one eKYC vendor integration.
@@ -63,10 +73,16 @@ var registry = map[string]Provider{
 // wiring). Last registration wins for a name.
 func Register(p Provider) { registry[strings.ToLower(p.Name())] = p }
 
-// FromEnv resolves the configured provider (EKYC_PROVIDER, default sandbox).
+// FromEnv resolves the configured provider from EKYC_PROVIDER. An unset
+// variable is an error (fail closed — see the package docstring), unless
+// EKYC_ALLOW_SANDBOX_DEFAULT=true explicitly opts a dev environment back
+// into the auto-approving sandbox default.
 func FromEnv() (Provider, error) {
 	name := strings.ToLower(os.Getenv("EKYC_PROVIDER"))
 	if name == "" {
+		if os.Getenv("EKYC_ALLOW_SANDBOX_DEFAULT") != "true" {
+			return nil, fmt.Errorf("ekyc: EKYC_PROVIDER not set; set inhouse, sandbox or a registered vendor — refusing to default to the auto-approving sandbox (dev escape hatch: EKYC_ALLOW_SANDBOX_DEFAULT=true)")
+		}
 		name = "sandbox"
 	}
 	p, ok := registry[name]

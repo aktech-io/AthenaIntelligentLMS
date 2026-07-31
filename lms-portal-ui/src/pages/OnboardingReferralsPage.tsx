@@ -237,6 +237,15 @@ const OnboardingReferralsPage = () => {
                   <p className="text-xs text-muted-foreground">Provider</p>
                   <p className="text-xs">{selected.provider || "—"}</p>
                 </div>
+                {(selected.livenessMode || selected.livenessScore != null) && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Liveness</p>
+                    <p className="text-xs">
+                      {selected.livenessScore != null ? selected.livenessScore.toFixed(2) : "—"}
+                      {selected.livenessMode && ` (${selected.livenessMode}${selected.livenessProvider ? `, ${selected.livenessProvider}` : ""})`}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground">Document Ref</p>
                   <p className="text-xs font-mono break-all">{selected.documentRef || "—"}</p>

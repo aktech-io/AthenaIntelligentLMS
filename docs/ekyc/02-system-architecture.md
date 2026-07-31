@@ -80,23 +80,36 @@ Two registries decouple policy from vendors:
 
 ```mermaid
 flowchart LR
-    OS["onboarding_service.go<br/>(policy: tiering, states)"] --> REG{"ekyc.Provider registry<br/>selected by EKYC_PROVIDER"}
-    REG --> IN["inhouse<br/>(default — calls ekyc-ml-service)"]
+    OS["onboarding_service.go<br/>(policy: tiering, states)"] --> REG{"ekyc.Provider registry<br/>selected by EKYC_PROVIDER<br/>(unset = startup error)"}
+    REG --> IN["inhouse<br/>(calls ekyc-ml-service)"]
     REG --> SB["sandbox<br/>(deterministic test provider)"]
     REG -.planned.-> SM["smileid / veriff-class"]
     REG -.planned.-> VF["VeriFayda 2 (Ethiopia)"]
-    IN --> T2["in-house Tier-2 PAD<br/>MiniFASNetV2 (shadow) —<br/>today inlined in inhouse.go"]
-    IN -.planned.-> LREG{"LivenessProvider seam<br/>(doc-08/09; NOT yet in code —<br/>prerequisite for Stage 0)"}
+    IN --> LREG{"liveness.Provider registry<br/>selected by LIVENESS_PROVIDER<br/>(default inhouse)"}
+    LREG --> T2["inhouse — Tier-2 PAD<br/>MiniFASNetV2 (shadow)<br/>via ekyc-ml /v1/face/liveness"]
     LREG -.planned.-> BR["bridge SDK<br/>iBeta-L2 certified (Stage 0)"]
+    LREG -.planned.-> VFL["VeriFayda liveness (ET)"]
 ```
 
 - `ekyc.Provider` = `Name()` + `Verify(ctx, Request) (Result, error)`
-  (`internal/compliance/ekyc/ekyc.go:53`). Registered implementations: `sandbox`
+  (`internal/compliance/ekyc/ekyc.go`). Registered implementations: `sandbox`
   (built-in) and `inhouse` (wired in `cmd/compliance-service/main.go`). `EKYC_PROVIDER`
-  selects by lowercased name; empty → `sandbox`; unknown → startup error.
+  selects by lowercased name; **empty → startup error** (fail closed — the sandbox
+  auto-approves, so it is never a silent default; dev escape hatch
+  `EKYC_ALLOW_SANDBOX_DEFAULT=true`); unknown → startup error.
+- `liveness.Provider` = `Name()` + `Score(ctx, frames) (Result, error)` with
+  `Result{LiveScore, Label, Provider, AuditRef}`
+  (`internal/compliance/liveness/liveness.go`) — the PAD seam from docs/nemo/08/09.
+  Registered implementation: `inhouse` (MiniFASNetV2 via ekyc-ml
+  `POST /v1/face/liveness`, wired in `cmd/compliance-service/main.go`);
+  `LIVENESS_PROVIDER` selects by lowercased name, empty → `inhouse`, unknown →
+  startup error. The eKYC `inhouse` provider still fetches frames (it owns media
+  access) and keeps the shadow/enforce decision logic — only scoring is pluggable.
 - `ekyc.Result` carries: `DocumentVerified`, `LivenessPassed`, `FaceMatchScore`,
   `SanctionsHit`, `PEPHit`, `ProviderRef`, plus liveness observability
-  (`LivenessScore` ∈ [0,1] or −1, `LivenessMode` ∈ `"" | shadow | shadow-error | enforce`).
+  (`LivenessScore` ∈ [0,1] or −1, `LivenessMode` ∈ `"" | shadow | shadow-error | enforce`,
+  `LivenessProvider`/`LivenessAuditRef` from the seam result — empty when no PAD
+  score arrived).
 - The onboarding flow, tiering and referral queue are provider-agnostic — swapping
   vendors is one env var per deployment/tenant.
 
@@ -145,8 +158,10 @@ Disabling the sidecar for a vendor-based tenant: `ekycMl.enabled=false` +
   boot (`db.MigrateGate`, `file://migrations/compliance`).
 - **Timeouts**: engine client 60 s, media client 30 s. Engine responses capped at
   1 MiB read; media downloads capped at 20 MiB.
-- **Observability**: liveness shadow scores are recorded in `decision_reasons`
-  (`LIVENESS[mode=… score=… frames=…]`) for threshold calibration; `/health` on the
+- **Observability**: liveness shadow outcomes land in the structured
+  `liveness_score` / `liveness_mode` / `liveness_provider` columns (migration 7,
+  NULL = no PAD ran) and — for backward compatibility — in `decision_reasons`
+  (`LIVENESS[mode=… score=… frames=…]`); `/health` on the
   sidecar reports which engines are live (`faceEngine`, `livenessEngine`, list counts).
 
 ## 4. Data model
@@ -170,6 +185,9 @@ erDiagram
         varchar provider
         varchar provider_ref
         text decision_reasons "joined by '; '"
+        numeric liveness_score "P(live) 0..1 (nullable — NULL = no PAD ran)"
+        varchar liveness_mode "shadow|shadow-error|enforce (nullable)"
+        varchar liveness_provider "liveness.Provider registry name (nullable)"
         varchar customer_id
         varchar decided_by "officer id or 'ekyc:provider'"
         timestamptz decided_at
@@ -211,7 +229,8 @@ Integrity rules worth knowing:
   `status IN ('RECEIVED','REFERRED')`: one open application per identity per tenant;
   violation surfaces as a `BusinessError`.
 - `selfie_frame_refs` is **request-only** (no column): Tier-1 challenge frames feed
-  the liveness call and surface only in the `LIVENESS[…]` reason string.
+  the liveness call; the PAD outcome surfaces in the structured
+  `liveness_*` columns and the `LIVENESS[…]` reason string.
 - Compliance events are **DB rows only** (audit trail); the onboarding path publishes
   nothing to RabbitMQ — event-trail write failures are logged, never fatal
   ("the decision stands even if the trail write fails").
@@ -224,8 +243,10 @@ Integrity rules worth knowing:
 
 | Env var | Default | Effect |
 |---|---|---|
-| `EKYC_PROVIDER` | `sandbox` (compose/Helm set `inhouse`) | provider registry selection. ⚠️ the `sandbox` default auto-approves (score 0.97) — every production deploy target must pin `inhouse` or a vendor; all three current targets do |
-| `EKYC_ML_SERVICE_URL` | — (required for inhouse) | sidecar base URL; empty → Verify fails closed |
+| `EKYC_PROVIDER` | — (**unset = startup error**; compose/Helm/k8s set `inhouse`) | provider registry selection. Fail-closed since 2026-08-01: the auto-approving `sandbox` is never a silent default — it must be requested by name or via the dev escape hatch below |
+| `EKYC_ALLOW_SANDBOX_DEFAULT` | unset | exactly `"true"` restores the old `sandbox` default for an unset `EKYC_PROVIDER` (local demos only — no deploy manifest sets it) |
+| `LIVENESS_PROVIDER` | `inhouse` | PAD scorer selection behind the `liveness.Provider` seam (bridge SDK / VeriFayda register alongside); unknown → startup error |
+| `EKYC_ML_SERVICE_URL` | — (required for inhouse) | sidecar base URL; empty → Verify fails closed (also used by the `inhouse` liveness scorer) |
 | `MEDIA_SERVICE_URL` | — (required for inhouse) | media base URL; empty → Verify fails closed |
 | `LMS_INTERNAL_SERVICE_KEY` | compose: `athena-internal-key` | service-to-service auth |
 | `LIVENESS_ENFORCE` | unset → **shadow mode** | exactly `"true"` enables enforcement (`"1"`/`"TRUE"` do not) |

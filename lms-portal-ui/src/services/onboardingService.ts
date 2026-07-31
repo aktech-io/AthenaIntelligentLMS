@@ -18,6 +18,11 @@ export interface OnboardingApplication {
   riskTier?: OnboardingRiskTier;
   provider?: string;
   decisionReasons?: string;
+  // Passive-PAD (liveness) observability — absent when no PAD ran;
+  // livenessScore absent when the score was unavailable (shadow-error).
+  livenessScore?: number;
+  livenessMode?: string;
+  livenessProvider?: string;
   customerId?: string;
   decidedBy?: string;
   decidedAt?: string;

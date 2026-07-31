@@ -91,6 +91,14 @@ func (failingProvider) Verify(context.Context, ekyc.Request) (ekyc.Result, error
 	return ekyc.Result{}, errors.New("vendor timeout")
 }
 
+// cannedProvider returns a fixed result (e.g. shadow-mode PAD outcomes).
+type cannedProvider struct{ res ekyc.Result }
+
+func (cannedProvider) Name() string { return "canned" }
+func (p cannedProvider) Verify(context.Context, ekyc.Request) (ekyc.Result, error) {
+	return p.res, nil
+}
+
 func obStr(s string) *string { return &s }
 
 func newSvc(repo *fakeOnboardingRepo, p ekyc.Provider) *OnboardingService {
@@ -303,4 +311,69 @@ func TestTierDecisionMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Structured PAD observability (docs/nemo/08, audit action 2): shadow-mode
+// liveness outcomes persist as queryable columns beside the LIVENESS[...]
+// reason string, so calibration has a dataset from day one.
+func TestSubmitPersistsStructuredLiveness(t *testing.T) {
+	submit := func(t *testing.T, res ekyc.Result) *model.OnboardingApplication {
+		t.Helper()
+		app, err := newSvc(newFakeRepo(), cannedProvider{res: res}).Submit(context.Background(),
+			model.SubmitOnboardingRequest{
+				Phone: "+254700000010", FullName: "Shadow Case", NationalID: "12345610",
+				DocumentRef: obStr("d"), SelfieRef: obStr("s"),
+			}, "t1")
+		if err != nil {
+			t.Fatalf("Submit: %v", err)
+		}
+		return app
+	}
+
+	t.Run("shadow score persists with mode and provider", func(t *testing.T) {
+		app := submit(t, ekyc.Result{
+			DocumentVerified: true, LivenessPassed: true, FaceMatchScore: 0.97,
+			LivenessScore: 0.42, LivenessMode: "shadow",
+			LivenessProvider: "inhouse", LivenessAuditRef: "inhouse-liveness-x",
+		})
+		if app.LivenessScore == nil || *app.LivenessScore != 0.42 {
+			t.Errorf("LivenessScore = %v, want 0.42", app.LivenessScore)
+		}
+		if app.LivenessMode == nil || *app.LivenessMode != "shadow" {
+			t.Errorf("LivenessMode = %v, want shadow", app.LivenessMode)
+		}
+		if app.LivenessProvider == nil || *app.LivenessProvider != "inhouse" {
+			t.Errorf("LivenessProvider = %v, want inhouse", app.LivenessProvider)
+		}
+		// The legacy reason string stays for backward compatibility.
+		if app.DecisionReasons == nil || !strings.Contains(*app.DecisionReasons, "LIVENESS[mode=shadow score=0.42") {
+			t.Errorf("reasons = %v, want LIVENESS[mode=shadow score=0.42 ...]", app.DecisionReasons)
+		}
+	})
+
+	t.Run("shadow-error stores NULL score", func(t *testing.T) {
+		app := submit(t, ekyc.Result{
+			DocumentVerified: true, LivenessPassed: true, FaceMatchScore: 0.97,
+			LivenessScore: -1, LivenessMode: "shadow-error",
+		})
+		if app.LivenessScore != nil {
+			t.Errorf("LivenessScore = %v, want nil (score -1 → NULL)", *app.LivenessScore)
+		}
+		if app.LivenessMode == nil || *app.LivenessMode != "shadow-error" {
+			t.Errorf("LivenessMode = %v, want shadow-error", app.LivenessMode)
+		}
+		if app.LivenessProvider != nil {
+			t.Errorf("LivenessProvider = %v, want nil (no score arrived)", *app.LivenessProvider)
+		}
+	})
+
+	t.Run("no PAD stores all NULLs", func(t *testing.T) {
+		app := submit(t, ekyc.Result{
+			DocumentVerified: true, LivenessPassed: true, FaceMatchScore: 0.97,
+		})
+		if app.LivenessScore != nil || app.LivenessMode != nil || app.LivenessProvider != nil {
+			t.Errorf("liveness columns = (%v,%v,%v), want all nil when no PAD ran",
+				app.LivenessScore, app.LivenessMode, app.LivenessProvider)
+		}
+	})
 }

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/athena-lms/go-services/internal/compliance/liveness"
 )
 
 // fakeEngine is a stub ekyc-ml-service: per-endpoint canned JSON or status.
@@ -478,6 +480,12 @@ func TestInhouseLiveness(t *testing.T) {
 		if !res.LivenessPassed {
 			t.Error("shadow mode must not override the face-found heuristic")
 		}
+		if res.LivenessProvider != "inhouse" {
+			t.Errorf("LivenessProvider = %q, want inhouse (default seam provider)", res.LivenessProvider)
+		}
+		if !strings.HasPrefix(res.LivenessAuditRef, "inhouse-liveness-") {
+			t.Errorf("LivenessAuditRef = %q, want inhouse-liveness- prefix", res.LivenessAuditRef)
+		}
 		if len(eng.livenessFrames) != 1 || eng.livenessFrames[0] != 3 {
 			t.Errorf("liveness frames = %v, want one call with 3 (selfie + 2 challenge frames)", eng.livenessFrames)
 		}
@@ -498,6 +506,10 @@ func TestInhouseLiveness(t *testing.T) {
 		}
 		if res.LivenessMode != "shadow-error" || res.LivenessScore != -1 {
 			t.Errorf("liveness = (%s, %v), want (shadow-error, -1)", res.LivenessMode, res.LivenessScore)
+		}
+		if res.LivenessProvider != "" || res.LivenessAuditRef != "" {
+			t.Errorf("provider/auditRef = (%q, %q), want empty when no score arrived",
+				res.LivenessProvider, res.LivenessAuditRef)
 		}
 	})
 
@@ -532,4 +544,57 @@ func TestInhouseLiveness(t *testing.T) {
 			t.Error("enforce mode must fail closed on engine error")
 		}
 	})
+}
+
+// stubLiveness is a canned liveness.Provider standing in for a bridge SDK.
+type stubLiveness struct {
+	res liveness.Result
+	err error
+
+	calls [][]int // frame sizes per call
+}
+
+func (s *stubLiveness) Name() string { return "bridge-stub" }
+func (s *stubLiveness) Score(_ context.Context, frames [][]byte) (liveness.Result, error) {
+	sizes := make([]int, len(frames))
+	for i, f := range frames {
+		sizes[i] = len(f)
+	}
+	s.calls = append(s.calls, sizes)
+	return s.res, s.err
+}
+
+// The seam (audit action 3): an injected liveness.Provider replaces the
+// in-house PAD scorer, and its provider/auditRef pass through onto Result
+// untouched — the prerequisite for Stage-0 bridge SDKs and A/B shadow.
+func TestInhouseLivenessSeamPassthrough(t *testing.T) {
+	eng := fakeEngine{extractBody: goodExtract, faceBody: goodFace, screenBody: cleanScreen}
+	es := eng.server(t)
+	defer es.Close()
+	ms := fakeMedia(t, map[string][]byte{"doc-1": []byte("doc-image"), "selfie-1": []byte("selfie-image")})
+	defer ms.Close()
+
+	stub := &stubLiveness{res: liveness.Result{
+		LiveScore: 0.91, Label: "LIVE", Provider: "bridge-stub", AuditRef: "bridge-stub-ref-1",
+	}}
+	p := NewInhouse(InhouseConfig{EngineURL: es.URL, MediaURL: ms.URL, ServiceKey: "test-key",
+		Liveness: stub})
+
+	res, err := p.Verify(context.Background(), goodRequest())
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if len(stub.calls) != 1 {
+		t.Fatalf("seam scored %d times, want 1", len(stub.calls))
+	}
+	if len(eng.livenessFrames) != 0 {
+		t.Error("in-house PAD endpoint must not be called when a seam provider is injected")
+	}
+	if res.LivenessMode != "shadow" || res.LivenessScore != 0.91 {
+		t.Errorf("liveness = (%s, %v), want (shadow, 0.91)", res.LivenessMode, res.LivenessScore)
+	}
+	if res.LivenessProvider != "bridge-stub" || res.LivenessAuditRef != "bridge-stub-ref-1" {
+		t.Errorf("passthrough = (%q, %q), want (bridge-stub, bridge-stub-ref-1)",
+			res.LivenessProvider, res.LivenessAuditRef)
+	}
 }
