@@ -19,6 +19,7 @@ converted to the CSV shape above (one row per entity, aliases joined by ';').
 from __future__ import annotations
 
 import csv
+import fnmatch
 import glob
 import os
 import threading
@@ -27,6 +28,33 @@ from dataclasses import dataclass, field as dc_field
 from engine.names import best_alias_score, normalize_name
 
 DEFAULT_THRESHOLD = 0.85
+
+# Filename convention marking development/demo data. Production guard: when
+# EKYC_ALLOW_DEMO_LISTS=false and ONLY demo files are loaded, /v1/screen
+# fails 503 (same fail-closed pattern as "no lists at all") — a real SDN
+# name screened against fictional rows would otherwise come back clean.
+_DEMO_FILE_PATTERN = "*_demo.csv"
+
+
+def demo_lists_only(files: list[str]) -> bool:
+    """True when at least one list file is loaded and every one of them is
+    demo data (``*_demo.csv``). An empty load is not "demo only" — it is
+    already fail-closed by the no-lists 503."""
+    return bool(files) and all(
+        fnmatch.fnmatch(os.path.basename(f), _DEMO_FILE_PATTERN) for f in files
+    )
+
+
+def demo_lists_allowed() -> bool:
+    """EKYC_ALLOW_DEMO_LISTS gate — defaults to allow (dev-friendly: the
+    packaged demo CSVs keep local stacks working out of the box). Production
+    deployments set it to "false" (the Helm chart does) so a demo-only data
+    dir fails closed instead of reporting clean screens."""
+    return os.getenv("EKYC_ALLOW_DEMO_LISTS", "true").strip().lower() not in (
+        "false",
+        "0",
+        "no",
+    )
 
 
 @dataclass
@@ -104,6 +132,11 @@ class Screener:
                 files.append(os.path.basename(path))
         self.entries = entries
         self.files = files
+
+    @property
+    def demo_only(self) -> bool:
+        """True when everything loaded is ``*_demo.csv`` development data."""
+        return demo_lists_only(self.files)
 
     def screen(self, full_name: str, threshold: float = DEFAULT_THRESHOLD) -> list[Match]:
         """All list entries whose best name/alias similarity >= threshold,

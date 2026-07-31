@@ -468,6 +468,13 @@ services:
     build:
       context: ./ekyc-ml-service
     ports: ["28102:8102"]
+    # Dev defaults: demo screening lists allowed, any engine mode healthy.
+    # Production posture (what the Helm chart sets) — uncomment to make
+    # /health (and this healthcheck) fail on a degraded/demo-only pod:
+    # environment:
+    #   EXPECTED_FACE_ENGINE: "sface"          # 503 unless SFace ONNX loaded
+    #   EXPECTED_LIVENESS_ENGINE: "minifasnet_v2"  # 503 unless PAD ONNX loaded
+    #   EKYC_ALLOW_DEMO_LISTS: "false"         # 503 screens off *_demo.csv only
     networks: [athena-net]
     healthcheck:
       test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8102/health\")' || exit 1"]

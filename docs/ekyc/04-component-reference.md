@@ -154,6 +154,9 @@ The service is engineered so that **no missing dependency can ever manufacture a
 | Liveness ONNX missing | fallback, label `UNKNOWN`, score ≤ **0.5** | can never claim `LIVE` |
 | OpenCV 5 wheel without Haar cascade | "no face" → `UNKNOWN` | fail-safe, never a fabricated LIVE |
 | Screening lists missing/empty | `503` on `/v1/screen` | hard error → human referral |
+| Only `*_demo.csv` lists loaded + `EKYC_ALLOW_DEMO_LISTS=false` | `503` on `/v1/screen`; `/health` `503` with `screeningListsMode: demo-only` | fictional lists can never report a clean screen in production |
+| Engine mode ≠ `EXPECTED_FACE_ENGINE` / `EXPECTED_LIVENESS_ENGINE` (when set) | `/health` `503` with a `degraded` list naming each mismatch | k8s readiness keeps the silently-degraded pod out of the Service |
+| Model download succeeds with wrong SHA-256 (image build) | **build fails** (`Dockerfile` pinned checksums) | a tampered model can never ship; offline builds still fall back |
 | Undecodable image | `422` | hard error → human referral |
 | Any non-200 seen by the Go provider | treated as hard failure | applicant referred to a human (fail closed) |
 
@@ -162,14 +165,22 @@ The service is engineered so that **no missing dependency can ever manufacture a
 | Env var | Default | Purpose |
 |---|---|---|
 | `EKYC_DATA_DIR` | packaged `data/` | screening-list directory (mount a volume/ConfigMap in production) |
+| `EKYC_ALLOW_DEMO_LISTS` | `true` (allow) | `false` → demo-only lists fail closed: `503` on `/v1/screen`, degraded `/health`. Helm sets `false` (`ekycMl.allowDemoLists`); compose leaves the dev default |
 | `FACE_DETECTOR_MODEL` | `/app/models/face_detection_yunet_2023mar.onnx` | YuNet ONNX |
 | `FACE_EMBEDDER_MODEL` | `/app/models/face_recognition_sface_2021dec.onnx` | SFace ONNX |
-| `FACE_LIVENESS_MODEL` | `/app/models/minifasnet_v2.onnx` | MiniFASNetV2 PAD ONNX (ops drop-in; no build-time download yet) |
+| `FACE_LIVENESS_MODEL` | `/app/models/minifasnet_v2.onnx` | MiniFASNetV2 PAD ONNX |
+| `EXPECTED_FACE_ENGINE` | unset (don't care) | `sface`\|`fallback` — `/health` `503`s on mismatch (readiness gating; Helm `ekycMl.expectedEngines.face`) |
+| `EXPECTED_LIVENESS_ENGINE` | unset (don't care) | `minifasnet_v2`\|`fallback` — same gating (Helm `ekycMl.expectedEngines.liveness`) |
 
-Model provisioning: the Dockerfile best-effort downloads the two face models from the
-OpenCV model zoo at build time (an offline build still succeeds → fallback mode). The
-liveness model is a deploy-time drop-in. Verify via `/health`:
-`"faceEngine": "sface"`, `"livenessEngine": "minifasnet_v2"`.
+Model provisioning: the Dockerfile downloads all three models (YuNet + SFace from the
+OpenCV model zoo, MiniFASNetV2 from the pinned HF conversion) at build time with
+**pinned SHA-256 verification** — an offline build still succeeds (fallback mode), but
+a download with a wrong hash fails the build. Alternatively mount provisioned models
+at `/app/models` (Helm `ekycMl.modelsPvc` / `ekycMl.modelsVolume`). Verify via
+`/health` (`"faceEngine": "sface"`, `"livenessEngine": "minifasnet_v2"`) — or enforce
+it with the `EXPECTED_*_ENGINE` vars above. Real screening lists are provisioned by
+`scripts/sync-screening-lists.py` (OFAC/UN/EU → `sanctions_*.csv`, atomic writes,
+`--verify` freshness mode; see the service README for cron wiring).
 
 ## 6. Constants quick reference
 
