@@ -151,3 +151,27 @@ names alongside legacy A–D. **A1 APK BUILT** (2026-07-31):
 real identity federation LMS→NemoScore (notes §4, design item), decide whether
 thin-file demo mode stays acceptable for investor demos, device smoke-test of
 the APK.
+
+**Emulator E2E of the APK (2026-07-31 evening)**: full onboarding ran against
+the box — welcome → details → synthetic ID upload → selfie → submit →
+REFERRED → officer approve (service-key API) → app polled to "You're
+approved!" → OTP → PIN → logged-in dashboard. Found + fixed en route: the
+BFF's overdraft client called `/api/v1/float/wallets…` paths that exist
+nowhere in the monorepo (pre-fold-in relic; every mobile overdraft call
+404'd) and its account client used non-existent `accounts/customer/{id}/
+balance|transactions` routes + decoded the account list as an object —
+both rewritten against the real APIs. Open items from the run:
+1. **`mobile.user.registered` has no consumers** — the Java-era listeners
+   (auto-create Customer + WALLET account + wallet) were never ported to the
+   Go account/overdraft services, so mobile users have no LMS account and the
+   dashboard balance stays empty until something creates one (A1 remaining).
+2. **Tenant mismatch**: BFF submits onboarding under tenant `default`; portal
+   staff live on tenant `admin` — officers can't see mobile referrals in the
+   portal queue (approved this run via service-key API directly).
+3. **ekyc-ml on the box has no screening lists** (`/v1/screen` 503) — every
+   onboarding falls to referral via fail-closed PROVIDER_ERROR; drop the demo
+   CSVs into the pod/image or wire real feeds.
+4. **DEV OTP is returned to the release app** (sandbox SMS mode) — fine for
+   demo, must be gated before any real launch (F4).
+5. Cosmetics: dashboard greets "User" (registered name not shown), amounts
+   format as `$` not KES (market pack not consumed in app), `??` avatar glyph.

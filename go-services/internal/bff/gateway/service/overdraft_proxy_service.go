@@ -39,7 +39,7 @@ func (s *OverdraftProxyService) GetOverdraftStatus(ctx context.Context, customer
 	walletID, _ := wallet["id"].(string)
 	result := map[string]any{
 		"hasWallet": true,
-		"balance":   wallet["balance"],
+		"balance":   wallet["currentBalance"],
 		"currency":  wallet["currency"],
 	}
 
@@ -51,13 +51,15 @@ func (s *OverdraftProxyService) GetOverdraftStatus(ctx context.Context, customer
 	}
 
 	result["hasFacility"] = true
-	result["overdraftLimit"] = facility["creditLimit"]
-	result["usedAmount"] = facility["usedAmount"]
-	result["availableAmount"] = facility["availableAmount"]
-	result["apr"] = facility["apr"]
-	result["dailyRate"] = facility["dailyRate"]
+	result["overdraftLimit"] = facility["approvedLimit"]
+	result["usedAmount"] = facility["drawnAmount"]
+	result["availableAmount"] = facility["availableOverdraft"]
+	result["apr"] = facility["interestRate"]
+	if rate, ok := facility["interestRate"].(float64); ok {
+		result["dailyRate"] = rate / 365
+	}
 	result["accruedInterest"] = facility["accruedInterest"]
-	result["scoreBand"] = facility["scoreBand"]
+	result["scoreBand"] = facility["creditBand"]
 
 	return result, nil
 }
@@ -80,11 +82,7 @@ func (s *OverdraftProxyService) SetupOverdraft(ctx context.Context, customerID, 
 	walletID, _ := wallet["id"].(string)
 
 	// Apply for overdraft facility
-	facility, err := s.overdraftClient.ApplyOverdraft(ctx, map[string]any{
-		"walletId":   walletID,
-		"customerId": customerID,
-		"tenantId":   tenantID,
-	})
+	facility, err := s.overdraftClient.ApplyOverdraft(ctx, walletID)
 	if err != nil {
 		return nil, fmt.Errorf("apply overdraft: %w", err)
 	}
@@ -169,13 +167,11 @@ func (s *OverdraftProxyService) SuspendOverdraft(ctx context.Context, customerID
 	}
 
 	walletID, _ := wallet["id"].(string)
-	facility, err := s.overdraftClient.GetOverdraftFacility(ctx, walletID)
-	if err != nil {
+	if _, err := s.overdraftClient.GetOverdraftFacility(ctx, walletID); err != nil {
 		return nil, apperrors.BadRequest("no overdraft facility found")
 	}
 
-	facilityID, _ := facility["id"].(string)
-	return s.overdraftClient.SuspendOverdraft(ctx, facilityID)
+	return s.overdraftClient.SuspendOverdraft(ctx, walletID)
 }
 
 func (s *OverdraftProxyService) GetCharges(ctx context.Context, customerID string) ([]map[string]any, error) {
@@ -185,11 +181,9 @@ func (s *OverdraftProxyService) GetCharges(ctx context.Context, customerID strin
 	}
 
 	walletID, _ := wallet["id"].(string)
-	facility, err := s.overdraftClient.GetOverdraftFacility(ctx, walletID)
-	if err != nil {
+	if _, err := s.overdraftClient.GetOverdraftFacility(ctx, walletID); err != nil {
 		return nil, apperrors.BadRequest("no overdraft facility found")
 	}
 
-	facilityID, _ := facility["id"].(string)
-	return s.overdraftClient.GetCharges(ctx, facilityID)
+	return s.overdraftClient.GetCharges(ctx, walletID)
 }
