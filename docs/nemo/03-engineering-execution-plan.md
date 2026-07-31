@@ -175,3 +175,25 @@ both rewritten against the real APIs. Open items from the run:
    demo, must be gated before any real launch (F4).
 5. Cosmetics: dashboard greets "User" (registered name not shown), amounts
    format as `$` not KES (market pack not consumed in app), `??` avatar glyph.
+
+**Mobile money path CLOSED (2026-07-31 late)**: after the BFF client fixes
+(`5ca2c9d`, `6109562`) the app shows the live facility (KES 5,000 limit,
+30% APR from NemoScore POOR band) and an OVERDRAFT_DRAW executed via
+`/api/v1/mobile/overdraft/withdraw` (0 → −1,500, PIN-verified) renders as
+Used 1,500 / Available 3,500. Extra findings: session tokens expire with
+no refresh flow (app drops to welcome; re-login also RESETS the PIN
+instead of verifying); withdraw/dashboard errors surface raw
+DioException text; the Outstanding card reads a field the status payload
+doesn't carry; PIN verify has no attempt throttling (HIGH-3 analogue for
+mobile — add before launch, F4).
+
+**OCR-first onboarding (docs/nemo/07) — WS-1 LANDED (2026-07-31)**:
+documentType through the stack (`5f50ebd`: pack kycDocuments for KE/ET,
+compliance migration 6, ekyc provider passthrough) and ekyc-ml
+per-document profiles (`b9f480e`: passport-mrz MRZ-primary, et-fayda
+FAN-16, dispatch-level tests; note ekyc-ml-service lives in THIS repo,
+symlinked into AthenaCreditScore for its image build). Dart MrzParser +
+15 tests staged in the NemoWallet working tree (WS-2 in progress —
+remaining: ML Kit capture screens, doc-type picker, prefilled
+confirmation flow). WS-4 (synthetic KE/ET passport + Fayda fixtures,
+emulator E2E per doc) queued.
