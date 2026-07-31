@@ -208,9 +208,18 @@ valid TD3 check digits, Fayda FAN-16) + test_35 documentType API tests —
 4/4 green vs Contabo. OCR plan (doc 07) fully landed; remaining polish:
 live-camera MRZ retry loop, real-device capture QA, ET emulator pass.
 
-**Liveness (doc 08, approved 2026-07-31)**: Tier-2 passive PAD endpoint
-shipped (`1f51eb1`, ekyc-ml `/v1/face/liveness`, MiniFASNetV2 fallback-safe,
-model file = ops drop-in). Remaining: MiniFASNetV2 ONNX into the image
-build, inhouse-provider wiring in shadow mode, Tier-1 ML Kit challenge
-screen in the app, threshold calibration on real traffic before
-enforcement.
+**Liveness (doc 08) — BOTH TIERS LIVE (2026-08-01)**: Tier-2 endpoint
+(`1f51eb1`) + shadow wiring/frame plumbing/model-in-image (`090b480`) +
+Tier-1 challenge screen (wallet `d5d0c14`: randomized blink/turn/smile,
+ML Kit accurate+classification, per-challenge frame capture, single-shot
+fallback + debug skip). ekyc-ml health on box: OCR+SFace+**minifasnet_v2**
++ screening lists all loaded. **The demo screening lists had never been
+committed** — third victim of `**/data/` gitignore (fixed `7a94118`; the
+5 "pre-existing" screener test failures are gone, ekyc suite 67/0).
+End-to-end proof (app `1213838e`): passport scan → challenge screen
+(fallback on emulator) → submit → clean referral with
+`DOCUMENT_UNVERIFIED; LIVENESS_FAILED; FACE_MATCH_BELOW_THRESHOLD;
+LIVENESS[mode=shadow score=0.00 frames=1]` — no PROVIDER_ERROR, every
+subsystem reporting real verdicts. Remaining: real-device challenge QA
+(emulator camera can't blink), threshold calibration on real traffic,
+then LIVENESS_ENFORCE.
