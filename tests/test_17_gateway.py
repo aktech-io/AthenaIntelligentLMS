@@ -10,6 +10,8 @@ stays green without hiding real regressions.
 In k8s / CI the backends ARE reachable through the gateway and the tests
 run normally.
 """
+import os
+
 import pytest
 import requests
 from conftest import url, TIMEOUT, SERVICE_KEY
@@ -169,7 +171,8 @@ class TestGatewayRouting:
             pytest.xfail("Gateway backends unreachable in local Docker Compose mode")
         r = requests.post(
             url("gateway", "/lms/api/auth/login"),
-            json={"username": "admin", "password": "admin123"},
+            json={"username": "admin",
+                  "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")},
             timeout=TIMEOUT,
         )
         # 200 if auth route is whitelisted, 403 if gateway blocks it

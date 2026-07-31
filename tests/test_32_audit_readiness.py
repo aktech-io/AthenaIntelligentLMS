@@ -41,7 +41,8 @@ READ_ENDPOINTS = {
 @pytest.fixture(scope="module")
 def headers():
     r = requests.post(f"{BASE}:28086/api/auth/login",
-                      json={"username": "admin", "password": "admin123"}, timeout=T)
+                      json={"username": "admin",
+                            "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")}, timeout=T)
     assert r.status_code == 200, f"login failed: {r.status_code} {r.text[:120]}"
     return {"Content-Type": "application/json",
             "Authorization": f"Bearer {r.json()['token']}"}

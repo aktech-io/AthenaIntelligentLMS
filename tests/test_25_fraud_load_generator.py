@@ -59,7 +59,8 @@ def fraud_url(path: str) -> str:
 def get_admin_token():
     acct_base = SERVICES.get("account", "http://localhost:28086")
     r = requests.post(f"{acct_base}/api/auth/login",
-                      json={"username": "admin", "password": "admin123"},
+                      json={"username": "admin",
+                            "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")},
                       timeout=TIMEOUT)
     assert r.status_code == 200, f"Login failed: {r.text}"
     return r.json()["token"]

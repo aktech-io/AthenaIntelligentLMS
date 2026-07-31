@@ -20,7 +20,9 @@ T = 15
 
 # ── Auth ─────────────────────────────────────────────────────────────
 print("Logging in...")
-r = requests.post(f"{ACCT}/api/auth/login", json={"username": "admin", "password": "admin123"}, timeout=T)
+r = requests.post(f"{ACCT}/api/auth/login",
+                  json={"username": "admin",
+                        "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")}, timeout=T)
 assert r.status_code == 200, f"Login failed: {r.text}"
 token = r.json()["token"]
 H = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}

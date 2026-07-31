@@ -10,6 +10,7 @@ Validates:
   6. Dormancy reactivation: credit to dormant account reactivates it
   7. Concurrency: parallel credits don't lose money
 """
+import os
 import pytest
 import requests
 import random
@@ -24,7 +25,8 @@ PRODUCT_BASE = "http://localhost:28087"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def login(username="admin", password="admin123"):
+def login(username="admin", password=None):
+    password = password or os.getenv("LMS_ADMIN_PASSWORD", "admin123")
     resp = requests.post(f"{BASE}/api/auth/login", json={
         "username": username, "password": password
     })

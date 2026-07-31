@@ -2,6 +2,7 @@
 Finance Audit Controls — IFRS-readiness test suite.
 Tests maker-checker workflow, fiscal periods, audit trail, and chart of accounts.
 """
+import os
 import pytest
 import requests
 import time
@@ -92,7 +93,7 @@ pytestmark = pytest.mark.skipif(
 # fixture (which depends on admin_token) can consume it without a ScopeMismatch.
 @pytest.fixture(scope="session")
 def admin_token():
-    token = get_token("admin", "admin123")
+    token = get_token("admin", os.getenv("LMS_ADMIN_PASSWORD", "admin123"))
     if not token:
         pytest.skip("Cannot authenticate as admin")
     return token
@@ -104,7 +105,7 @@ def admin_token():
 # approved_by != created_by segregation-of-duties rule.
 @pytest.fixture(scope="module")
 def maker_token():
-    token = get_token("manager", "manager123")
+    token = get_token("manager", os.getenv("LMS_MANAGER_PASSWORD", "manager123"))
     if not token:
         pytest.skip("Cannot authenticate as manager")
     return token
@@ -112,7 +113,7 @@ def maker_token():
 
 @pytest.fixture(scope="module")
 def checker_token():
-    token = get_token("admin", "admin123")
+    token = get_token("admin", os.getenv("LMS_ADMIN_PASSWORD", "admin123"))
     if not token:
         pytest.skip("Cannot authenticate as admin")
     return token

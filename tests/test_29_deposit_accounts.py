@@ -2,6 +2,7 @@
 Test Suite: Deposit Products & Account Management System
 Tests deposit product CRUD, account opening workflow, interest accrual, dormancy, and EOD.
 """
+import os
 import pytest
 import requests
 import time
@@ -11,7 +12,8 @@ BASE_PRODUCT = "http://localhost:28087"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def login(username="admin", password="admin123"):
+def login(username="admin", password=None):
+    password = password or os.getenv("LMS_ADMIN_PASSWORD", "admin123")
     resp = requests.post(f"{BASE_AUTH}/api/auth/login", json={
         "username": username, "password": password
     })

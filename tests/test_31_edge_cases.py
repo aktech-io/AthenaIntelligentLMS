@@ -13,6 +13,8 @@ Covers:
   - Close account: with balance rejected, zero balance succeeds
   - Freeze/unfreeze lifecycle
 """
+import os
+
 import pytest
 import requests
 from decimal import Decimal
@@ -23,7 +25,8 @@ PRODUCT_BASE = "http://localhost:28087"
 
 def login():
     resp = requests.post(f"{BASE}/api/auth/login", json={
-        "username": "admin", "password": "admin123"
+        "username": "admin",
+        "password": os.getenv("LMS_ADMIN_PASSWORD", "admin123")
     })
     assert resp.status_code == 200
     return {"Authorization": f"Bearer {resp.json()['token']}"}
