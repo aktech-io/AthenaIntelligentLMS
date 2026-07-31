@@ -27,17 +27,23 @@ and the onboarding flow refers the applicant to a human (fail closed).
 
 ## Implementation choices
 
-- **OCR: Tesseract** (`tesseract-ocr` apt package + pytesseract). Chosen over
-  PaddleOCR because it adds ~40 MB and installs deterministically in a
-  `python:3.12-slim` image, while paddlepaddle is a several-hundred-MB wheel
-  with a history of breaking on slim images. Accuracy is adequate because the
-  **MRZ is the trust anchor**: passports (TD3) and MRZ-bearing ID cards (TD1)
-  are parsed with full ICAO 9303 check-digit verification (`engine/mrz.py`,
-  pure stdlib), and a checksum-valid MRZ overrides visual-zone OCR at
-  confidence 0.99. Visual-zone extraction is label-anchored ("FULL NAMES",
-  "ID NUMBER", "DATE OF BIRTH"... — Kenyan-ID-class layouts) with regex
-  fallbacks, per-field confidence = mean OCR word confidence (discounted for
-  fallback heuristics).
+- **OCR: PP-OCR primary, Tesseract fallback** (`OCR_ENGINE=auto|ppocr|tesseract`,
+  default `auto` = PP-OCR when its models are provisioned). `engine/ppocr.py`
+  runs PaddleOCR's detection/recognition networks as plain ONNX via
+  onnxruntime (RapidOCR-style, ~14 MB total) — no paddlepaddle wheel, so the
+  original slim-image objection to PaddleOCR is moot, and real-world phone
+  photos (skew, noise, low contrast) read far better than under Tesseract.
+  Tesseract (`tesseract-ocr` apt + pytesseract, `engine/ocr.py`) remains the
+  no-model fallback, and its MRZ-charset pass is appended to PP-OCR output as
+  a second MRZ reading when the binary is present. Either way the **MRZ is
+  the trust anchor**: passports (TD3) and MRZ-bearing ID cards (TD1) are
+  parsed with full ICAO 9303 check-digit verification (`engine/mrz.py`, pure
+  stdlib), and a checksum-valid MRZ overrides visual-zone OCR at confidence
+  0.99. Visual-zone extraction is label-anchored ("FULL NAMES", "ID NUMBER",
+  "DATE OF BIRTH"... — Kenyan-ID-class layouts) with regex fallbacks,
+  per-field confidence = mean OCR word/line confidence (discounted for
+  fallback heuristics). There is no capped-fallback for OCR: no engine at
+  all → 503 (fabricated fields have no safe cap).
 - **Face match: YuNet + SFace** ONNX models (~2 MB total, OpenCV model zoo)
   run by `opencv-python-headless` — no GPU, no extra ML framework. Cosine
   similarity is mapped to [0,1] so SFace's published verification threshold
@@ -78,6 +84,19 @@ FACE_EMBEDDER_MODEL  /app/models/face_recognition_sface_2021dec.onnx
 Source: https://github.com/opencv/opencv_zoo (face_detection_yunet,
 face_recognition_sface). Verify `/health` reports `"faceEngine": "sface"`.
 
+**PP-OCR models** — downloaded at build time with **pinned SHA256 checksums**
+(offline build → Tesseract fallback; checksum mismatch → build fails). To
+provision manually, place in `/app/models` (or point the env vars elsewhere):
+
+```
+PPOCR_DET_MODEL  /app/models/ppocr_det.onnx      (ch_PP-OCRv4_det_infer)
+PPOCR_REC_MODEL  /app/models/ppocr_rec.onnx      (en_PP-OCRv3_rec_infer)
+PPOCR_REC_DICT   /app/models/ppocr_keys_en.txt   (PaddleOCR en_dict.txt)
+```
+Source: https://huggingface.co/SWHL/RapidOCR (RapidOCR's ONNX exports of the
+PaddleOCR nets; checksums in the Dockerfile). Verify `/health` reports
+`"ocr": "ppocr"`.
+
 **Liveness model** — MiniFASNetV2 is an ops drop-in the same way (no
 build-time download wired up yet). Place the ONNX file at:
 
@@ -116,6 +135,10 @@ counts so ops can alert on stale/empty data.
 | Env | Default | Purpose |
 |---|---|---|
 | `EKYC_DATA_DIR` | packaged `data/` | screening list directory |
+| `OCR_ENGINE` | `auto` | `auto` (PP-OCR if provisioned, else Tesseract) \| `ppocr` \| `tesseract` |
+| `PPOCR_DET_MODEL` | `/app/models/ppocr_det.onnx` | PP-OCR detection ONNX |
+| `PPOCR_REC_MODEL` | `/app/models/ppocr_rec.onnx` | PP-OCR recognition ONNX |
+| `PPOCR_REC_DICT` | `/app/models/ppocr_keys_en.txt` | recognition charset (PaddleOCR dict format) |
 | `FACE_DETECTOR_MODEL` | `/app/models/face_detection_yunet_2023mar.onnx` | YuNet ONNX |
 | `FACE_EMBEDDER_MODEL` | `/app/models/face_recognition_sface_2021dec.onnx` | SFace ONNX |
 | `FACE_LIVENESS_MODEL` | `/app/models/minifasnet_v2.onnx` | MiniFASNetV2 PAD ONNX |

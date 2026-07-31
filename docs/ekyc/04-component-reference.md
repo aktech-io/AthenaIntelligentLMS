@@ -53,7 +53,7 @@ flow refers the applicant to a human.
 
 ```mermaid
 flowchart TD
-    A[ID-document image] --> B["Tesseract OCR\n(pytesseract, full page)"]
+    A[ID-document image] --> B["OCR engine (OCR_ENGINE=auto)\nPP-OCR primary (ONNX det+rec, onnxruntime)\nTesseract fallback + MRZ second-reader"]
     B --> C{MRZ lines\nfound?}
     C -- "yes (TD1/TD3)" --> D["ICAO 9303 parser\nengine/mrz.py — pure stdlib"]
     D --> E{All check digits\nvalid?}
@@ -65,10 +65,14 @@ flowchart TD
     H --> I
 ```
 
-- **OCR engine: Tesseract** (`tesseract-ocr` apt + pytesseract). Chosen over PaddleOCR
-  for deterministic installs on `python:3.12-slim` (~40 MB vs several-hundred-MB wheels
-  with a history of breaking slim images). Accuracy is adequate because the **MRZ is the
-  trust anchor**, not the visual zone.
+- **OCR engines** (`OCR_ENGINE=auto|ppocr|tesseract`, default `auto`): **PP-OCR
+  primary** — PaddleOCR's det/rec networks as plain ONNX via onnxruntime
+  (`engine/ppocr.py`, RapidOCR-style, ~14 MB, checksummed at image build), markedly
+  better than Tesseract on real phone photos (validated on rotated/noisy/low-contrast
+  synthetic IDs) — with **Tesseract as fallback** and as a second MRZ-charset reading
+  appended to PP-OCR text. No engine available → 503 (no capped fallback for OCR —
+  fabricated fields have no safe cap). Either way the **MRZ is the trust anchor**,
+  not the visual zone.
 - **MRZ parsing** (`engine/mrz.py`, 191 lines, zero dependencies): TD3 (passports,
   2×44 chars) and TD1 (ID cards, 3×30 chars) with full ICAO 9303 check-digit
   verification (7-3-1 weighted mod-10; a `<` check digit accepted only for the
@@ -162,6 +166,10 @@ The service is engineered so that **no missing dependency can ever manufacture a
 | Env var | Default | Purpose |
 |---|---|---|
 | `EKYC_DATA_DIR` | packaged `data/` | screening-list directory (mount a volume/ConfigMap in production) |
+| `OCR_ENGINE` | `auto` | `auto` (PP-OCR if provisioned, else Tesseract) \| `ppocr` \| `tesseract` |
+| `PPOCR_DET_MODEL` | `/app/models/ppocr_det.onnx` | PP-OCR detection ONNX (checksummed build download) |
+| `PPOCR_REC_MODEL` | `/app/models/ppocr_rec.onnx` | PP-OCR recognition ONNX |
+| `PPOCR_REC_DICT` | `/app/models/ppocr_keys_en.txt` | recognition charset (includes `<` — MRZ-capable) |
 | `FACE_DETECTOR_MODEL` | `/app/models/face_detection_yunet_2023mar.onnx` | YuNet ONNX |
 | `FACE_EMBEDDER_MODEL` | `/app/models/face_recognition_sface_2021dec.onnx` | SFace ONNX |
 | `FACE_LIVENESS_MODEL` | `/app/models/minifasnet_v2.onnx` | MiniFASNetV2 PAD ONNX (ops drop-in; no build-time download yet) |

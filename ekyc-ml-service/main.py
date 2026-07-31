@@ -26,13 +26,23 @@ async def health():
     from engine.facematch import models_available
     from engine.liveness import model_available as liveness_model_available
     from engine.ocr import tesseract_available
+    from engine.ppocr import models_available as ppocr_available
     from engine.screening import get_screener
 
+    import os
+
+    mode = os.getenv("OCR_ENGINE", "auto").lower()
+    if mode in ("auto", "ppocr") and ppocr_available():
+        ocr_engine = "ppocr"
+    elif mode != "ppocr" and tesseract_available():
+        ocr_engine = "tesseract"
+    else:
+        ocr_engine = "unavailable"
     screener = get_screener()
     return {
         "status": "ok",
         "service": "ekyc-ml-service",
-        "ocr": "tesseract" if tesseract_available() else "unavailable",
+        "ocr": ocr_engine,
         "faceEngine": "sface" if models_available() else "fallback",
         "livenessEngine": "minifasnet_v2"
         if liveness_model_available()

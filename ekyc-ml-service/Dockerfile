@@ -35,6 +35,35 @@ RUN mkdir -p /app/models && \
      || (echo "WARNING: PAD model not downloaded; liveness runs in UNKNOWN fallback" && \
          rm -f /app/models/minifasnet_v2.onnx))
 
+# PP-OCR models (RapidOCR ONNX exports of PaddleOCR's det/rec nets, ~14MB
+# total) — the primary OCR engine when present (OCR_ENGINE=auto); Tesseract
+# stays installed as the fallback and MRZ second-reader. Checksums pinned:
+# these exact files were validated end-to-end (engine/ppocr.py docstring).
+ARG PPOCR_DET_URL=https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4/ch_PP-OCRv4_det_infer.onnx
+ARG PPOCR_DET_SHA256=d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9
+ARG PPOCR_REC_URL=https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv3/en_PP-OCRv3_rec_infer.onnx
+ARG PPOCR_REC_SHA256=ef7abd8bd3629ae57ea2c28b425c1bd258a871b93fd2fe7c433946ade9b5d9ea
+ARG PPOCR_DICT_URL=https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/en_dict.txt
+ARG PPOCR_DICT_SHA256=5662df9d2d03f0e8ca0d3b0649d6acbab904b6a14b3d3521463c71c37c668ce3
+# Offline build (curl fails) → warn and fall back to tesseract; but a
+# download that SUCCEEDS with the wrong checksum is a supply-chain red flag
+# and fails the build.
+RUN set -e; \
+    dl() { \
+      if ! curl -fsSL -o "$2" "$1"; then rm -f "$2"; return 9; fi; \
+      echo "$3  $2" | sha256sum -c - \
+        || { echo "ERROR: checksum mismatch for $2 — refusing unverified model"; touch /tmp/ppocr-ckfail; return 1; }; \
+    }; \
+    ok=1; \
+    dl "$PPOCR_DET_URL" /app/models/ppocr_det.onnx "$PPOCR_DET_SHA256" || ok=0; \
+    dl "$PPOCR_REC_URL" /app/models/ppocr_rec.onnx "$PPOCR_REC_SHA256" || ok=0; \
+    dl "$PPOCR_DICT_URL" /app/models/ppocr_keys_en.txt "$PPOCR_DICT_SHA256" || ok=0; \
+    if [ -f /tmp/ppocr-ckfail ]; then exit 1; fi; \
+    if [ "$ok" != "1" ]; then \
+      echo "WARNING: PP-OCR models not downloaded; OCR falls back to tesseract"; \
+      rm -f /app/models/ppocr_det.onnx /app/models/ppocr_rec.onnx /app/models/ppocr_keys_en.txt; \
+    fi
+
 COPY . .
 
 EXPOSE 8102
