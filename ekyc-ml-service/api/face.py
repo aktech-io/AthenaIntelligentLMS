@@ -10,6 +10,18 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 router = APIRouter()
 
 logger = logging.getLogger("ekyc.liveness")
+# The shadow-mode calibration trail below MUST reach the pod logs: uvicorn's
+# default dictConfig leaves the root logger handler-less at WARNING, which
+# silently swallows this logger's INFO records (verified against uvicorn's
+# LOGGING_CONFIG — tools/calibration exists to mine these lines). Own the
+# logger explicitly: one stderr handler, INFO, no propagation to the
+# unconfigured root. Guarded so reloads/tests don't stack handlers.
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 # doc-09 Stage 1 targets 10-frame aggregation; the Go inhouse provider still
 # caps at 5 today, so accepting up to 10 is a backward-compatible widening.

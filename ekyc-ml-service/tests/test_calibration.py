@@ -333,6 +333,42 @@ def test_enforcement_replay_uses_livescore_not_fused(np):
     assert replay["at"][0.6]["fails_by_model"] == {"fallback": 5}
 
 
+def test_shadow_logger_actually_emits_info():
+    """The calibration trail must survive uvicorn's default logging config,
+    which leaves root handler-less at WARNING (this silently swallowed the
+    shadow line until api/face.py started owning its logger)."""
+    pytest.importorskip("fastapi")
+    import io
+    import logging
+
+    import api.face  # noqa: F401 — importing installs the handler
+
+    lg = logging.getLogger("ekyc.liveness")
+    assert lg.isEnabledFor(logging.INFO)
+    assert lg.handlers, "logger must not depend on the unconfigured root"
+    assert lg.propagate is False
+
+    try:
+        from uvicorn.config import LOGGING_CONFIG
+        import logging.config
+
+        # uvicorn applies this at startup; disable_existing_loggers=False
+        # means our handler must survive it
+        logging.config.dictConfig(LOGGING_CONFIG)
+        assert lg.isEnabledFor(logging.INFO) and lg.handlers
+    except ImportError:
+        pass
+
+    buf = io.StringIO()
+    probe = logging.StreamHandler(buf)
+    lg.addHandler(probe)
+    try:
+        lg.info("liveness fusion (shadow): %s", {"liveScore": 0.9})
+    finally:
+        lg.removeHandler(probe)
+    assert "liveness fusion (shadow):" in buf.getvalue()
+
+
 # ─── end-to-end report ───────────────────────────────────────────────────────
 
 
