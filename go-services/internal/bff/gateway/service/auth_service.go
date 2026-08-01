@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -19,8 +20,18 @@ import (
 	"github.com/athena-lms/go-services/internal/bff/gateway/model"
 	"github.com/athena-lms/go-services/internal/bff/gateway/publisher"
 	"github.com/athena-lms/go-services/internal/bff/gateway/repository"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/auth"
 	apperrors "github.com/athena-lms/go-services/internal/common/errors"
+)
+
+// Audit actions recorded on the gateway's audit_log (F4 mobile hardening).
+const (
+	auditPinSetup         = "PIN_SETUP"
+	auditPinSetupRejected = "PIN_SETUP_REJECTED"
+	auditPinChanged       = "PIN_CHANGED"
+	auditPinVerifyFailed  = "PIN_VERIFY_FAILED"
+	auditPinLocked        = "PIN_LOCKED"
 )
 
 type AuthService struct {
@@ -32,6 +43,7 @@ type AuthService struct {
 	jwtUtil        *auth.JWTUtil
 	notifClient    *client.NotificationClient
 	eventPublisher *publisher.EventPublisher
+	audit          *audit.Logger
 }
 
 func NewAuthService(
@@ -43,6 +55,7 @@ func NewAuthService(
 	jwtUtil *auth.JWTUtil,
 	notifClient *client.NotificationClient,
 	eventPublisher *publisher.EventPublisher,
+	auditLogger *audit.Logger,
 ) *AuthService {
 	return &AuthService{
 		cfg:            cfg,
@@ -53,6 +66,7 @@ func NewAuthService(
 		jwtUtil:        jwtUtil,
 		notifClient:    notifClient,
 		eventPublisher: eventPublisher,
+		audit:          auditLogger,
 	}
 }
 
@@ -65,7 +79,9 @@ type SendOTPRequest struct {
 type SendOTPResponse struct {
 	Message          string `json:"message"`
 	ExpiresInSeconds int    `json:"expiresInSeconds"`
-	OTP              string `json:"otp"`
+	// OTP is echoed ONLY when OTP_ECHO_ENABLED=true (dev/sandbox). In
+	// production the flag defaults off and this field is omitted (F4).
+	OTP string `json:"otp,omitempty"`
 }
 
 func (s *AuthService) SendOTP(ctx context.Context, req SendOTPRequest) (*SendOTPResponse, error) {
@@ -114,12 +130,14 @@ func (s *AuthService) SendOTP(ctx context.Context, req SendOTPRequest) (*SendOTP
 		}
 	}()
 
-	expirySeconds := int(s.cfg.OTPExpiry.Seconds())
-	return &SendOTPResponse{
+	resp := &SendOTPResponse{
 		Message:          "OTP sent successfully",
-		ExpiresInSeconds: expirySeconds,
-		OTP:              otp, // Included for development; remove in production
-	}, nil
+		ExpiresInSeconds: int(s.cfg.OTPExpiry.Seconds()),
+	}
+	if s.cfg.OTPEchoEnabled {
+		resp.OTP = otp // dev/sandbox only — gated by OTP_ECHO_ENABLED
+	}
+	return resp, nil
 }
 
 type VerifyOTPRequest struct {
@@ -224,14 +242,26 @@ type PinSetupRequest struct {
 	Pin string `json:"pin"`
 }
 
+// SetupPIN sets the user's PIN for the FIRST time only. If a PIN already
+// exists the request is rejected (409): re-login must never silently replace
+// the PIN — that would let anyone with stolen login credentials bypass it
+// (F4). Changing an existing PIN goes through ChangePIN with the current PIN.
 func (s *AuthService) SetupPIN(ctx context.Context, userID uuid.UUID, req PinSetupRequest) error {
-	if len(req.Pin) < 4 || len(req.Pin) > 6 {
-		return apperrors.BadRequest("PIN must be 4-6 digits")
+	if err := validatePinFormat(req.Pin); err != nil {
+		return err
 	}
-	for _, c := range req.Pin {
-		if c < '0' || c > '9' {
-			return apperrors.BadRequest("PIN must contain only digits")
-		}
+
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return apperrors.NotFoundResource("User", userID.String())
+	}
+	if user.PinHash != nil {
+		s.audit.Record(ctx, auditPinSetupRejected, "MOBILE_USER", userID.String(), nil, nil,
+			map[string]any{"reason": "PIN already set"})
+		return apperrors.Conflict("PIN is already set; use pin/change with your current PIN")
 	}
 
 	pinHash, err := bcrypt.GenerateFromPassword([]byte(req.Pin), bcrypt.DefaultCost)
@@ -239,7 +269,37 @@ func (s *AuthService) SetupPIN(ctx context.Context, userID uuid.UUID, req PinSet
 		return fmt.Errorf("hash PIN: %w", err)
 	}
 
-	return s.userRepo.UpdatePinHash(ctx, userID, string(pinHash))
+	if err := s.userRepo.UpdatePinHash(ctx, userID, string(pinHash)); err != nil {
+		return err
+	}
+	s.audit.Record(ctx, auditPinSetup, "MOBILE_USER", userID.String(), nil, nil, nil)
+	return nil
+}
+
+type PinChangeRequest struct {
+	CurrentPin string `json:"currentPin"`
+	NewPin     string `json:"newPin"`
+}
+
+// ChangePIN replaces an existing PIN after verifying the current one (subject
+// to the same attempt throttling as every other PIN check).
+func (s *AuthService) ChangePIN(ctx context.Context, userID uuid.UUID, req PinChangeRequest) error {
+	if err := validatePinFormat(req.NewPin); err != nil {
+		return err
+	}
+	if err := s.VerifyPINForUser(ctx, userID, req.CurrentPin); err != nil {
+		return err
+	}
+
+	pinHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPin), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash PIN: %w", err)
+	}
+	if err := s.userRepo.UpdatePinHash(ctx, userID, string(pinHash)); err != nil {
+		return err
+	}
+	s.audit.Record(ctx, auditPinChanged, "MOBILE_USER", userID.String(), nil, nil, nil)
+	return nil
 }
 
 type PinVerifyRequest struct {
@@ -251,19 +311,16 @@ type PinVerifyResponse struct {
 }
 
 func (s *AuthService) VerifyPIN(ctx context.Context, userID uuid.UUID, req PinVerifyRequest) (*PinVerifyResponse, error) {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("find user: %w", err)
+	err := s.VerifyPINForUser(ctx, userID, req.Pin)
+	if err == nil {
+		return &PinVerifyResponse{Valid: true}, nil
 	}
-	if user == nil {
-		return nil, apperrors.NotFoundResource("User", userID.String())
+	// Preserve the pre-F4 response contract for a plain mismatch
+	// ({"valid": false}, HTTP 200); throttling and other errors surface as-is.
+	if errors.Is(err, errInvalidPin) {
+		return &PinVerifyResponse{Valid: false}, nil
 	}
-	if user.PinHash == nil {
-		return nil, apperrors.BadRequest("PIN not set up")
-	}
-
-	valid := bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(req.Pin)) == nil
-	return &PinVerifyResponse{Valid: valid}, nil
+	return nil, err
 }
 
 type RefreshTokenRequest struct {
@@ -359,7 +416,15 @@ func (s *AuthService) RegisterDevice(ctx context.Context, userID uuid.UUID, tena
 	return result, nil
 }
 
-// VerifyPINForUser verifies a user's PIN (used by transfer and overdraft services).
+// errInvalidPin is the sentinel for a plain PIN mismatch (distinguishes it
+// from lockout/state errors so VerifyPIN can keep its {"valid":false} shape).
+var errInvalidPin = apperrors.BadRequest("invalid PIN")
+
+// VerifyPINForUser verifies a user's PIN with server-side attempt throttling
+// (F4). It is the single PIN check used by the auth endpoints AND the money
+// paths (transfers, loans, overdraft): after PinMaxAttempts consecutive
+// failures the PIN locks with exponential backoff, and every failure/lockout
+// is audited.
 func (s *AuthService) VerifyPINForUser(ctx context.Context, userID uuid.UUID, pin string) error {
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -371,8 +436,74 @@ func (s *AuthService) VerifyPINForUser(ctx context.Context, userID uuid.UUID, pi
 	if user.PinHash == nil {
 		return apperrors.BadRequest("PIN not set up")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(pin)); err != nil {
-		return apperrors.BadRequest("invalid PIN")
+
+	if user.PinLockedUntil != nil && time.Now().Before(*user.PinLockedUntil) {
+		retryIn := time.Until(*user.PinLockedUntil).Round(time.Second)
+		return apperrors.TooManyRequests(fmt.Sprintf(
+			"too many failed PIN attempts; try again in %s", retryIn))
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(pin)) != nil {
+		attempts, recErr := s.userRepo.RecordPinFailure(ctx, userID)
+		if recErr != nil {
+			slog.Error("failed to record PIN failure", "userId", userID, "error", recErr)
+			attempts = user.FailedPinAttempts + 1
+		}
+		if attempts >= s.cfg.PinMaxAttempts {
+			lockFor := pinLockoutDuration(attempts, s.cfg.PinMaxAttempts, s.cfg.PinLockoutBase, s.cfg.PinLockoutMax)
+			until := time.Now().Add(lockFor)
+			if lockErr := s.userRepo.SetPinLock(ctx, userID, until); lockErr != nil {
+				slog.Error("failed to set PIN lock", "userId", userID, "error", lockErr)
+			}
+			s.audit.Record(ctx, auditPinLocked, "MOBILE_USER", userID.String(), nil, nil,
+				map[string]any{"failedAttempts": attempts, "lockedForSeconds": int(lockFor.Seconds()), "lockedUntil": until})
+			slog.Warn("PIN locked after repeated failures", "userId", userID, "attempts", attempts, "lockedFor", lockFor)
+			return apperrors.TooManyRequests(fmt.Sprintf(
+				"too many failed PIN attempts; try again in %s", lockFor.Round(time.Second)))
+		}
+		s.audit.Record(ctx, auditPinVerifyFailed, "MOBILE_USER", userID.String(), nil, nil,
+			map[string]any{"failedAttempts": attempts, "remaining": s.cfg.PinMaxAttempts - attempts})
+		return errInvalidPin
+	}
+
+	// Success: clear any accumulated failures.
+	if user.FailedPinAttempts > 0 || user.PinLockedUntil != nil {
+		if resetErr := s.userRepo.ResetPinFailures(ctx, userID); resetErr != nil {
+			slog.Error("failed to reset PIN failures", "userId", userID, "error", resetErr)
+		}
+	}
+	return nil
+}
+
+// pinLockoutDuration computes the exponential-backoff lockout: base at the
+// threshold, doubling for each further failure, capped at max.
+func pinLockoutDuration(attempts, maxAttempts int, base, max time.Duration) time.Duration {
+	over := attempts - maxAttempts
+	if over < 0 {
+		over = 0
+	}
+	d := base
+	for i := 0; i < over; i++ {
+		d *= 2
+		if d >= max {
+			return max
+		}
+	}
+	if d > max {
+		return max
+	}
+	return d
+}
+
+// validatePinFormat enforces the 4-6 digit PIN contract.
+func validatePinFormat(pin string) error {
+	if len(pin) < 4 || len(pin) > 6 {
+		return apperrors.BadRequest("PIN must be 4-6 digits")
+	}
+	for _, c := range pin {
+		if c < '0' || c > '9' {
+			return apperrors.BadRequest("PIN must contain only digits")
+		}
 	}
 	return nil
 }

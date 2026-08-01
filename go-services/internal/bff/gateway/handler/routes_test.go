@@ -44,6 +44,7 @@ func TestProtectedRoutesRequire401(t *testing.T) {
 	r := newRouter(t)
 	protected := []struct{ method, path string }{
 		{http.MethodPost, "/api/v1/mobile/auth/pin/setup"},
+		{http.MethodPost, "/api/v1/mobile/auth/pin/change"},
 		{http.MethodPost, "/api/v1/mobile/auth/pin/verify"},
 		{http.MethodPost, "/api/v1/mobile/auth/device/register"},
 		{http.MethodGet, "/api/v1/mobile/dashboard"},

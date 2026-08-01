@@ -599,6 +599,9 @@ services:
       DB_HOST: postgres
       DB_NAME: athena_mobile_gateway
       SERVICE_NAME: go-bff-gateway
+      # Dev-only: echo the OTP in the send-OTP response so local/e2e flows can
+      # read it. MUST stay unset/false in production (F4) — default is false.
+      OTP_ECHO_ENABLED: "true"
       ACCOUNT_SERVICE_URL: http://go-account-service:8086
       OVERDRAFT_SERVICE_URL: http://go-overdraft-service:8097
       PAYMENT_SERVICE_URL: http://go-payment-service:8090

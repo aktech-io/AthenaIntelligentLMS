@@ -128,6 +128,10 @@ services:
     port: 8110
     dbName: athena_mobile_gateway
     extraEnv:
+      # F4: the dev-only OTP echo in the send-OTP response stays OFF in
+      # production (it is also the code default; pinned here so it is
+      # explicit and grep-able).
+      OTP_ECHO_ENABLED: "false"
       ACCOUNT_SERVICE_URL: http://go-account-service:8086
       OVERDRAFT_SERVICE_URL: http://go-overdraft-service:8097
       PAYMENT_SERVICE_URL: http://go-payment-service:8090

@@ -31,6 +31,7 @@ func (h *AuthHandler) Routes(r chi.Router, authMw func(http.Handler) http.Handle
 		r.Group(func(r chi.Router) {
 			r.Use(authMw)
 			r.Post("/pin/setup", h.SetupPIN)
+			r.Post("/pin/change", h.ChangePIN)
 			r.Post("/pin/verify", h.VerifyPIN)
 			r.Post("/device/register", h.RegisterDevice)
 		})
@@ -85,6 +86,28 @@ func (h *AuthHandler) SetupPIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "PIN set up successfully"})
+}
+
+// ChangePIN replaces an existing PIN; requires the current PIN (F4 — the
+// pin/setup endpoint only works while no PIN exists).
+func (h *AuthHandler) ChangePIN(w http.ResponseWriter, r *http.Request) {
+	userID, err := resolveUserID(r)
+	if err != nil {
+		apperrors.WriteError(w, r, http.StatusUnauthorized, "invalid user")
+		return
+	}
+
+	var req service.PinChangeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperrors.WriteError(w, r, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.svc.ChangePIN(r.Context(), userID, req); err != nil {
+		apperrors.HandleError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "PIN changed successfully"})
 }
 
 func (h *AuthHandler) VerifyPIN(w http.ResponseWriter, r *http.Request) {

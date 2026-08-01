@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -50,6 +51,32 @@ func (r *UserRepo) UpdatePinHash(ctx context.Context, id uuid.UUID, pinHash stri
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE mobile_users SET pin_hash = $1, status = $2, updated_at = NOW() WHERE id = $3`,
 		pinHash, model.StatusActive, id)
+	return err
+}
+
+// RecordPinFailure atomically increments the consecutive failed-PIN counter
+// and returns the new count (F4 attempt throttling).
+func (r *UserRepo) RecordPinFailure(ctx context.Context, id uuid.UUID) (int, error) {
+	var attempts int
+	err := r.db.GetContext(ctx, &attempts, `
+		UPDATE mobile_users SET failed_pin_attempts = failed_pin_attempts + 1, updated_at = NOW()
+		WHERE id = $1 RETURNING failed_pin_attempts`, id)
+	return attempts, err
+}
+
+// SetPinLock sets the PIN lockout deadline after too many failures.
+func (r *UserRepo) SetPinLock(ctx context.Context, id uuid.UUID, until time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE mobile_users SET pin_locked_until = $1, updated_at = NOW() WHERE id = $2`, until, id)
+	return err
+}
+
+// ResetPinFailures clears the failed-attempt counter and any lockout after a
+// successful PIN verification.
+func (r *UserRepo) ResetPinFailures(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE mobile_users SET failed_pin_attempts = 0, pin_locked_until = NULL, updated_at = NOW()
+		WHERE id = $1 AND (failed_pin_attempts <> 0 OR pin_locked_until IS NOT NULL)`, id)
 	return err
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/athena-lms/go-services/internal/bff/gateway/publisher"
 	"github.com/athena-lms/go-services/internal/bff/gateway/repository"
 	"github.com/athena-lms/go-services/internal/bff/gateway/service"
+	"github.com/athena-lms/go-services/internal/common/audit"
 	"github.com/athena-lms/go-services/internal/common/auth"
 	"github.com/athena-lms/go-services/internal/common/db"
 	"github.com/athena-lms/go-services/internal/common/event"
@@ -118,8 +119,12 @@ func main() {
 	complianceClient := client.NewComplianceClient(cfg.ComplianceServiceURL, cfg.InternalServiceKey)
 	mediaClient := client.NewMediaClient(cfg.MediaServiceURL, cfg.InternalServiceKey)
 
+	// Audit trail for auth-security events (PIN setup/change, failed
+	// verifications, lockouts) — F4 mobile hardening.
+	auditLogger := audit.New(repository.NewAuditRepo(sqlxDB), logger)
+
 	// Services
-	authSvc := service.NewAuthService(cfg, userRepo, otpRepo, tokenRepo, deviceRepo, jwtUtil, notifClient, eventPublisher)
+	authSvc := service.NewAuthService(cfg, userRepo, otpRepo, tokenRepo, deviceRepo, jwtUtil, notifClient, eventPublisher, auditLogger)
 	profileSvc := service.NewProfileService(userRepo, preferenceRepo, employmentRepo)
 	dashboardSvc := service.NewDashboardService(userRepo, accountClient, notifClient, overdraftClient)
 	contactSvc := service.NewContactService(contactRepo, userRepo)

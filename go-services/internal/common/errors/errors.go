@@ -39,6 +39,11 @@ func Forbidden(message string) *BusinessError {
 	return &BusinessError{StatusCode: http.StatusForbidden, Message: message}
 }
 
+// TooManyRequests creates a 429 Too Many Requests error (rate/attempt limiting).
+func TooManyRequests(message string) *BusinessError {
+	return &BusinessError{StatusCode: http.StatusTooManyRequests, Message: message}
+}
+
 // NotFoundError represents a resource not found.
 // Port of Java ResourceNotFoundException.java.
 type NotFoundError struct {
