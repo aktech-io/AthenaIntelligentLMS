@@ -25,6 +25,7 @@ import (
 	"github.com/athena-lms/go-services/internal/common/outbox"
 	"github.com/athena-lms/go-services/internal/common/rabbitmq"
 	"github.com/athena-lms/go-services/internal/overdraft/client"
+	"github.com/athena-lms/go-services/internal/overdraft/consumer"
 	ovevent "github.com/athena-lms/go-services/internal/overdraft/event"
 	"github.com/athena-lms/go-services/internal/overdraft/handler"
 	"github.com/athena-lms/go-services/internal/overdraft/repository"
@@ -115,6 +116,20 @@ func main() {
 	walletSvc.SetDecisionEvaluator(decision.NewEvaluator(nil))
 	eodSvc := service.NewEODService(repo, ovPublisher, auditSvc, logger)
 	h := handler.New(walletSvc, auditSvc, eodSvc, logger)
+
+	// Mobile registration consumer: auto-provisions the customer wallet on
+	// mobile.user.registered so the dashboard's overdraft panel resolves.
+	// Idempotent via the processed_events guard + exists-checks in the handler.
+	if cfg.RabbitMQConsumeEnabled {
+		mobileConsumer := consumer.NewMobileUserConsumer(rmqConn, pool, walletSvc, repo, logger)
+		go func() {
+			if err := mobileConsumer.Start(ctx); err != nil {
+				logger.Error("Mobile user consumer stopped", zap.Error(err))
+			}
+		}()
+		logger.Info("Mobile user registration consumer started",
+			zap.String("queue", rabbitmq.OverdraftMobileQueue))
+	}
 
 	// Start EOD scheduler in background (runs daily at 23:00 UTC)
 	go eodSvc.StartScheduler(ctx, 23)

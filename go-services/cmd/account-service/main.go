@@ -15,6 +15,7 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 
+	"github.com/athena-lms/go-services/internal/account/consumer"
 	"github.com/athena-lms/go-services/internal/account/event"
 	"github.com/athena-lms/go-services/internal/account/handler"
 	"github.com/athena-lms/go-services/internal/account/rbac"
@@ -114,6 +115,20 @@ func main() {
 	hdlr.SetInterestService(interestSvc)
 	hdlr.SetEODService(eodSvc)
 	hdlr.SetApprovalService(approvalSvc)
+
+	// Mobile registration consumer: auto-creates Customer + WALLET account on
+	// mobile.user.registered so a fresh app user's dashboard balance resolves.
+	// Idempotent via the processed_events guard + exists-checks in the handler.
+	if cfg.RabbitMQConsumeEnabled {
+		mobileConsumer := consumer.NewMobileUserConsumer(rmqConn, pool, customerSvc, accountSvc, repo, logger)
+		go func() {
+			if err := mobileConsumer.Start(ctx); err != nil {
+				logger.Error("Mobile user consumer stopped", zap.Error(err))
+			}
+		}()
+		logger.Info("Mobile user registration consumer started",
+			zap.String("queue", rabbitmq.AccountMobileQueue))
+	}
 
 	// JWT
 	jwtUtil, err := auth.NewJWTUtil(cfg.JWTSecret)
