@@ -240,9 +240,45 @@ applications incl. `1213838e` (REFERRED) and `cb646dd3`/`99785acd` (APPROVED);
 rejected pytest leftover `6dd3fc99` end-to-end (REJECTED, decidedBy=admin,
 OFFICER note appended). Old rows omit `faceMatchScore`/`livenessScore` — as
 designed (omitempty pointers, pre-migration rows are NULL); first
-post-migration-8 application will populate them. Next up: the engineering
-queue below, starting with real-device liveness QA (needs a physical phone)
-or F4 mobile hardening.
+post-migration-8 application will populate them.
+
+**Update 2026-08-02 (parallel-agent session): three queue items SHIPPED,
+deployed and verified** (LMS master `546160a`, wallet main `08b8073`, Deploy
+Contabo run 30717863160 green, bff-gateway migration v2 applied):
+- **`mobile.user.registered` consumers** (account + overdraft services,
+  idempotency.Wrap + exists-checks + unique-constraint backstop): deployed
+  consumer immediately replayed the durable-queue backlog (MOB-E58C3A11
+  auto-provisioned) and a live registration provisioned MOB-DB5E9A37 +
+  ACC-DEF-20080808 in &lt;100ms. **Emulator-verified: dashboard now shows
+  "$0.00" balance instead of empty.**
+- **F4 mobile hardening**, all four gaps verified against the box: OTP no
+  longer echoed (sandbox SMS logs on the box are the test-time source of
+  OTPs now: `kubectl -n lms logs deploy/bff-notification | grep 'sandbox
+  SMS'`); pin/setup 409s when a PIN exists; pin/change requires current PIN
+  (counts toward throttle); 5-failure lockout w/ exponential backoff returns
+  429 even for the *correct* PIN while locked; refresh-token rotation +
+  old-token revocation. Emulator-verified: hasPin login routes straight to
+  dashboard, cold relaunch silently resumes session, Security→Change PIN
+  demands current PIN and a wrong entry logged `PIN locked after repeated
+  failures` in the audit trail.
+- **Doc-09 Stage 1 multi-frame liveness fusion** (ekyc-ml-service, shadow):
+  fused score = weighted pad-median/parallax/moiré/challenge (renormalizing),
+  sub-scores in response `fusion` object + structured `ekyc.liveness` log
+  line per call → the shadow-calibration dataset for the LIVENESS_ENFORCE
+  threshold decision. Fallback engine stays capped at 0.5; suite 133/0.
+
+**New backlog from this session**: forgot-PIN recovery flow (schema has
+PIN_RESET OTP purpose, no endpoint — needs product decision: OTP alone must
+not bypass the PIN; likely OTP + KYC step-up); delete stale pre-fold-in
+`NemoWallet/backend/` (nothing deploys from it; still contains the old PIN
+overwrite + OTP echo — replace with README pointer to go-services);
+API pin/setup accepted a 4-digit PIN while the app enforces 6 — tighten
+server-side format validation; dashboard shows "$" for KE market (KES
+expected) — check app currency formatting vs market pack.
+
+Queue continues: real-device liveness QA (needs a physical phone) →
+threshold calibration on the new fusion shadow logs → LIVENESS_ENFORCE;
+B2/B3 P2P + bills; identity federation; ET Fayda emulator pass; APK size.
 
 **State of the world:**
 - Suite vs box 482/0/0. NemoScore chain, OCR-first onboarding (doc 07),
