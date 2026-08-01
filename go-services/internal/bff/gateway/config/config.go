@@ -28,6 +28,16 @@ type Config struct {
 	OTPLength      int
 	OTPExpiry      time.Duration
 	OTPMaxAttempts int
+	// OTPEchoEnabled echoes the generated OTP in the send-OTP API response.
+	// Dev/sandbox convenience ONLY — must stay false in production (F4).
+	OTPEchoEnabled bool
+
+	// PIN attempt throttling (F4): after PinMaxAttempts consecutive failures
+	// the PIN surface locks with exponential backoff (base doubling per extra
+	// failure, capped at PinLockoutMax).
+	PinMaxAttempts int
+	PinLockoutBase time.Duration
+	PinLockoutMax  time.Duration
 
 	AccountServiceURL         string
 	OverdraftServiceURL       string
@@ -57,6 +67,10 @@ func Load() (*Config, error) {
 	v.SetDefault("OTP_LENGTH", 6)
 	v.SetDefault("OTP_EXPIRY_SECONDS", 300)
 	v.SetDefault("OTP_MAX_ATTEMPTS", 3)
+	v.SetDefault("OTP_ECHO_ENABLED", false) // dev-only OTP echo; OFF unless explicitly enabled
+	v.SetDefault("PIN_MAX_ATTEMPTS", 5)
+	v.SetDefault("PIN_LOCKOUT_BASE_SECONDS", 30)
+	v.SetDefault("PIN_LOCKOUT_MAX_SECONDS", 900)
 
 	// All LMS traffic goes through the lms-api-gateway (/lms prefix); the
 	// notification URL points at the bff-notification sibling service.
@@ -82,6 +96,10 @@ func Load() (*Config, error) {
 		OTPLength:        v.GetInt("OTP_LENGTH"),
 		OTPExpiry:        time.Duration(v.GetInt("OTP_EXPIRY_SECONDS")) * time.Second,
 		OTPMaxAttempts:   v.GetInt("OTP_MAX_ATTEMPTS"),
+		OTPEchoEnabled:   v.GetBool("OTP_ECHO_ENABLED"),
+		PinMaxAttempts:   v.GetInt("PIN_MAX_ATTEMPTS"),
+		PinLockoutBase:   time.Duration(v.GetInt("PIN_LOCKOUT_BASE_SECONDS")) * time.Second,
+		PinLockoutMax:    time.Duration(v.GetInt("PIN_LOCKOUT_MAX_SECONDS")) * time.Second,
 
 		AccountServiceURL:         v.GetString("ACCOUNT_SERVICE_URL"),
 		OverdraftServiceURL:       v.GetString("OVERDRAFT_SERVICE_URL"),

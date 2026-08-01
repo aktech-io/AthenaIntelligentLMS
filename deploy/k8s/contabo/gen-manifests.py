@@ -61,6 +61,8 @@ GO_SERVICES = [
     # Mobile BFF — app-facing; call INTO the LMS services directly (the public
     # gateway strips X-Service-Key, so service-key calls must not transit it).
     ("bff-gateway",              8110, "athena_mobile_gateway", {
+        # F4: dev-only OTP echo must stay OFF in production (also the default).
+        "OTP_ECHO_ENABLED": "false",
         "ACCOUNT_SERVICE_URL": "http://account-service:8086",
         "OVERDRAFT_SERVICE_URL": "http://overdraft-service:8097",
         "PAYMENT_SERVICE_URL": "http://payment-service:8090",

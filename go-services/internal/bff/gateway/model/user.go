@@ -28,8 +28,11 @@ type MobileUser struct {
 	KYCTier         int        `db:"kyc_tier" json:"kycTier"`
 	ProfileImageURL *string    `db:"profile_image_url" json:"profileImageUrl,omitempty"`
 	DateOfBirth     *time.Time `db:"date_of_birth" json:"dateOfBirth,omitempty"`
-	CreatedAt       time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt       time.Time  `db:"updated_at" json:"updatedAt"`
+	// F4: server-side PIN attempt throttling state.
+	FailedPinAttempts int        `db:"failed_pin_attempts" json:"-"`
+	PinLockedUntil    *time.Time `db:"pin_locked_until" json:"-"`
+	CreatedAt         time.Time  `db:"created_at" json:"createdAt"`
+	UpdatedAt         time.Time  `db:"updated_at" json:"updatedAt"`
 }
 
 type AuthResponse struct {
@@ -44,6 +47,9 @@ type UserSummary struct {
 	FullName    *string    `json:"fullName,omitempty"`
 	Status      UserStatus `json:"status"`
 	KYCTier     int        `json:"kycTier"`
+	// HasPin lets the app route returning users to PIN verification instead
+	// of PIN setup (F4: re-login must never silently replace an existing PIN).
+	HasPin bool `json:"hasPin"`
 }
 
 type ProfileResponse struct {
@@ -81,5 +87,6 @@ func (u *MobileUser) ToSummary() UserSummary {
 		FullName:    u.FullName,
 		Status:      u.Status,
 		KYCTier:     u.KYCTier,
+		HasPin:      u.PinHash != nil,
 	}
 }
