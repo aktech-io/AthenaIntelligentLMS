@@ -269,12 +269,13 @@ Contabo run 30717863160 green, bff-gateway migration v2 applied):
 
 **New backlog from this session**: forgot-PIN recovery flow (schema has
 PIN_RESET OTP purpose, no endpoint — needs product decision: OTP alone must
-not bypass the PIN; likely OTP + KYC step-up); delete stale pre-fold-in
-`NemoWallet/backend/` (nothing deploys from it; still contains the old PIN
-overwrite + OTP echo — replace with README pointer to go-services);
-API pin/setup accepted a 4-digit PIN while the app enforces 6 — tighten
-server-side format validation; dashboard shows "$" for KE market (KES
-expected) — check app currency formatting vs market pack.
+not bypass the PIN; likely OTP + KYC step-up); dashboard shows "$" for KE
+market (KES expected) — check app currency formatting vs market pack.
+~~Stale `NemoWallet/backend/`~~ **deleted** (wallet `5484e27`; e2e suite
+preserved at `scripts/e2e-integration-test.sh`). ~~4-digit PIN accepted~~
+**fixed** (`c6b45be`, deployed + verified: setup/change now require exactly
+6 digits; verify untouched so legacy PINs can still authenticate and
+upgrade).
 
 Queue continues: real-device liveness QA (needs a physical phone) →
 threshold calibration on the new fusion shadow logs → LIVENESS_ENFORCE;
