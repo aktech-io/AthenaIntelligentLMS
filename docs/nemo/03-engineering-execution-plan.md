@@ -229,9 +229,20 @@ then LIVENESS_ENFORCE.
 ## Continuity snapshot — end of session 2026-08-01
 
 *Written for the next session (context reset). Everything below is committed
-and pushed; the CI deploy for `d8ebbbf` was queued at time of writing —
-verify it completed (`gh run list --workflow="Deploy Contabo"`), then do the
-one outstanding verification step.*
+and pushed.*
+
+**Update 2026-08-01 (evening session):** the 03:14 commit `7f713f5` (referral
+evidence fields, shadow-liveness Prometheus metrics, staged LIVENESS_ENFORCE)
+had been left **unpushed** when the previous session ended — now pushed,
+Deploy Contabo run 30717048981 green. Portal verification complete via the
+portal's own endpoints: cross-tenant list (`tenantId=*`) returns all 5
+applications incl. `1213838e` (REFERRED) and `cb646dd3`/`99785acd` (APPROVED);
+rejected pytest leftover `6dd3fc99` end-to-end (REJECTED, decidedBy=admin,
+OFFICER note appended). Old rows omit `faceMatchScore`/`livenessScore` — as
+designed (omitempty pointers, pre-migration rows are NULL); first
+post-migration-8 application will populate them. Next up: the engineering
+queue below, starting with real-device liveness QA (needs a physical phone)
+or F4 mobile hardening.
 
 **State of the world:**
 - Suite vs box 482/0/0. NemoScore chain, OCR-first onboarding (doc 07),
