@@ -495,10 +495,12 @@ func pinLockoutDuration(attempts, maxAttempts int, base, max time.Duration) time
 	return d
 }
 
-// validatePinFormat enforces the 4-6 digit PIN contract.
+// validatePinFormat enforces the 6-digit PIN contract the app presents.
+// Applied only when a PIN is set or changed — never on verify, so a legacy
+// shorter PIN can still authenticate and be upgraded via pin/change.
 func validatePinFormat(pin string) error {
-	if len(pin) < 4 || len(pin) > 6 {
-		return apperrors.BadRequest("PIN must be 4-6 digits")
+	if len(pin) != 6 {
+		return apperrors.BadRequest("PIN must be exactly 6 digits")
 	}
 	for _, c := range pin {
 		if c < '0' || c > '9' {

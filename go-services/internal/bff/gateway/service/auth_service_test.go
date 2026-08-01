@@ -32,10 +32,10 @@ func TestPinLockoutDuration(t *testing.T) {
 }
 
 func TestValidatePinFormat(t *testing.T) {
-	assert.NoError(t, validatePinFormat("1234"))
 	assert.NoError(t, validatePinFormat("123456"))
-	assert.Error(t, validatePinFormat("123"))     // too short
+	assert.Error(t, validatePinFormat("1234"))    // too short — app contract is 6
+	assert.Error(t, validatePinFormat("12345"))   // too short
 	assert.Error(t, validatePinFormat("1234567")) // too long
-	assert.Error(t, validatePinFormat("12a4"))    // non-digit
+	assert.Error(t, validatePinFormat("12a456"))  // non-digit
 	assert.Error(t, validatePinFormat(""))
 }
