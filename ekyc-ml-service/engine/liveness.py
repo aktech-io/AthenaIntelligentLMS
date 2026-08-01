@@ -30,11 +30,24 @@ below any sensible enforcement threshold — so an unprovisioned deployment
 can never fabricate a LIVE verdict. The result's ``model`` field tells the
 caller which path ran; enforcement itself is a Go-side concern
 (LIVENESS_ENFORCE, shadow-mode first per docs/nemo/08-liveness-plan.md).
+
+Multi-frame fusion (doc-09 Stage 1, SHADOW MODE): ``live_score`` is no longer
+the min across frames but the fused score from engine.liveness_fusion —
+median PAD + inter-frame parallax + moiré/frequency analysis + the active
+challenge result when the caller supplies one. The full sub-score breakdown
+rides along in the response (``fusion``) so shadow logs carry threshold
+calibration data; the old min-score policy is still reported as
+``fusion.padMin`` for A/B comparison. The fallback engine's fused score stays
+hard-capped at 0.5 — the model-free signals alone can never look LIVE.
 """
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from engine.liveness_fusion import FusionBreakdown
 
 _CROP_SCALE = 2.7  # MiniFASNetV2's standard detection-box widening factor
 _INPUT_SIZE = 80  # MiniFASNet input resolution (80x80)
@@ -62,18 +75,22 @@ class FrameScore:
 
 @dataclass
 class LivenessResult:
-    live_score: float  # 0..1, min across frames (weakest frame decides)
+    live_score: float  # 0..1, multi-frame fused score (see liveness_fusion)
     label: str  # "LIVE" | "SPOOF" | "UNKNOWN"
     per_frame: list[FrameScore]
     model: str  # "minifasnet_v2" | "fallback"
+    fusion: "FusionBreakdown | None" = None  # sub-scores for shadow calibration
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "liveScore": round(self.live_score, 4),
             "label": self.label,
             "perFrame": [f.as_dict() for f in self.per_frame],
             "model": self.model,
         }
+        if self.fusion is not None:
+            d["fusion"] = self.fusion.as_dict()
+        return d
 
 
 def _detect_largest_face(img):
@@ -150,9 +167,11 @@ def _class_probabilities(raw):
 # ─── primary engine ──────────────────────────────────────────────────────────
 
 
-def _score_minifasnet(images) -> LivenessResult:
+def _score_minifasnet(images, challenge_passed: bool | None) -> LivenessResult:
     import cv2
     import numpy as np
+
+    from engine.liveness_fusion import compute_fusion
 
     net = cv2.dnn.readNetFromONNX(liveness_model_path())
     per_frame: list[FrameScore] = []
@@ -169,31 +188,46 @@ def _score_minifasnet(images) -> LivenessResult:
         probs = _class_probabilities(net.forward())
         per_frame.append(FrameScore(float(probs[_LIVE_CLASS_INDEX]), True))
 
+    fusion = compute_fusion(
+        images, [f.score for f in per_frame], challenge_passed
+    )
     if not any(f.face_found for f in per_frame):
-        return LivenessResult(0.0, "UNKNOWN", per_frame, "minifasnet_v2")
-    live_score = min(f.score for f in per_frame)
-    label = "LIVE" if live_score >= _LIVE_THRESHOLD else "SPOOF"
-    return LivenessResult(live_score, label, per_frame, "minifasnet_v2")
+        # no face anywhere: fail-safe UNKNOWN/0.0 verdict, but keep the
+        # breakdown — shadow logs still want the model-free sub-scores
+        return LivenessResult(0.0, "UNKNOWN", per_frame, "minifasnet_v2", fusion)
+    label = "LIVE" if fusion.score >= _LIVE_THRESHOLD else "SPOOF"
+    return LivenessResult(fusion.score, label, per_frame, "minifasnet_v2", fusion)
 
 
 # ─── deterministic fallback ──────────────────────────────────────────────────
 
 
-def _score_fallback(images) -> LivenessResult:
+def _score_fallback(images, challenge_passed: bool | None) -> LivenessResult:
+    from engine.liveness_fusion import compute_fusion
+
     per_frame = []
     for img in images:
         found = _detect_largest_face(img) is not None
         per_frame.append(FrameScore(_FALLBACK_CAP if found else 0.0, found))
-    live_score = min(min(f.score for f in per_frame), _FALLBACK_CAP)
-    return LivenessResult(live_score, "UNKNOWN", per_frame, "fallback")
+    fusion = compute_fusion(
+        images, [f.score for f in per_frame], challenge_passed
+    )
+    if not any(f.face_found for f in per_frame):
+        # same fail-safe as the primary engine: no face anywhere -> 0.0
+        return LivenessResult(0.0, "UNKNOWN", per_frame, "fallback", fusion)
+    # unprovisioned deployments must never look confidently live, no matter
+    # what the model-free sub-scores say
+    live_score = min(fusion.score, _FALLBACK_CAP)
+    return LivenessResult(live_score, "UNKNOWN", per_frame, "fallback", fusion)
 
 
-def score_frames(images) -> LivenessResult:
-    """Score 1..n decoded BGR frames (np.ndarray). live_score is the minimum
-    across frames — the weakest frame decides — and the engine is chosen by
-    model availability; the output always says which one ran."""
+def score_frames(images, challenge_passed: bool | None = None) -> LivenessResult:
+    """Score 1..n decoded BGR frames (np.ndarray). live_score is the doc-09
+    Stage-1 fused score (median PAD + parallax + moiré + optional challenge
+    result — see engine.liveness_fusion); the engine is chosen by model
+    availability and the output always says which one ran."""
     if not images:
         raise ValueError("at least one frame is required")
     if model_available():
-        return _score_minifasnet(images)
-    return _score_fallback(images)
+        return _score_minifasnet(images, challenge_passed)
+    return _score_fallback(images, challenge_passed)
