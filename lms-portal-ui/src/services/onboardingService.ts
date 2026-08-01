@@ -18,6 +18,9 @@ export interface OnboardingApplication {
   riskTier?: OnboardingRiskTier;
   provider?: string;
   decisionReasons?: string;
+  // Structured face-match evidence — absent when no face match ran
+  // (the check needs both document and selfie evidence).
+  faceMatchScore?: number;
   // Passive-PAD (liveness) observability — absent when no PAD ran;
   // livenessScore absent when the score was unavailable (shadow-error).
   livenessScore?: number;

@@ -508,6 +508,8 @@ spec:
           value: "http://nemo-ekyc-ml:8102"
         - name: MEDIA_SERVICE_URL
           value: "http://media-service:8098"
+        - name: LIVENESS_ENFORCE
+          value: "false"
         ports:
         - containerPort: 8094
         readinessProbe:
@@ -1367,6 +1369,10 @@ spec:
         env:
         - name: PORT
           value: "8101"
+        - name: MLFLOW_HTTP_REQUEST_TIMEOUT
+          value: "3"
+        - name: MLFLOW_HTTP_REQUEST_MAX_RETRIES
+          value: "1"
         ports:
         - containerPort: 8101
         readinessProbe:

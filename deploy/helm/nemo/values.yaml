@@ -89,6 +89,9 @@ services:
       EKYC_PROVIDER: inhouse
       EKYC_ML_SERVICE_URL: http://nemo-ekyc-ml:8102
       MEDIA_SERVICE_URL: http://go-media-service:8098
+      # Passive-PAD stays in shadow mode; flip to "true" only after
+      # calibration — see docs/ekyc/06.
+      LIVENESS_ENFORCE: "false"
   - {name: reporting-service,        port: 8095, dbName: athena_reporting,     routeKey: REPORTING_SERVICE}
   - {name: ai-scoring-service,       port: 8096, dbName: athena_scoring,       routeKey: AI_SCORING_SERVICE}
   - {name: overdraft-service,        port: 8097, dbName: athena_overdraft,     routeKey: OVERDRAFT_SERVICE}

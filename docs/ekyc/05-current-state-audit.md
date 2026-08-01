@@ -18,10 +18,10 @@ part of this audit.*
 | Face match (1:1) | ✅ built | `engine/facematch.py` (YuNet detect + SFace embed); Go call `ekyc/inhouse.go:357-365`; threshold 0.85 `service/onboarding_service.go:22` | Runs in **fallback mode** (Haar + correlation, capped 0.75 at `facematch.py:35,173`) whenever ONNX files are absent — see model provisioning row |
 | Tier-1 active challenge (blink/turn/smile) | ✅ built (app-side) | NemoWallet `lib/core/kyc/liveness_challenge.dart:12` (`enum LivenessChallenge { blink, turnLeft, turnRight, smile }`), `face_signals_adapter.dart`, `kyc_selfie_screen.dart`, commit `d5d0c14`; frames flow as `selfieFrameRefs` end-to-end | Challenge completion is **client-verified only** — the server receives frames but cannot prove a challenge happened; a tampered client can send arbitrary frames |
 | Tier-2 passive liveness (MiniFASNetV2) | 🟡 partial | `engine/liveness.py` (full ONNX pipeline, 2.7× crop, class-index-1 = live), endpoint `api/face.py`; Go call `ekyc/inhouse.go:200-231` | **Model file not present** (`models/` holds only `.gitkeep`); Dockerfile download source unverified (HF community conversion, `Dockerfile:28`); threshold 0.5 is an explicit placeholder (`liveness.py:42`, `inhouse.go:40-43`) |
-| Liveness enforcement / shadow | 🟡 shadow only | `inhouse.go:61,105` (`LIVENESS_ENFORCE`, default false), shadow/enforce branch `inhouse.go:215-231`; score recorded in reasons `service/onboarding_service.go:100-103` | `LIVENESS_ENFORCE` set in **no** deploy manifest (compose/Helm/k8s) — shadow everywhere, which is intended, but shadow scores land only in the free-text `decision_reasons` column: no dedicated DB column, no metric — weak substrate for calibration. **Addressed 2026-08-01**: structured `liveness_score`/`liveness_mode`/`liveness_provider` columns (migration 7) now persist alongside the reason string; a metric is still open |
+| Liveness enforcement / shadow | 🟡 shadow only | `inhouse.go:61,105` (`LIVENESS_ENFORCE`, default false), shadow/enforce branch `inhouse.go:215-231`; score recorded in reasons `service/onboarding_service.go:100-103` | `LIVENESS_ENFORCE` set in **no** deploy manifest (compose/Helm/k8s) — shadow everywhere, which is intended, but shadow scores land only in the free-text `decision_reasons` column: no dedicated DB column, no metric — weak substrate for calibration. **Addressed 2026-08-01**: structured `liveness_score`/`liveness_mode`/`liveness_provider` columns (migration 7) now persist alongside the reason string; **metrics landed 2026-08-01**: `nemo_onboarding_liveness_score{mode,provider}` histogram (+ `nemo_onboarding_face_match_score`, `nemo_onboarding_decisions_total`) on compliance-service `/metrics` |
 | Tier-3 bridge SDK (doc-09 Stage 0) | 🔴 not started | No code. `grep -rn LivenessProvider go-services/` → 0 hits | Docs 09/10 describe mounting the bridge "behind the existing LivenessProvider seam" — **that seam does not exist**; liveness is inlined in the `Inhouse` eKYC provider. **Seam addressed 2026-08-01**: `internal/compliance/liveness` registry (`LIVENESS_PROVIDER`, default `inhouse`) now exists. **Bridge SDK dropped by founder decision 2026-08-01** — no vendor licenses; own-model-only path, certification-only spend (doc 06 §4); the seam is kept for VeriFayda (ET) and model A/B |
 | Screening lists | 🟡 demo data, guarded | Matcher: `engine/screening.py`, `engine/names.py` (fuzzy, threshold 0.85); data: `data/sanctions_demo.csv`, `data/pep_demo.csv` — 5+5 **fictional** entries. Addressed 2026-08-01 — `EKYC_ALLOW_DEMO_LISTS=false` production guard (demo-only lists → `/v1/screen` 503 fail-closed + degraded `/health`; set in Helm, dev default in compose) and `scripts/sync-screening-lists.py` (OFAC SDN+Consolidated, UN XML, EU FSF via `--eu-url`; atomic writes, `--verify` freshness, parser unit tests) | Real lists still an ops run of the sync cron (by design — data isn't vendored); PEP feed remains commercial/manual; no Prometheus staleness metric yet (only `/health` + `--verify`) |
-| Referral queue / officer portal | ✅ built | `service/onboarding_service.go:200-247` (List status=REFERRED, Decide), `lms-portal-ui/src/pages/OnboardingReferralsPage.tsx`, cross-tenant officer queue (commit `d8ebbbf`), migration `5_onboarding.up.sql` | Referral view shows `decision_reasons` text; no structured display of per-check evidence (scores, extracted fields) |
+| Referral queue / officer portal | ✅ built | `service/onboarding_service.go:200-247` (List status=REFERRED, Decide), `lms-portal-ui/src/pages/OnboardingReferralsPage.tsx`, cross-tenant officer queue (commit `d8ebbbf`), migration `5_onboarding.up.sql` | Referral view shows `decision_reasons` text; no structured display of per-check evidence (scores, extracted fields). **Addressed 2026-08-01**: details dialog gained an "Evidence" section — face-match score vs the 0.85 threshold (`face_match_score` column, migration 8), liveness score/mode/provider, and color-coded decision-reason chips; extracted OCR fields remain unexposed |
 | DPIA / compliance artifacts | 🔴 not started | `grep -rl DPIA docs/` → plan references only (docs/nemo/08:55, 10:33) | Required by the Kenya DPA before liveness/face-match at scale, and gates the NLD-EA capture campaign (doc 10 G1) |
 | Model provisioning (ONNX actually present) | 🟡 hardened | Repo `models/`: **empty** (`.gitkeep` only). Addressed 2026-08-01 — Dockerfile pins SHA-256 for all three downloads (YuNet + SFace OpenCV zoo, MiniFASNetV2 HF `garciafido/...`; wrong hash **fails the build**, offline build still falls back); `EXPECTED_FACE_ENGINE`/`EXPECTED_LIVENESS_ENGINE` readiness gating (`/health` 503 on mode mismatch, `engine/readiness.py`); optional Helm models volume (`ekycMl.modelsPvc`/`modelsVolume` → `/app/models`) + `ekycMl.expectedEngines` env wiring | Fallback-on-offline-build is still silent unless `expectedEngines` is enabled (off by default); startup class-order sanity eval (known live + spoof image) still pending; PAD conversion provenance still community HF |
 | Test coverage | 🟡 good logic, thin pipeline | ekyc-ml: **67 passed, 5 skipped** (this audit, 0.35 s); Go: 8 tests each in `ekyc/inhouse_test.go`, `service/onboarding_service_test.go`; pytest `tests/test_35_document_types.py`; Flutter `test/core/kyc/{mrz_parser,liveness_challenge,ocr_profiles,face_signals_adapter}_test.dart` | All Python tests are pure-logic (no Tesseract/OpenCV/model needed); the 5 skips are the liveness endpoint tests (FastAPI/numpy absent locally); real OCR/face/PAD pipelines exercised only via a running stack; **zero attack-image corpus** |
@@ -93,7 +93,10 @@ the code implements them as described:
   (`onboarding_service.go:100-103`).
   **Addressed 2026-08-01**: `7_liveness_observability.up.sql` adds
   `liveness_score`/`liveness_mode`/`liveness_provider` (nullable), populated
-  by Submit and exposed through the API and the referral portal dialog.
+  by Submit and exposed through the API and the referral portal dialog;
+  `8_face_match_observability.up.sql` adds `face_match_score` (nullable —
+  NULL = no face match ran, i.e. score 0 without both document and selfie
+  evidence) the same way.
 
 ### 2.3 Mobile app (NemoWallet — separate repo, `/home/adira/projects/aktech/NemoWallet`)
 
@@ -122,6 +125,10 @@ repo, not this one:
   model/list provisioning depends entirely on what the image build downloaded.
 - `LIVENESS_ENFORCE` appears in no manifest → shadow mode everywhere (correct
   for now, but enforcement day requires touching every deploy target).
+  **Addressed 2026-08-01**: staged explicitly as `"false"` (current default —
+  no behavior change) in compose, Helm values and `gen-manifests.py`/k8s, so
+  enforcement day is a one-line diff per target (flip gated on calibration,
+  doc 06).
 
 ### 2.5 Test run (this audit)
 
@@ -169,9 +176,11 @@ require the full docker-compose stack.
 6. **Shadow scores are unqueryable.** Liveness mode/score live in a free-text
    `decision_reasons` column. Threshold calibration on real traffic (doc 08's
    stated must-do) needs a structured store (column or event) plus a metric.
-   **Addressed 2026-08-01** (columns) — migration 7 adds
-   `liveness_score`/`liveness_mode`/`liveness_provider`; a Prometheus
-   histogram is still open.
+   **Addressed 2026-08-01** (columns + metrics) — migration 7 adds
+   `liveness_score`/`liveness_mode`/`liveness_provider`, migration 8 adds
+   `face_match_score`; `nemo_onboarding_liveness_score` /
+   `nemo_onboarding_face_match_score` histograms and
+   `nemo_onboarding_decisions_total` export from `/metrics`.
 7. **Tier-1 challenge is client-attestable only.** The server cannot
    distinguish genuine challenge frames from a replayed video of someone doing
    a challenge; Tier 2 (not yet enforcing) is the only server-side check.
@@ -194,8 +203,9 @@ require the full docker-compose stack.
 2. **Structure the shadow data**: add `liveness_score`/`liveness_mode` columns
    (or a compliance event) + a Prometheus histogram, so calibration has a
    dataset from day one of real traffic.
-   *Addressed 2026-08-01 (columns + provider column, API + portal display;
-   histogram still open).*
+   *Addressed 2026-08-01 (columns + provider column + `face_match_score`,
+   API + portal Evidence display, and the Prometheus histograms/counter on
+   compliance-service `/metrics`).*
 3. **Extract the LivenessProvider seam** (`{frames} → {liveScore, decision,
    provider, auditRef}` registry, doc 08 style) out of `inhouse.go` — the
    prerequisite for Stage-0 bridge SDK, VeriFayda (ET), and A/B shadow.
@@ -219,3 +229,6 @@ require the full docker-compose stack.
 9. **Enforcement switch dry-run**: once calibrated, stage `LIVENESS_ENFORCE`
    into compose/Helm/k8s manifests explicitly (it appears in none today) with
    referral-not-reject UX confirmed.
+   *Staging addressed 2026-08-01 — all three targets now carry an explicit
+   `LIVENESS_ENFORCE: "false"`; the calibrated flip and the UX dry-run remain
+   open.*

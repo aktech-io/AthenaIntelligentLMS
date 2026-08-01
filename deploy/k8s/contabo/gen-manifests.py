@@ -41,6 +41,9 @@ GO_SERVICES = [
         "EKYC_PROVIDER": "inhouse",
         "EKYC_ML_SERVICE_URL": "http://nemo-ekyc-ml:8102",
         "MEDIA_SERVICE_URL": "http://media-service:8098",
+        # Passive-PAD stays in shadow mode; flip to "true" only after
+        # calibration — see docs/ekyc/06.
+        "LIVENESS_ENFORCE": "false",
     }),
     ("reporting-service",        8095, "athena_reporting", {}),
     ("ai-scoring-service",       8096, "athena_scoring", {}),

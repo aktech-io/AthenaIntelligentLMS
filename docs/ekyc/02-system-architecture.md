@@ -161,7 +161,14 @@ Disabling the sidecar for a vendor-based tenant: `ekycMl.enabled=false` +
 - **Observability**: liveness shadow outcomes land in the structured
   `liveness_score` / `liveness_mode` / `liveness_provider` columns (migration 7,
   NULL = no PAD ran) and — for backward compatibility — in `decision_reasons`
-  (`LIVENESS[mode=… score=… frames=…]`); `/health` on the
+  (`LIVENESS[mode=… score=… frames=…]`); face-match scores land in
+  `face_match_score` (migration 8, NULL = no face match ran — both document and
+  selfie evidence are required for the check). compliance-service `/metrics`
+  (Prometheus, H2 baseline) additionally exports the onboarding decision path:
+  `nemo_onboarding_decisions_total{status,risk_tier}`,
+  `nemo_onboarding_liveness_score{mode,provider}` (histogram, 0.1 buckets over
+  [0,1], observed only when a PAD score arrived) and
+  `nemo_onboarding_face_match_score` (histogram). `/health` on the
   sidecar reports which engines are live (`faceEngine`, `livenessEngine`, list counts).
 
 ## 4. Data model
@@ -185,6 +192,7 @@ erDiagram
         varchar provider
         varchar provider_ref
         text decision_reasons "joined by '; '"
+        numeric face_match_score "doc-vs-selfie 0..1 (nullable — NULL = no face match ran)"
         numeric liveness_score "P(live) 0..1 (nullable — NULL = no PAD ran)"
         varchar liveness_mode "shadow|shadow-error|enforce (nullable)"
         varchar liveness_provider "liveness.Provider registry name (nullable)"
@@ -249,7 +257,7 @@ Integrity rules worth knowing:
 | `EKYC_ML_SERVICE_URL` | — (required for inhouse) | sidecar base URL; empty → Verify fails closed (also used by the `inhouse` liveness scorer) |
 | `MEDIA_SERVICE_URL` | — (required for inhouse) | media base URL; empty → Verify fails closed |
 | `LMS_INTERNAL_SERVICE_KEY` | compose: `athena-internal-key` | service-to-service auth |
-| `LIVENESS_ENFORCE` | unset → **shadow mode** | exactly `"true"` enables enforcement (`"1"`/`"TRUE"` do not) |
+| `LIVENESS_ENFORCE` | unset → **shadow mode**; compose/Helm/k8s stage it explicitly as `"false"` since 2026-08-01, so enforcement day is a one-line diff per target | exactly `"true"` enables enforcement (`"1"`/`"TRUE"` do not) — flip only after calibration (see [06](06-level2-upgrade-plan.md)) |
 | `MARKET_PACK` / `MARKET_PACK_DIR` | `KE` | market pack (accepted doc types, number patterns, OCR profiles) |
 | `PORT` / `DB_NAME` | 8094 / `athena_compliance` | service basics |
 

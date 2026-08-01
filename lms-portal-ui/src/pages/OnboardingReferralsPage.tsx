@@ -39,6 +39,26 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   PASSPORT: "Passport",
 };
 
+// Face-match auto-approve line (mirrors faceMatchThreshold in
+// onboarding_service.go) — display context only, the decision is server-side.
+const FACE_MATCH_THRESHOLD = 0.85;
+
+// Reason-code chip styling, matched by prefix (reasons like
+// "FACE_MATCH_BELOW_THRESHOLD (0.79 < 0.85)" carry detail after the code).
+// LIVENESS[...] observability and OFFICER: notes stay neutral.
+const REASON_STYLES: Array<[prefix: string, color: string]> = [
+  ["SANCTIONS_HIT", "bg-destructive/15 text-destructive border-destructive/30"],
+  ["PEP_HIT", "bg-destructive/15 text-destructive border-destructive/30"],
+  ["DOCUMENT_UNVERIFIED", "bg-warning/15 text-warning border-warning/30"],
+  ["LIVENESS_FAILED", "bg-warning/15 text-warning border-warning/30"],
+  ["FACE_MATCH_BELOW_THRESHOLD", "bg-warning/15 text-warning border-warning/30"],
+  ["ALL_CHECKS_PASSED", "bg-success/15 text-success border-success/30"],
+];
+
+const reasonColor = (reason: string) =>
+  REASON_STYLES.find(([prefix]) => reason.startsWith(prefix))?.[1]
+    ?? "bg-muted/50 text-muted-foreground";
+
 type StatusFilter = OnboardingStatus | "ALL";
 
 const OnboardingReferralsPage = () => {
@@ -237,16 +257,7 @@ const OnboardingReferralsPage = () => {
                   <p className="text-xs text-muted-foreground">Provider</p>
                   <p className="text-xs">{selected.provider || "—"}</p>
                 </div>
-                {(selected.livenessMode || selected.livenessScore != null) && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Liveness</p>
-                    <p className="text-xs">
-                      {selected.livenessScore != null ? selected.livenessScore.toFixed(2) : "—"}
-                      {selected.livenessMode && ` (${selected.livenessMode}${selected.livenessProvider ? `, ${selected.livenessProvider}` : ""})`}
-                    </p>
-                  </div>
-                )}
-                <div>
                   <p className="text-xs text-muted-foreground">Document Ref</p>
                   <p className="text-xs font-mono break-all">{selected.documentRef || "—"}</p>
                 </div>
@@ -264,17 +275,45 @@ const OnboardingReferralsPage = () => {
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Decision Reasons</p>
-                {decisionReasons.length > 0 ? (
-                  <ul className="space-y-1">
-                    {decisionReasons.map((r, i) => (
-                      <li key={i} className="text-xs bg-muted/50 rounded px-2 py-1.5">{r}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-muted-foreground">—</p>
+              {/* Evidence: structured per-check outcomes behind the referral,
+                  so officers see scores, not just reason text. */}
+              <div className="border-t pt-3 space-y-3">
+                <p className="text-xs font-medium">Evidence</p>
+                {(selected.faceMatchScore != null || selected.livenessMode || selected.livenessScore != null) && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    {selected.faceMatchScore != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Face Match</p>
+                        <p className={`text-xs font-medium ${selected.faceMatchScore >= FACE_MATCH_THRESHOLD ? "text-success" : "text-warning"}`}>
+                          {selected.faceMatchScore.toFixed(2)} / {FACE_MATCH_THRESHOLD.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    {(selected.livenessMode || selected.livenessScore != null) && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Liveness</p>
+                        <p className="text-xs">
+                          {selected.livenessScore != null ? selected.livenessScore.toFixed(2) : "—"}
+                          {selected.livenessMode && ` (${selected.livenessMode}${selected.livenessProvider ? `, ${selected.livenessProvider}` : ""})`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Decision Reasons</p>
+                  {decisionReasons.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {decisionReasons.map((r, i) => (
+                        <Badge key={i} variant="outline" className={`text-[10px] font-normal ${reasonColor(r)}`}>
+                          {r}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">—</p>
+                  )}
+                </div>
               </div>
 
               {isDecided ? (

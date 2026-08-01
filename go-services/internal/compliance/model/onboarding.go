@@ -42,6 +42,11 @@ type OnboardingApplication struct {
 	Provider        *string          `json:"provider,omitempty"`
 	ProviderRef     *string          `json:"providerRef,omitempty"`
 	DecisionReasons *string          `json:"decisionReasons,omitempty"`
+	// FaceMatchScore is the structured document-vs-selfie score (mirroring
+	// ekyc.Result.FaceMatchScore); nil when no face match ran — the check
+	// needs both document and selfie evidence, so a 0 score without both
+	// refs means "not run", never "no match".
+	FaceMatchScore *float64 `json:"faceMatchScore,omitempty"`
 	// Passive-PAD observability (docs/nemo/08): structured liveness outcome
 	// per application, mirroring ekyc.Result. All nil when no PAD ran;
 	// LivenessScore stays nil on shadow-error (score unavailable).

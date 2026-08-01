@@ -117,7 +117,14 @@ flowchart TD
 When a PAD call ran, an observability reason is appended regardless of outcome:
 `LIVENESS[mode=<shadow|shadow-error|enforce> score=<%.2f> frames=<n>]` — this is the
 shadow-mode calibration data source for the
-[Level-2 upgrade plan](06-level2-upgrade-plan.md).
+[Level-2 upgrade plan](06-level2-upgrade-plan.md). Since 2026-08-01 the same
+outcomes also land structured: `face_match_score` (migration 8) and the
+`liveness_*` columns (migration 7) per application, plus the Prometheus
+histograms `nemo_onboarding_liveness_score` / `nemo_onboarding_face_match_score`
+and the `nemo_onboarding_decisions_total` counter on compliance-service
+`/metrics` — the referral dialog renders them as an "Evidence" section
+(face-match score against the 0.85 line, liveness score/mode/provider,
+color-coded reason chips).
 
 ## 5. Officer review loop (referral queue)
 
@@ -132,7 +139,7 @@ sequenceDiagram
     P->>C: GET /api/v1/onboarding/?status=REFERRED&page=0&size=50&tenantId=*
     Note right of C: staffTenant: ?tenantId only honored for<br/>ADMIN / MANAGER / SERVICE;<br/>"*" → unscoped (all tenants);<br/>others pinned to own tenant
     C-->>P: applications (created_at DESC)
-    O->>P: open application → review decision_reasons<br/>(split on "; ")
+    O->>P: open application → review Evidence<br/>(face match vs 0.85 · liveness score/mode/provider ·<br/>decision-reason chips, split on "; ")
     alt approve
         O->>P: approve + reason (mandatory)
         P->>C: POST /api/v1/onboarding/{id}/approve?tenantId=<app tenant> {reason}

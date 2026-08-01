@@ -122,6 +122,16 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 	if verr == nil {
 		app.ProviderRef = &res.ProviderRef
 	}
+	// Structured face-match column (migration 8): the check runs only when
+	// both document and selfie evidence exist (the inhouse provider posts
+	// /v1/face/match with both images; the sandbox mirrors this), so a 0
+	// score without both refs means "not run" → NULL. A genuine 0.0 with
+	// both images present persists as 0; a non-zero score always persists.
+	if verr == nil && (res.FaceMatchScore != 0 ||
+		(deref(req.DocumentRef) != "" && deref(req.SelfieRef) != "")) {
+		faceScore := res.FaceMatchScore
+		app.FaceMatchScore = &faceScore
+	}
 	// Structured PAD columns beside the LIVENESS[...] reason string (kept for
 	// backward compatibility): NULL mode = no PAD ran, NULL score = score
 	// unavailable (-1, e.g. shadow-error). Calibration queries read these.
@@ -150,6 +160,17 @@ func (s *OnboardingService) Submit(ctx context.Context, req model.SubmitOnboardi
 			return nil, errors.NewBusinessError("An open onboarding application already exists for this identity")
 		}
 		return nil, err
+	}
+
+	// Prometheus (docs/ekyc/05 action 2): observe the decision and the
+	// per-check scores once the application is durably recorded — the
+	// histogram + column pair is the shadow-calibration dataset.
+	onboardingDecisions.WithLabelValues(string(status), string(tier)).Inc()
+	if res.LivenessMode != "" && res.LivenessScore >= 0 {
+		onboardingLivenessScore.WithLabelValues(res.LivenessMode, res.LivenessProvider).Observe(res.LivenessScore)
+	}
+	if app.FaceMatchScore != nil {
+		onboardingFaceMatchScore.Observe(*app.FaceMatchScore)
 	}
 
 	// Auto-approval materializes the KYC record with the provider as checker.

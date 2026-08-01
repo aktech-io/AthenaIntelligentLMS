@@ -377,3 +377,66 @@ func TestSubmitPersistsStructuredLiveness(t *testing.T) {
 		}
 	})
 }
+
+// Structured face-match evidence (docs/ekyc/05 "Referral queue" gap,
+// migration 8): the score persists as a queryable column whenever the check
+// ran — score 0 with incomplete doc/selfie evidence means "not run" → NULL.
+func TestSubmitPersistsFaceMatchScore(t *testing.T) {
+	submit := func(t *testing.T, res ekyc.Result, req model.SubmitOnboardingRequest) *model.OnboardingApplication {
+		t.Helper()
+		app, err := newSvc(newFakeRepo(), cannedProvider{res: res}).Submit(context.Background(), req, "t1")
+		if err != nil {
+			t.Fatalf("Submit: %v", err)
+		}
+		return app
+	}
+	full := func(nationalID string) model.SubmitOnboardingRequest {
+		return model.SubmitOnboardingRequest{
+			Phone: "+254700000011", FullName: "Face Case", NationalID: nationalID,
+			DocumentRef: obStr("d"), SelfieRef: obStr("s"),
+		}
+	}
+
+	t.Run("below-threshold score persists", func(t *testing.T) {
+		app := submit(t, ekyc.Result{
+			DocumentVerified: true, LivenessPassed: true, FaceMatchScore: 0.79,
+		}, full("12345611"))
+		if app.FaceMatchScore == nil || *app.FaceMatchScore != 0.79 {
+			t.Errorf("FaceMatchScore = %v, want 0.79", app.FaceMatchScore)
+		}
+		if app.Status != model.OnboardingReferred {
+			t.Errorf("status = %s, want REFERRED (0.79 < 0.85)", app.Status)
+		}
+	})
+
+	t.Run("genuine 0.0 with both refs persists as 0", func(t *testing.T) {
+		app := submit(t, ekyc.Result{
+			DocumentVerified: true, LivenessPassed: true, FaceMatchScore: 0,
+		}, full("12345612"))
+		if app.FaceMatchScore == nil || *app.FaceMatchScore != 0 {
+			t.Errorf("FaceMatchScore = %v, want 0 (check ran, no match)", app.FaceMatchScore)
+		}
+	})
+
+	t.Run("no selfie evidence stores NULL", func(t *testing.T) {
+		app := submit(t, ekyc.Result{DocumentVerified: true},
+			model.SubmitOnboardingRequest{
+				Phone: "+254700000012", FullName: "No Selfie", NationalID: "12345613",
+				DocumentRef: obStr("d"), // no selfie → face match never ran
+			})
+		if app.FaceMatchScore != nil {
+			t.Errorf("FaceMatchScore = %v, want nil (no face match ran)", *app.FaceMatchScore)
+		}
+	})
+
+	t.Run("provider error stores NULL", func(t *testing.T) {
+		app, err := newSvc(newFakeRepo(), failingProvider{}).Submit(context.Background(),
+			full("12345614"), "t1")
+		if err != nil {
+			t.Fatalf("Submit: %v", err)
+		}
+		if app.FaceMatchScore != nil {
+			t.Errorf("FaceMatchScore = %v, want nil on provider error", *app.FaceMatchScore)
+		}
+	})
+}

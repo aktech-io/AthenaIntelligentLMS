@@ -281,6 +281,9 @@ services:
       EKYC_PROVIDER: "${EKYC_PROVIDER:-inhouse}"
       EKYC_ML_SERVICE_URL: "http://ekyc-ml-service:8102"
       MEDIA_SERVICE_URL: "http://go-media-service:8098"
+      # Passive-PAD stays in shadow mode (score + record, never decide);
+      # flip to "true" only after calibration — see docs/ekyc/06.
+      LIVENESS_ENFORCE: "false"
     depends_on:
       postgres:
         condition: service_healthy
