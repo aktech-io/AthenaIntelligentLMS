@@ -63,8 +63,14 @@ class TestFallbackEngine:
 
     def test_as_dict_is_camel_case_contract(self):
         d = score_frames([blank_frame()]).as_dict()
-        assert set(d) == {"liveScore", "label", "perFrame", "model"}
+        # pre-fusion keys unchanged (Go reads liveScore/label/model); the
+        # doc-09 Stage-1 fusion breakdown is additive
+        assert set(d) == {"liveScore", "label", "perFrame", "model", "fusion"}
         assert set(d["perFrame"][0]) == {"score", "faceFound"}
+        assert set(d["fusion"]) == {
+            "score", "padMedian", "padMin", "parallax", "moire", "challenge",
+            "motionPx", "nonRigidityPx", "moirePeakRatio", "frames", "version",
+        }
 
     def test_scaled_crop_is_80x80_and_in_bounds(self):
         # box near the edge: the 2.7x widened box must clamp, not throw
@@ -92,7 +98,7 @@ class TestLivenessEndpoint:
         r = client.post("/v1/face/liveness", files=self.frames(2))
         assert r.status_code == 200
         body = r.json()
-        assert set(body) == {"liveScore", "label", "perFrame", "model"}
+        assert set(body) == {"liveScore", "label", "perFrame", "model", "fusion"}
         assert body["model"] == "fallback"
         assert body["label"] == "UNKNOWN"
         assert body["liveScore"] <= 0.5
@@ -105,15 +111,16 @@ class TestLivenessEndpoint:
         r = client.post("/v1/face/liveness", files=[])
         assert r.status_code == 422  # FastAPI: required field missing
 
-    def test_rejects_more_than_five_frames(self, client):
-        r = client.post("/v1/face/liveness", files=self.frames(6))
+    def test_rejects_more_than_ten_frames(self, client):
+        # doc-09 Stage 1 widened the cap from 5 to the 10-frame aggregation
+        r = client.post("/v1/face/liveness", files=self.frames(11))
         assert r.status_code == 400
-        assert "5" in r.json()["detail"]
+        assert "10" in r.json()["detail"]
 
-    def test_five_frames_accepted(self, client):
-        r = client.post("/v1/face/liveness", files=self.frames(5))
+    def test_ten_frames_accepted(self, client):
+        r = client.post("/v1/face/liveness", files=self.frames(10))
         assert r.status_code == 200
-        assert len(r.json()["perFrame"]) == 5
+        assert len(r.json()["perFrame"]) == 10
 
     def test_undecodable_frame_is_422(self, client):
         files = [("frame", ("junk.png", b"not-an-image", "image/png"))]
