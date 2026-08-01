@@ -6,16 +6,11 @@
 - Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`
 
 ## Project Structure
-- **Go monorepo**: `go-services/` — all 16 microservices in one Go module
-- **Frontend**: `lms-portal-ui/` — React + TypeScript + Vite + Tailwind + shadcn/ui
-- **Tests**: `tests/` — pytest API tests (187 tests), `tests/ui/` — Playwright UI tests
 - **Docker**: `docker-compose.go.yml` overlays on `~/AthenaCreditScore/docker-compose.yml`
 - **Archived Java**: `_archived_java/` — original Spring Boot services (reference only)
 
 ## Go Services (ports 28xxx on host)
 - All services share `go-services/internal/common/` (auth, config, db, event, middleware)
-- Each service: `go-services/cmd/<service>/main.go` + `go-services/internal/<domain>/`
-- Migrations: `go-services/migrations/<service>/`
 - Config via env vars (Viper): DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, PORT, JWT_SECRET
 
 ## Running Locally
