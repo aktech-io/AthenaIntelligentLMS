@@ -1,0 +1,6 @@
+# Deliberately minimal — the rig must run on the same slim box as
+# ekyc-ml-service, with no ML framework of its own. sqlite3 is stdlib.
+numpy>=1.26.4
+opencv-python-headless>=4.10.0
+requests>=2.31.0
+pytest>=8.0.0
