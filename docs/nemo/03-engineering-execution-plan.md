@@ -277,8 +277,40 @@ preserved at `scripts/e2e-integration-test.sh`). ~~4-digit PIN accepted~~
 6 digits; verify untouched so legacy PINs can still authenticate and
 upgrade).
 
+**Update 2026-08-02 (certification-tech session): the doc-06 Stage-1/2
+machinery is BUILT** — four parallel agents, all merged to master:
+- `liveness-training/` — teacher (CLIP/FLIP-style, fits 4060: 1.1–3.4GB
+  VRAM measured) → distilled 80×80 student → ONNX with cv2.dnn parity
+  ≤1e-4 vs serving's exact blob path; APCER/BPCER/ACER + per-skin-tone
+  eval; NLD-EA loader with frozen 70/15/15 sharding (redteam shard
+  explicit-flag-only). 52 tests green via scripts/smoke.sh.
+- `liveness-redteam/` — ISO 30107-3 rig: session runner (HTTP or
+  in-process), per/worst-species APCER, l1_gate (0/500) + l2_gate (≤1%),
+  sqlite trend history, markdown reports. 86 tests. Confirmed contract:
+  POST /v1/face/liveness, multipart `frame` parts, Go provider truncates
+  to 5 frames (service cap 10).
+- `nldea-capture/` — Flutter operator app for the NLD-EA campaign:
+  hard consent gate (router-enforced), pseudonymous IDs, guided
+  genuine/attack capture, Monk skin-tone, sha256'd session zips in the
+  shared manifest schema (docs in liveness-training/docs/NLDEA_FORMAT.md),
+  G2 dashboard. 37 tests. Consent copy is v0-draft — DPIA counsel must
+  replace before G1.
+- `ekyc-ml-service/tools/calibration/` — shadow-log → threshold
+  recommendation reports (deployed; run 30732559218). **Critical fix
+  shipped**: uvicorn logging config was swallowing the ekyc.liveness
+  shadow line — zero calibration data would ever have accumulated. Also:
+  box has zero liveness traffic since fusion deploy; data starts with
+  real submissions.
+- Datasets: CelebA-Spoof HF parquet mirror (~72GB) syncing to
+  /mnt/ml/datasets/celeba-spoof-parquet (mirror is bootstrap-only — no
+  subject IDs/attack species; original archive needed for subject-safe
+  evals). **CASIA-SURF CeFA needs a signed research agreement — founder
+  action, apply ASAP.** Licensing stance: public sets bootstrap teacher +
+  internal evals only; certified model trains on NLD-EA.
+
 Queue continues: real-device liveness QA (needs a physical phone) →
 threshold calibration on the new fusion shadow logs → LIVENESS_ENFORCE;
+first teacher bootstrap run on CelebA-Spoof once train shards land;
 B2/B3 P2P + bills; identity federation; ET Fayda emulator pass; APK size.
 
 **State of the world:**
