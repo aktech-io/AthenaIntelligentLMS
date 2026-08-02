@@ -1,0 +1,9 @@
+# Run artifacts — never commit results DBs, generated reports or captured
+# sessions. Real capture sessions live in the encrypted on-prem NLD-EA store,
+# not the repo.
+*.db
+*.db-journal
+runs/
+sessions/
+__pycache__/
+*.pyc
