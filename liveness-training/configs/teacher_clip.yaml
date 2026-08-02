@@ -1,0 +1,40 @@
+# DG teacher — FLIP-style CLIP fine-tune, sized for an 8GB RTX 4060 Laptop.
+#
+# ── VRAM budget (ViT-B-16 @ 224, fp16 autocast) ────────────────────────────
+#   weights (fp32 master + fp16 autocast copies)      ~ 0.9 GB
+#   AdamW states for trainable params only
+#     (last_n:4 blocks + head ≈ 28M params → m+v fp32) ~ 0.3 GB
+#   activations, micro-batch 16 @ 224², ckpt-free      ~ 3.5-4.0 GB
+#   CUDA/cuDNN workspaces + fragmentation headroom     ~ 0.7 GB
+#   ─────────────────────────────────────────────────  ≈ 5.5-6.0 GB peak
+# Fits 8GB with a browser closed; if you OOM, first drop batch_size to 8 and
+# double grad_accum (identical effective batch 64), then freeze: head_only.
+# The training loop prints and saves the measured peak (vram_peak_mib.txt) —
+# trust that number over this table.
+#
+# Effective batch = batch_size × grad_accum = 64.
+
+seed: 42
+augment: true
+
+teacher:
+  backbone: "clip:ViT-B-16"        # FLIP-style CLIP vision tower
+  clip_pretrained: "openai"        # open_clip pretrain tag
+  fallback_backbone: "resnet18"    # used only when open_clip is missing
+  pretrained: true                 # torchvision-fallback path only
+  freeze: "last_n:4"               # tower frozen except last 4 blocks + head
+
+data:
+  source: "celeba_spoof"           # bootstrap; switch to nldea at gate G2
+  root: "/mnt/ml/datasets/celeba-spoof-parquet"
+  source_partition: "train"
+  frames_per_sample: 1
+
+optim:
+  epochs: 5
+  batch_size: 16                   # micro-batch (see VRAM budget above)
+  grad_accum: 4
+  lr: 5.0e-5
+  weight_decay: 0.01
+  amp: true                        # fp16 autocast — mandatory at 8GB
+  num_workers: 4

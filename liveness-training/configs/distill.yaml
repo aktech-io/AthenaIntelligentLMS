@@ -1,0 +1,28 @@
+# Student distillation — MobileNetV3-Small (80×80) from the DG teacher.
+# The student is tiny; VRAM here is dominated by the frozen teacher's
+# forward pass (~2.5 GB at batch 32 fp16) — comfortable on the 4060.
+
+seed: 42
+augment: true
+
+student:
+  width_mult: 1.0
+
+distill:
+  temperature: 4.0
+  alpha: 0.7          # weight of the KD (soft-target) term vs hard CE
+
+data:
+  source: "celeba_spoof"           # bootstrap; switch to nldea at gate G2
+  root: "/mnt/ml/datasets/celeba-spoof-parquet"
+  source_partition: "train"
+  frames_per_sample: 1
+
+optim:
+  epochs: 10
+  batch_size: 32
+  grad_accum: 1
+  lr: 3.0e-4
+  weight_decay: 0.01
+  amp: true
+  num_workers: 4

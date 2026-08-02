@@ -1,0 +1,7 @@
+# local virtualenvs and run outputs only — source lives in liveness_training/
+.venv/
+.venv-*/
+runs/
+__pycache__/
+*.pyc
+.pytest_cache/

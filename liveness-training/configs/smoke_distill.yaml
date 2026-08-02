@@ -1,0 +1,26 @@
+# CPU-friendly smoke distillation config (pairs with smoke_teacher.yaml).
+
+seed: 7
+augment: false
+
+student:
+  width_mult: 1.0
+
+distill:
+  temperature: 4.0
+  alpha: 0.7
+
+data:
+  source: "synthetic"
+  n_subjects: 14
+  samples_per_subject: 3
+  frames_per_sample: 1
+  frame_size: 96
+
+optim:
+  epochs: 2
+  batch_size: 16
+  grad_accum: 1
+  lr: 2.0e-3
+  amp: false
+  num_workers: 0

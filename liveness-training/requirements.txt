@@ -1,0 +1,17 @@
+# Stage-1 liveness training pipeline (docs/ekyc/06-level2-upgrade-plan.md §3/§6).
+#
+# torch/torchvision: pick your build. The default PyPI wheels bundle CUDA;
+# for a CPU-only smoke run use:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+torchvision>=0.17
+numpy>=1.24
+opencv-python-headless>=4.8
+onnx>=1.15
+onnxruntime>=1.17
+pyyaml>=6.0
+pytest>=7.4
+
+# Optional — CLIP teacher backbone (FLIP-style). Without it the teacher
+# degrades to a torchvision backbone so the pipeline still runs end to end.
+# open-clip-torch>=2.24
