@@ -1,0 +1,30 @@
+name: nldea_capture
+description: >-
+  NLD-EA capture — operator tooling for the Nemo Liveness Dataset (East
+  Africa) field campaign. Produces session directories in the manifest
+  format consumed by the training pipeline and the red-team rig
+  (docs/nemo/10-liveness-stage0-and-data-campaign.md).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.6.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+  camera: ^0.11.0
+  path_provider: ^2.1.4
+  share_plus: ^10.1.0
+  crypto: ^3.0.5
+  archive: ^3.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
