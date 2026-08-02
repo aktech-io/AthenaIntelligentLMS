@@ -1,0 +1,27 @@
+# CPU-friendly smoke config: synthetic data, torchvision backbone, no
+# pretrained weights (no network access), tiny input size. Used by the
+# pytest end-to-end test and scripts/smoke.sh.
+
+seed: 7
+augment: false
+
+teacher:
+  backbone: "torchvision:mobilenet_v3_small"
+  pretrained: false
+  freeze: "full"
+  input_size: 96
+
+data:
+  source: "synthetic"
+  n_subjects: 14
+  samples_per_subject: 3
+  frames_per_sample: 1
+  frame_size: 96
+
+optim:
+  epochs: 2
+  batch_size: 16
+  grad_accum: 1
+  lr: 2.0e-3
+  amp: false
+  num_workers: 0
