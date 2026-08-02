@@ -118,6 +118,18 @@ func main() {
 	}
 	onboardingHdlr := handler.NewOnboarding(service.NewOnboarding(repo, ekycProvider, logger), logger)
 
+	// ML observability proxy (portal Model Training page): JWT +
+	// compliance.decide-gated, read-only views over the MLflow tracking
+	// server (which has no auth of its own and must never be exposed via
+	// ingress) plus the eKYC engine's /health for deployed-model identity.
+	// MLFLOW_BASE_URL: http://mlflow:5000 in compose, http://nemo-mlflow:5000
+	// in k8s (Helm values / gen-manifests).
+	mlHdlr := handler.NewML(service.NewML(
+		envStr("MLFLOW_BASE_URL", "http://mlflow:5000"),
+		strings.TrimRight(os.Getenv("EKYC_ML_SERVICE_URL"), "/"),
+		logger,
+	), logger)
+
 	// Regulatory profile wiring (foundation for the CBK/CRB reporting epic). Its
 	// repository is both the data store and the audit sink (hash-chained audit_log).
 	regRepo := regrepo.New(pool)
@@ -146,6 +158,7 @@ func main() {
 		hdlr.RegisterRoutes(r)
 		regHdlr.RegisterRoutes(r)
 		onboardingHdlr.RegisterRoutes(r)
+		mlHdlr.RegisterRoutes(r)
 	})
 
 	// Consumer (gated by RABBITMQ_CONSUME_ENABLED)

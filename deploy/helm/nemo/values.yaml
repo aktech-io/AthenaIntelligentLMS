@@ -92,6 +92,10 @@ services:
       # Passive-PAD stays in shadow mode; flip to "true" only after
       # calibration — see docs/ekyc/06.
       LIVENESS_ENFORCE: "false"
+      # Model Training portal page: JWT-gated read proxy in front of the
+      # MLflow tracking server (nemo-mlflow service owned by the mlflow
+      # deploy; no auth of its own, never exposed via ingress).
+      MLFLOW_BASE_URL: http://nemo-mlflow:5000
   - {name: reporting-service,        port: 8095, dbName: athena_reporting,     routeKey: REPORTING_SERVICE}
   - {name: ai-scoring-service,       port: 8096, dbName: athena_scoring,       routeKey: AI_SCORING_SERVICE}
   - {name: overdraft-service,        port: 8097, dbName: athena_overdraft,     routeKey: OVERDRAFT_SERVICE}
