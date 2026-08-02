@@ -284,6 +284,10 @@ services:
       # Passive-PAD stays in shadow mode (score + record, never decide);
       # flip to "true" only after calibration — see docs/ekyc/06.
       LIVENESS_ENFORCE: "false"
+      # Model Training portal page: JWT-gated read proxy in front of the
+      # MLflow tracking server (service owned by the mlflow deploy overlay;
+      # MLflow has no auth and is never exposed via ingress).
+      MLFLOW_BASE_URL: "http://mlflow:5000"
     depends_on:
       postgres:
         condition: service_healthy

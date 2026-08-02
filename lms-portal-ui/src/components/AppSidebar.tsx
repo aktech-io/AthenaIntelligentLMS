@@ -48,7 +48,10 @@ import {
   Settings2,
   CheckCheck,
   ScanFace,
+  FlaskConical,
+  type LucideIcon,
 } from "lucide-react";
+import { hasPermission } from "@/lib/permissions";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -69,6 +72,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+
+// requires: optional RBAC permission key — entries carrying one are hidden
+// from users who don't hold it (checked against the JWT, ADMIN/MANAGER
+// role fallback mirrors the backend's auth.RequirePermission).
+type NavItem = { title: string; url: string; icon: LucideIcon; requires?: string };
 
 const lendingNav = [
   { title: "Loan Applications", url: "/loans", icon: FileText },
@@ -127,6 +135,9 @@ const complianceNav = [
   { title: "Detection Rules", url: "/fraud-rules", icon: Settings2 },
   { title: "SAR / CTR Reports", url: "/sar-reports", icon: FileWarning },
   { title: "Onboarding Referrals", url: "/onboarding-referrals", icon: ScanFace },
+  // Liveness model training/red-team observability — visible only to users
+  // who hold compliance.decide (same gate as the backend /api/v1/ml routes).
+  { title: "Model Training", url: "/model-training", icon: FlaskConical, requires: "compliance.decide" },
   { title: "Watchlist", url: "/watchlist", icon: ShieldCheck },
   { title: "Audit Logs", url: "/audit", icon: Lock },
 ];
@@ -217,8 +228,11 @@ export function AppSidebar() {
     setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const renderItems = (items: typeof lendingNav) =>
-    items.map((item) => {
+  const renderItems = (items: NavItem[]) =>
+    items
+      // Permission-gated entries (UI affordance only — the backend enforces).
+      .filter((item) => !item.requires || hasPermission(item.requires, ["ADMIN", "MANAGER"]))
+      .map((item) => {
       const isSetupWizard = item.url === "/setup-wizard";
       const showWarningDot = isSetupWizard && !setupComplete;
       return (

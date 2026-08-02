@@ -44,6 +44,10 @@ GO_SERVICES = [
         # Passive-PAD stays in shadow mode; flip to "true" only after
         # calibration — see docs/ekyc/06.
         "LIVENESS_ENFORCE": "false",
+        # Model Training portal page: JWT-gated read proxy in front of the
+        # MLflow tracking server (nemo-mlflow service owned by the mlflow
+        # deploy; no auth of its own, never exposed via ingress).
+        "MLFLOW_BASE_URL": "http://nemo-mlflow:5000",
     }),
     ("reporting-service",        8095, "athena_reporting", {}),
     ("ai-scoring-service",       8096, "athena_scoring", {}),
