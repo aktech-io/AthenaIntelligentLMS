@@ -36,6 +36,14 @@ Do not commit any dataset content to this repo. Keep local copies under
   `/mnt/ml/datasets/celeba-spoof-parquet`. The loader
   (`liveness_training/datasets/celeba_spoof.py`) auto-detects both the
   original archive layout and this parquet layout (parquet needs `pyarrow`).
+* **Mirror caveat (verified 2026-08-02 against the synced shards)**: the
+  mirror stores bare image ids (`519622.png`) — the original
+  `Data/<split>/<subjectID>/<live|spoof>/` prefix, and with it all subject
+  identity and per-species attack labels, is stripped. The loader then
+  warns and falls back to per-image pseudo-subjects: splits are
+  deterministic but NOT subject-disjoint, and spoofs are `unknown_2d`.
+  Good enough for teacher bootstrapping; for subject-safe evals or
+  per-species APCER, get the original archive.
 * Helper: `scripts/download_celeba_spoof_parquet.sh` (resumable HF sync).
 
 ### CASIA-SURF CeFA (cross-ethnicity PAD, includes African subjects)

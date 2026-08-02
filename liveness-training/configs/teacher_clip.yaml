@@ -1,16 +1,18 @@
 # DG teacher — FLIP-style CLIP fine-tune, sized for an 8GB RTX 4060 Laptop.
 #
-# ── VRAM budget (ViT-B-16 @ 224, fp16 autocast) ────────────────────────────
-#   weights (fp32 master + fp16 autocast copies)      ~ 0.9 GB
-#   AdamW states for trainable params only
-#     (last_n:4 blocks + head ≈ 28M params → m+v fp32) ~ 0.3 GB
-#   activations, micro-batch 16 @ 224², ckpt-free      ~ 3.5-4.0 GB
-#   CUDA/cuDNN workspaces + fragmentation headroom     ~ 0.7 GB
-#   ─────────────────────────────────────────────────  ≈ 5.5-6.0 GB peak
-# Fits 8GB with a browser closed; if you OOM, first drop batch_size to 8 and
-# double grad_accum (identical effective batch 64), then freeze: head_only.
-# The training loop prints and saves the measured peak (vram_peak_mib.txt) —
-# trust that number over this table.
+# ── VRAM budget — MEASURED on the RTX 4060 Laptop 8GB (2026-08-02,
+#    torch 2.13+cu130, fp16 autocast, ViT-B-16 @ 224, this train loop;
+#    peak torch.cuda.max_memory_allocated, random-init weights — footprint
+#    is weight-value independent) ─────────────────────────────────────────
+#   freeze: last_n:4, batch 16 (this config)   1121 MiB peak
+#   freeze: full,     batch 16                 2584 MiB peak
+#   freeze: full,     batch 32                 3369 MiB peak
+# All fit 8GB with large headroom — frozen early blocks retain no
+# activations, and fp16 autocast halves the rest. Real-data runs add
+# dataloader pinned buffers + cuDNN workspaces (~a few hundred MiB); every
+# run prints and stores its own peak (runs/teacher/vram_peak_mib.txt) —
+# trust that number. If a future bigger backbone OOMs: halve batch_size,
+# double grad_accum (same effective batch), then reduce freeze scope.
 #
 # Effective batch = batch_size × grad_accum = 64.
 

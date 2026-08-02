@@ -25,21 +25,30 @@ Two on-disk layouts are supported, auto-detected from the root:
        <root>/data/train-*.parquet   (also valid-*/test-*)
 
    Row schema: ``Filepath`` (HF image feature -> struct{bytes, path}),
-   ``Bbox`` (list<int64>), ``Class`` (string). The embedded ``path``
-   preserves the original ``Data/<split>/<subjectID>/<live|spoof>/...``
-   filepath, which is where subject id and live/spoof come from (``Class``
-   is the fallback). Requires **pyarrow** (optional extra — install it only
-   for parquet mode). Attack-type detail is not in this mirror, so spoof
-   rows are attack_type="unknown_2d".
+   ``Bbox`` (list<int64>), ``Class`` ("live"|"spoof"). Requires **pyarrow**
+   (optional extra — install it only for parquet mode). Attack-type detail
+   is not in this mirror, so spoof rows are attack_type="unknown_2d".
+   Indexing reads only the nested ``Filepath.path`` + ``Class`` columns —
+   never the ~46GB of image bytes.
 
-Both modes split train/val **subject-disjoint** by hashing subject ids
-(base.split_subjects_disjoint) — never by the mirror's own valid split,
-which is not guaranteed subject-disjoint from train.
+   SUBJECT-IDENTITY CAVEAT (verified against the real mirror 2026-08-02):
+   the mirror's embedded ``path`` is a bare image id ("519622.png") — the
+   original ``Data/<split>/<subjectID>/<live|spoof>/`` prefix is stripped,
+   so the mirror carries NO subject identity. When paths do keep the
+   original prefix the loader recovers real subjects; otherwise it falls
+   back to per-image pseudo-subjects (stable across re-downloads) and emits
+   a RuntimeWarning: the split is then per-image, NOT subject-disjoint.
+   For subject-safe training/evals use the original archive layout.
+
+The original-archive mode splits train/val **subject-disjoint** by hashing
+subject ids (base.split_subjects_disjoint) — never by the archive's own
+partitions.
 """
 from __future__ import annotations
 
 import json
 import re
+import warnings
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -180,28 +189,46 @@ class CelebASpoofDataset(PadDatasetBase):
             ) from e
         # (file, row_group, row_in_group, label, subject_id)
         records: list[tuple[Path, int, int, int, str]] = []
+        self._pseudo_subjects = False
         for pf in self._parquet_files():
             meta_reader = pyarrow.parquet.ParquetFile(pf)
             for rg in range(meta_reader.num_row_groups):
-                # metadata pass: only path+class columns, never image bytes
-                tbl = meta_reader.read_row_group(rg, columns=self._meta_columns(meta_reader))
+                tbl = self._read_meta_group(meta_reader, rg)
                 paths, classes = self._extract_meta(tbl)
                 for i in range(tbl.num_rows):
                     label, subject = self._row_identity(paths[i], classes[i], pf, rg, i)
                     records.append((pf, rg, i, label, subject))
+        if self._pseudo_subjects:
+            warnings.warn(
+                "CelebA-Spoof parquet mirror carries no subject identity "
+                "(bare image-id paths) — falling back to per-image "
+                "pseudo-subjects. The train/val split is per-IMAGE, NOT "
+                "subject-disjoint; the same celebrity can appear in both. "
+                "Use the original archive layout for subject-safe evals.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
         self._finish_index(records, parquet=True)
 
     @staticmethod
-    def _meta_columns(reader) -> list[str]:
+    def _read_meta_group(reader, rg: int):
+        """Read only path + class for indexing. Nested selection
+        ("Filepath.path") skips the image bytes — verified against the real
+        mirror; fall back to the full struct column on older pyarrow."""
         names = set(reader.schema_arrow.names)
+        if not {"Filepath", "Class"} & names:
+            raise ValueError("parquet shard has neither Filepath nor Class column")
         cols = []
         if "Filepath" in names:
-            cols.append("Filepath")
+            cols.append("Filepath.path")
         if "Class" in names:
             cols.append("Class")
-        if not cols:
-            raise ValueError("parquet shard has neither Filepath nor Class column")
-        return cols
+        try:
+            return reader.read_row_group(rg, columns=cols)
+        except (KeyError, OSError, ValueError):  # pragma: no cover - old pyarrow
+            return reader.read_row_group(
+                rg, columns=[c for c in ("Filepath", "Class") if c in names]
+            )
 
     @staticmethod
     def _extract_meta(tbl) -> tuple[list, list]:
@@ -216,27 +243,28 @@ class CelebASpoofDataset(PadDatasetBase):
             classes = tbl.column("Class").to_pylist()
         return paths, classes
 
-    @staticmethod
-    def _row_identity(path, cls, pf: Path, rg: int, i: int) -> tuple[int, str]:
-        """(label, subject_id) for a parquet row. Prefers the preserved
-        original path (has subject dir + live/spoof); falls back to Class."""
-        if isinstance(path, str):
-            m = _PARQUET_PATH_RE.search(path.replace("\\", "/"))
+    def _row_identity(self, path, cls, pf: Path, rg: int, i: int) -> tuple[int, str]:
+        """(label, subject_id) for a parquet row. Uses the original path
+        when the mirror preserved it (subject dir + live/spoof); otherwise
+        label comes from Class and the subject degrades to a per-image
+        pseudo-subject keyed on the image id (stable across re-downloads)."""
+        norm = path.replace("\\", "/") if isinstance(path, str) else None
+        if norm:
+            m = _PARQUET_PATH_RE.search(norm)
             if m:
                 label = LABEL_LIVE if m.group("kind") == "live" else LABEL_SPOOF
                 return label, m.group("subject")
         if isinstance(cls, str):
             c = cls.strip().lower()
-            if c in ("live", "real", "genuine", "1"):
+            if c in ("live", "real", "genuine"):
                 label = LABEL_LIVE
-            elif c in ("spoof", "fake", "attack", "0"):
+            elif c in ("spoof", "fake", "attack"):
                 label = LABEL_SPOOF
             else:
                 raise ValueError(f"{pf} rg{rg} row{i}: unrecognized Class {cls!r}")
-            # no subject in the path -> synthesize a stable pseudo-subject per
-            # shard row so splits stay deterministic (worse than real subject
-            # disjointness; the path-based branch is the expected one)
-            return label, f"{pf.stem}:{rg}:{i}"
+            self._pseudo_subjects = True
+            image_id = Path(norm).stem if norm else f"{pf.stem}:{rg}:{i}"
+            return label, f"img_{image_id}"
         raise ValueError(f"{pf} rg{rg} row{i}: cannot determine label")
 
     # ─── shared ──────────────────────────────────────────────────────────

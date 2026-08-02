@@ -279,11 +279,15 @@ def generate_celeba_spoof_fixture(
 
 def generate_celeba_spoof_parquet_fixture(
     root, n_subjects: int = 6, imgs_per_class: int = 2, size: int = 128,
-    seed: int = 17, shards: int = 2,
+    seed: int = 17, shards: int = 2, bare_paths: bool = True,
 ) -> Path:
     """HF parquet-mirror layout (Ar4ikov/celebA_spoof): data/train-*.parquet
     with rows {Filepath: struct{bytes,path}, Bbox: list<int64>, Class: str}.
-    Requires pyarrow (raises ImportError otherwise — callers/tests skip)."""
+    bare_paths=True matches the REAL mirror (paths are bare image ids like
+    "519622.png", no subject directories — verified 2026-08-02);
+    bare_paths=False keeps the original Data/... prefixes to exercise the
+    loader's real-subject branch. Requires pyarrow (raises ImportError
+    otherwise — callers/tests skip)."""
     import cv2
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -299,11 +303,11 @@ def generate_celeba_spoof_parquet_fixture(
                 img = make_face_frame(rng, kind == "live", "replay_phone", None, size)
                 ok, buf = cv2.imencode(".png", img)
                 assert ok
+                image_id = f"{500000 + si * 100 + (0 if kind == 'live' else 50) + k:06d}"
+                path = (f"{image_id}.png" if bare_paths
+                        else f"Data/train/{subject}/{kind}/{image_id}.png")
                 rows.append({
-                    "Filepath": {
-                        "bytes": buf.tobytes(),
-                        "path": f"Data/train/{subject}/{kind}/{si * 10 + k:06d}.png",
-                    },
+                    "Filepath": {"bytes": buf.tobytes(), "path": path},
                     "Bbox": [10, 10, size - 20, size - 20],
                     "Class": kind,
                 })

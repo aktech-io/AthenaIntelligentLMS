@@ -80,12 +80,12 @@ reachable via an explicit flag that raises a RuntimeWarning.
 
 ## VRAM budget (RTX 4060 Laptop, 8 GB)
 
-The real teacher config (`configs/teacher_clip.yaml`) documents the
-breakdown: ViT-B/16 @224, fp16 autocast, micro-batch 16 × grad-accum 4,
-`last_n:4` unfreeze ≈ **5.5-6.0 GB peak**. The train loop prints and stores
-the measured peak (`runs/teacher/vram_peak_mib.txt`) — trust that number.
-OOM ladder: batch 8 + accum 8 → `freeze: head_only`. Distillation is
-teacher-forward-dominated (~2.5 GB @ batch 32 fp16).
+Measured on this machine (torch 2.13+cu130, fp16 autocast, ViT-B/16 @224,
+peak `max_memory_allocated`): **1.1 GiB** for the default config
+(`last_n:4`, batch 16 × accum 4), **2.6 GiB** full unfreeze @ batch 16,
+**3.4 GiB** full unfreeze @ batch 32 — all comfortable on 8 GB. Every run
+prints and stores its own peak (`runs/teacher/vram_peak_mib.txt`).
+Distillation is teacher-forward-dominated and lighter still.
 
 ## Deliberately stubbed / deferred
 
@@ -96,9 +96,10 @@ teacher-forward-dominated (~2.5 GB @ batch 32 fp16).
 * **CeFA field order** — loader written to the published directory
   convention, validated on synthetic fixtures only; re-check the regex in
   `cefa.py` against the real (agreement-gated) download.
-* **CelebA-Spoof parquet `Class` fallback** — when a mirror row lacks the
-  original path, subject identity degrades to per-row pseudo-subjects (the
-  in-use mirror preserves paths, so the real branch is path-based).
+* **CelebA-Spoof parquet mirror has no subject identity** — verified on the
+  real shards: paths are bare image ids, so the loader warns and degrades
+  to per-image pseudo-subjects (deterministic, not subject-disjoint).
+  Teacher bootstrap only; subject-safe evals need the original archive.
 * **FairFace/RFW/BUPT loaders** — genuine-only fairness sets are documented
   (DATASETS.md) but not wired into loaders yet; NLD-EA carries the Monk-tone
   labels the fairness eval consumes today.

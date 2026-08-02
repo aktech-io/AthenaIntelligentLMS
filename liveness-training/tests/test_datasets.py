@@ -1,5 +1,7 @@
 """Loader-contract tests for CelebA-Spoof (both layouts), CeFA, synthetic,
 and the FramePadDataset adapter."""
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -78,6 +80,7 @@ class TestCelebASpoofOriginal:
 
 @pytest.fixture(scope="module")
 def parquet_root(tmp_path_factory):
+    """Real-mirror shape: bare image-id paths, no subject identity."""
     if not HAVE_PYARROW:
         pytest.skip("pyarrow not installed")
     from liveness_training.datasets.synthetic import (
@@ -91,20 +94,63 @@ def parquet_root(tmp_path_factory):
 
 @pytest.mark.skipif(not HAVE_PYARROW, reason="pyarrow not installed")
 class TestCelebASpoofParquet:
-    def test_contract(self, parquet_root):
-        ds = CelebASpoofDataset(parquet_root, split="train")
+    def test_contract_and_pseudo_subject_warning(self, parquet_root):
+        # the real mirror has no subject dirs -> loader must warn loudly
+        with pytest.warns(RuntimeWarning, match="NOT subject-disjoint"):
+            ds = CelebASpoofDataset(parquet_root, split="train")
         assert ds.mode == "parquet"
         samples = list(ds)
         _assert_contract(samples)
         assert {s.label for s in samples} == {0, 1}
+        assert all(s.subject_id.startswith("img_") for s in samples)
 
-    def test_subject_from_embedded_path_and_disjoint_split(self, parquet_root):
-        train = CelebASpoofDataset(parquet_root, split="train")
-        val = CelebASpoofDataset(parquet_root, split="val")
-        # subjects come from the preserved original path, not row indices
+    def test_split_still_deterministic_and_disjoint_per_image(self, parquet_root):
+        with pytest.warns(RuntimeWarning):
+            train = CelebASpoofDataset(parquet_root, split="train")
+            train2 = CelebASpoofDataset(parquet_root, split="train")
+            val = CelebASpoofDataset(parquet_root, split="val")
+        assert train.subjects() == train2.subjects()
+        assert train.subjects().isdisjoint(val.subjects())
+        assert len(train) + len(val) == 24  # 6 ids * 2 classes * 2 imgs
+
+    def test_preserved_paths_recover_real_subjects(self, tmp_path):
+        from liveness_training.datasets.synthetic import (
+            generate_celeba_spoof_parquet_fixture,
+        )
+        import warnings as _w
+
+        root = generate_celeba_spoof_parquet_fixture(
+            tmp_path / "pq_full", n_subjects=6, imgs_per_class=2, bare_paths=False
+        )
+        with _w.catch_warnings():
+            _w.simplefilter("error", RuntimeWarning)  # no pseudo-subject warning
+            train = CelebASpoofDataset(root, split="train")
+            val = CelebASpoofDataset(root, split="val")
         assert all(s.isdigit() for s in train.subjects() | val.subjects())
         assert train.subjects().isdisjoint(val.subjects())
-        assert len(train) + len(val) == 24  # 6 subjects * 2 classes * 2 imgs
+
+
+REAL_MIRROR = Path("/mnt/ml/datasets/celeba-spoof-parquet")
+
+
+@pytest.mark.skipif(
+    not (HAVE_PYARROW and list(REAL_MIRROR.glob("data/test-*.parquet"))),
+    reason="real CelebA-Spoof parquet mirror not (yet) present",
+)
+class TestCelebASpoofRealMirror:
+    """Opt-in integration check against the actual local HF mirror sync —
+    validates the loader on real shards, a few samples only."""
+
+    def test_reads_real_shards(self):
+        import warnings as _w
+
+        with _w.catch_warnings():
+            _w.simplefilter("ignore", RuntimeWarning)  # pseudo-subject warning
+            ds = CelebASpoofDataset(REAL_MIRROR, split="train",
+                                    source_partition="test", max_samples=6)
+        samples = list(ds)
+        _assert_contract(samples)
+        assert all(s.frames[0].shape[2] == 3 for s in samples)
 
 
 class TestCeFA:
