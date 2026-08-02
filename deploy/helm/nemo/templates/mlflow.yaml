@@ -1,0 +1,100 @@
+{{- if .Values.mlflow.enabled }}
+# MLflow tracking server (nemo-mlflow): the audit backbone for liveness model
+# training runs (experiment "liveness-training") and PAD red-team runs
+# ("liveness-redteam"). Backend store: the athena_mlflow database on the
+# platform PostgreSQL (created by the postgres init script); artifacts on the
+# PVC below.
+#
+# SECURITY: MLflow ships no auth — this stays a plain ClusterIP with NO
+# Ingress. Reach it via `kubectl port-forward svc/nemo-mlflow 28115:5000`.
+# Hardening-compatible: the default-deny NetworkPolicy (same-namespace
+# ingress only) covers it; single replica + Recreate because the artifact
+# volume is ReadWriteOnce.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nemo-mlflow-artifacts
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.mlflow.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-mlflow
+  labels:
+    app: nemo-mlflow
+    {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels:
+      app: nemo-mlflow
+  template:
+    metadata:
+      labels:
+        app: nemo-mlflow
+        {{- include "nemo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mlflow
+          {{- if .Values.mlflow.image }}
+          image: {{ .Values.mlflow.image }}
+          {{- else if .Values.global.imageRegistry }}
+          image: {{ .Values.global.imageRegistry }}/nemo-mlflow:{{ .Values.global.imageTag }}
+          {{- else }}
+          image: nemo-mlflow:{{ .Values.global.imageTag }}
+          {{- end }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mlflow.port }}
+          env:
+            # The entrypoint assembles the backend-store URI from the same
+            # DB_* variables the Go services use (deploy/mlflow/entrypoint.sh).
+            - name: PORT
+              value: {{ .Values.mlflow.port | quote }}
+            - name: DB_HOST
+              value: {{ include "nemo.dbHost" . | quote }}
+            - name: DB_PORT
+              value: {{ .Values.db.port | quote }}
+            - name: DB_NAME
+              value: athena_mlflow
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: {name: {{ include "nemo.secretName" . }}, key: DB_USER}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ include "nemo.secretName" . }}, key: DB_PASSWORD}
+          readinessProbe:
+            httpGet: {path: /health, port: {{ .Values.mlflow.port }}}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: {{ .Values.mlflow.port }}}
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          volumeMounts:
+            - name: artifacts
+              mountPath: /mlflow/artifacts
+          resources: {{- .Values.mlflow.resources | toYaml | nindent 12 }}
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: nemo-mlflow-artifacts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-mlflow
+  labels: {{- include "nemo.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: nemo-mlflow
+  ports:
+    - port: {{ .Values.mlflow.port }}
+      targetPort: {{ .Values.mlflow.port }}
+{{- end }}

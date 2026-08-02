@@ -90,8 +90,10 @@ GO_SERVICES = [
 
 # Python ML sidecars: name, port, image, health path, extra env
 ML_SERVICES = [
-    # No MLflow on this box — fail model-registry lookups fast instead of
-    # hanging scoring requests (rule-based fallback takes over).
+    # fraud-ml does NOT use the nemo-mlflow tracking server (that one is the
+    # liveness training/red-team audit trail) — its model-registry lookups
+    # still fail fast instead of hanging scoring requests (rule-based
+    # fallback takes over).
     ("nemo-fraud-ml", 8101, image_ref("nemo-fraud-ml"), "/health",
      {"MLFLOW_HTTP_REQUEST_TIMEOUT": "3", "MLFLOW_HTTP_REQUEST_MAX_RETRIES": "1"}),
     ("nemo-ekyc-ml",  8102, image_ref("nemo-ekyc-ml"), "/health", {}),
@@ -181,6 +183,80 @@ for name, port, image, health, extra in ML_SERVICES:
                           ("50m", "256Mi"), ("1", "1Gi"),
                           envfrom_secret=False, initial_delay=20))
     out.append(service(name, port))
+
+# MLflow tracking server (nemo-mlflow): audit backbone for liveness model
+# training (experiment "liveness-training") and PAD red-team runs
+# ("liveness-redteam"). Backend store: athena_mlflow on the shared PG
+# (create-databases.sql); artifacts on the PVC. MLflow has NO auth — plain
+# ClusterIP, no ingress; reach it from a laptop via
+#   ssh -L 28115:localhost:28115 deploy@lms.athenafinance.cloud \
+#     'sudo k3s kubectl -n lms port-forward svc/nemo-mlflow 28115:5000'
+# envFrom lms-go-common supplies DB_HOST/DB_USER/DB_PASSWORD (same contract
+# as the Go services); the entrypoint assembles the backend-store URI.
+out.append(f"""---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nemo-mlflow-artifacts
+  namespace: {NS}
+  labels: {{app: nemo-mlflow}}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-mlflow
+  namespace: {NS}
+  labels: {{app: nemo-mlflow}}
+spec:
+  replicas: 1
+  strategy: {{type: Recreate}}
+  selector:
+    matchLabels: {{app: nemo-mlflow}}
+  template:
+    metadata:
+      labels: {{app: nemo-mlflow}}
+    spec:
+{PULL_SECRETS}      containers:
+      - name: nemo-mlflow
+        image: {image_ref("nemo-mlflow")}
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef: {{name: lms-go-common}}
+        env:
+        - name: PORT
+          value: "5000"
+        - name: DB_NAME
+          value: "athena_mlflow"
+        ports:
+        - containerPort: 5000
+        readinessProbe:
+          httpGet: {{path: /health, port: 5000}}
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: {{path: /health, port: 5000}}
+          initialDelaySeconds: 40
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: artifacts
+          mountPath: /mlflow/artifacts
+        resources:
+          requests: {{cpu: 50m, memory: 256Mi}}
+          limits: {{cpu: 500m, memory: 1Gi}}
+      volumes:
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: nemo-mlflow-artifacts
+""")
+out.append(service("nemo-mlflow", 5000))
 
 # Portal: keep the historical name (ingress + NodePort service point at it).
 out.append(f"""---

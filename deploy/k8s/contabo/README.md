@@ -9,7 +9,9 @@ chart's `go-*` names. Shared infra lives elsewhere: PostgreSQL in `alpa`
 
 ## Files
 - `gen-manifests.py` — single source of truth; emits `lms-nemo.yaml` for a tag.
-- `lms-nemo.yaml` — generated manifest set (25 Deployments + Services).
+- `lms-nemo.yaml` — generated manifest set (26 Deployments + Services, incl.
+  the `nemo-mlflow` tracking server + its artifacts PVC — no ingress, no auth;
+  tunnel + port-forward only).
 - `lms-secrets.yaml` — **gitignored**; rotated credentials. Regenerate values per
   `../lms-secrets.example.yaml`; retrieve current ones from the cluster:
   `sudo k3s kubectl -n lms get secret lms-secrets -o yaml`.
@@ -18,7 +20,7 @@ chart's `go-*` names. Shared infra lives elsewhere: PostgreSQL in `alpa`
 
 ## Deploy — CI (the normal path, since 2026-07-20)
 Push to `master` → `.github/workflows/deploy.yml` (mirrors alpa-api's pipeline)
-builds the 25-image set to `ghcr.io/aktech-io/nemo-*:<sha>`, then over SSH
+builds the 26-image set to `ghcr.io/aktech-io/nemo-*:<sha>`, then over SSH
 refreshes the `ghcr-pull` secret, runs `create-databases.sql` (idempotent),
 applies `gen-manifests.py <sha> ghcr.io/aktech-io` output and waits for rollout.
 Repo secrets: `DEPLOY_SSH_KEY` (dedicated CI key in `deploy`'s authorized_keys),
@@ -29,7 +31,7 @@ image GC need a re-run of the deploy job. One-time box prep (done 2026-07-20):
 
 ## Upgrade procedure — manual fallback (proven 2026-07-18)
 1. Build: `TAG=<tag> ./scripts/build-nemo-images.sh` (needs dockerd running).
-2. Ship: `docker save -o nemo-<tag>.tar <all 25 image refs>` → `scp` to the box
+2. Ship: `docker save -o nemo-<tag>.tar <all 26 image refs>` → `scp` to the box
    (**never** stream through ssh — streamed import drops layers) →
    `sudo k3s ctr images import nemo-<tag>.tar`.
 3. Databases: run `create-databases.sql` in the postgres pod

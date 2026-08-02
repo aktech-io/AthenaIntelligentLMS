@@ -4,3 +4,9 @@ numpy>=1.26.4
 opencv-python-headless>=4.10.0
 requests>=2.31.0
 pytest>=8.0.0
+
+# Optional — `run --mlflow` publishes runs to the platform's nemo-mlflow
+# server (experiment "liveness-redteam", tracking.py). Requires
+# MLFLOW_TRACKING_URI to be set as well; without the flag nothing imports
+# mlflow, so this stays out of the hard dependencies.
+# mlflow>=3.15

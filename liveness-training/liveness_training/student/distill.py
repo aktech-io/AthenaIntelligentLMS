@@ -36,6 +36,7 @@ from liveness_training.datasets.transforms import default_train_transform
 from liveness_training.eval.metrics import compute_pad_metrics
 from liveness_training.student.model import StudentPAD, save_student
 from liveness_training.teacher.model import load_teacher
+from liveness_training.tracking import flatten_config, track_run
 
 
 def kd_loss(student_logits, teacher_logits, labels, temperature: float, alpha: float):
@@ -105,49 +106,85 @@ def distill_student(cfg: dict, teacher_ckpt, out_dir, device: str = "auto") -> d
 
     best_acer, best_path = float("inf"), out / "student_best.pt"
     history = []
-    for epoch in range(epochs):
-        student.train()
-        t0, running, seen = time.time(), 0.0, 0
-        optimizer.zero_grad(set_to_none=True)
-        for step, batch in enumerate(train_loader):
-            x = batch["image"].to(device, non_blocking=True)
-            y = batch["label"].to(device, non_blocking=True)
-            with torch.no_grad(), torch.autocast("cuda", torch.float16, enabled=use_amp):
-                t_logits = teacher(x)
-            with torch.autocast("cuda", torch.float16, enabled=use_amp):
-                s_logits = student(student_view(x))
-                loss = kd_loss(s_logits, t_logits.float(), y, temperature, alpha) / accum
-            scaler.scale(loss).backward()
-            if (step + 1) % accum == 0 or (step + 1) == len(train_loader):
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad(set_to_none=True)
-            running += float(loss.detach()) * accum * x.size(0)
-            seen += x.size(0)
-
-        val = collect_scores(student, val_loader, device)
-        metrics = compute_pad_metrics(
-            val["scores"], val["labels"], val["attack_types"], val["skin_tones"]
-        )
-        history.append({
-            "epoch": epoch,
-            "train_loss": running / max(1, seen),
-            "val_acer": metrics["acer"],
-            "val_apcer_max": metrics["apcer_max"],
-            "val_bpcer": metrics["bpcer"],
-            "seconds": round(time.time() - t0, 1),
+    # Optional MLflow audit trail — a no-op unless MLFLOW_TRACKING_URI is set
+    # AND mlflow is installed (tracking.py). Run name = the out-dir basename.
+    with track_run(run_name=out.name) as track:
+        track.log_params({
+            "device": device,
+            "teacher_checkpoint": str(teacher_ckpt),
+            "teacher_backbone": teacher.backbone_kind,
+            **flatten_config(cfg),
         })
-        print(f"[distill] epoch {epoch}: {history[-1]}")
-        if metrics["acer"] <= best_acer:
-            best_acer = metrics["acer"]
-            save_student(student, best_path, extra={
-                "val_metrics": metrics,
-                "teacher_checkpoint": str(teacher_ckpt),
-                "teacher_backbone": teacher.backbone_kind,
-                "distill": {"temperature": temperature, "alpha": alpha},
-            })
+        for epoch in range(epochs):
+            student.train()
+            t0, running, seen = time.time(), 0.0, 0
+            optimizer.zero_grad(set_to_none=True)
+            for step, batch in enumerate(train_loader):
+                x = batch["image"].to(device, non_blocking=True)
+                y = batch["label"].to(device, non_blocking=True)
+                with torch.no_grad(), torch.autocast("cuda", torch.float16, enabled=use_amp):
+                    t_logits = teacher(x)
+                with torch.autocast("cuda", torch.float16, enabled=use_amp):
+                    s_logits = student(student_view(x))
+                    loss = kd_loss(s_logits, t_logits.float(), y, temperature, alpha) / accum
+                scaler.scale(loss).backward()
+                if (step + 1) % accum == 0 or (step + 1) == len(train_loader):
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad(set_to_none=True)
+                running += float(loss.detach()) * accum * x.size(0)
+                seen += x.size(0)
 
-    (out / "student_history.json").write_text(json.dumps(history, indent=2))
+            val = collect_scores(student, val_loader, device)
+            metrics = compute_pad_metrics(
+                val["scores"], val["labels"], val["attack_types"], val["skin_tones"]
+            )
+            history.append({
+                "epoch": epoch,
+                "train_loss": running / max(1, seen),
+                "val_acer": metrics["acer"],
+                "val_apcer_max": metrics["apcer_max"],
+                "val_bpcer": metrics["bpcer"],
+                "seconds": round(time.time() - t0, 1),
+            })
+            print(f"[distill] epoch {epoch}: {history[-1]}")
+            track.log_metrics(
+                {k: v for k, v in history[-1].items() if k != "epoch"}, step=epoch
+            )
+            if metrics["acer"] <= best_acer:
+                best_acer = metrics["acer"]
+                save_student(student, best_path, extra={
+                    "val_metrics": metrics,
+                    "teacher_checkpoint": str(teacher_ckpt),
+                    "teacher_backbone": teacher.backbone_kind,
+                    "distill": {"temperature": temperature, "alpha": alpha},
+                })
+
+        (out / "student_history.json").write_text(json.dumps(history, indent=2))
+        if device == "cuda":
+            peak = torch.cuda.max_memory_allocated() / 2**20
+            print(f"[distill] peak CUDA memory allocated: {peak:.0f} MiB")
+            track.log_metrics({"vram_peak_mib": peak})
+        track.log_metrics({f"final_{k}": v for k, v in metrics.items()})
+        track.log_artifact(out / "student_history.json")
+        if track.active:
+            # Audit artifacts: the best student in the exact serving shape plus
+            # its checksum manifest, attached to the tracked run. Runs ONLY when
+            # tracking is active — the untracked pipeline keeps exporting via
+            # `python -m liveness_training.export.onnx_export` as before.
+            from liveness_training.export.manifest import write_model_manifest
+            from liveness_training.export.onnx_export import export_student_onnx
+            from liveness_training.student.model import load_student
+
+            onnx_path = export_student_onnx(load_student(best_path),
+                                            out / "student_best.onnx")
+            manifest = write_model_manifest(
+                onnx_path, out / "manifest.json",
+                extra={"studentCheckpoint": str(best_path)},
+            )
+            track.set_tags({"onnx_sha256": manifest["files"][0]["sha256"]})
+            track.log_artifact(onnx_path)
+            track.log_artifact(out / "manifest.json")
     return {"checkpoint": str(best_path), "val": history[-1], "history": history}
 
 

@@ -107,6 +107,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--report", help="write the markdown report to this path")
     p.add_argument(
+        "--mlflow",
+        action="store_true",
+        help="publish the run to MLflow (experiment liveness-redteam; needs "
+        "MLFLOW_TRACKING_URI set and the optional mlflow package installed)",
+    )
+    p.add_argument(
         "--gate",
         choices=("l1", "l2"),
         help="evaluate this gate after the run and exit 2 if it fails",
@@ -228,6 +234,20 @@ def cmd_run(args) -> int:
         if args.report:
             report_mod.write_report(db, summary.run_id, args.report)
             print(f"report written to {args.report}")
+        if args.mlflow:
+            from . import tracking
+
+            try:
+                mlflow_run_id = tracking.publish_run(
+                    view, report_mod.build_report(db, summary.run_id)
+                )
+            except tracking.TrackingUnavailable as e:
+                print(str(e), file=sys.stderr)
+                return EXIT_ERROR
+            print(
+                f"published to MLflow experiment {tracking.EXPERIMENT!r} "
+                f"as run {mlflow_run_id}"
+            )
         status = EXIT_OK
         if args.gate:
             gate = (

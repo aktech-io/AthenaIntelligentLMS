@@ -2,7 +2,7 @@
 # =============================================================================
 # Build the image set the Nemo Helm chart (deploy/helm/nemo) installs:
 #   nemo-<service>:<TAG> for the 22 Go services (16 LMS + card + decision +
-#   4 mobile BFF), nemo-fraud-ml, nemo-ekyc-ml, nemo-portal.
+#   4 mobile BFF), nemo-fraud-ml, nemo-ekyc-ml, nemo-mlflow, nemo-portal.
 #
 # Usage:
 #   ./scripts/build-nemo-images.sh                # docker-build all, tag latest
@@ -76,6 +76,12 @@ if [[ -z "$ONLY" || "$ONLY" == "ekyc-ml" ]]; then
   echo "==> [$(date +%H:%M:%S)] $(img ekyc-ml)"
   build "$(img ekyc-ml)" "" "${ROOT}/ekyc-ml-service" >/dev/null 2>&1 \
     && BUILT+=(ekyc-ml) || { echo "    BUILD FAILED: ekyc-ml"; FAILED+=(ekyc-ml); }
+fi
+
+if [[ -z "$ONLY" || "$ONLY" == "mlflow" ]]; then
+  echo "==> [$(date +%H:%M:%S)] $(img mlflow)"
+  build "$(img mlflow)" "" "${ROOT}/deploy/mlflow" >/dev/null 2>&1 \
+    && BUILT+=(mlflow) || { echo "    BUILD FAILED: mlflow"; FAILED+=(mlflow); }
 fi
 
 if [[ -z "$ONLY" || "$ONLY" == "portal" ]]; then

@@ -7,6 +7,9 @@ CREATE DATABASE athena_mobile_gateway    WITH OWNER = athena ENCODING = 'UTF8' T
 CREATE DATABASE athena_bff_notifications WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
 CREATE DATABASE athena_billpay_savings   WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
 CREATE DATABASE athena_shop              WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
+-- MLflow tracking backend store (nemo-mlflow) — schema is managed by MLflow's
+-- own migrations on first server start; no extensions needed.
+CREATE DATABASE athena_mlflow            WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
 \c athena_decision
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \c athena_cards

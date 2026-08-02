@@ -15,3 +15,9 @@ pytest>=7.4
 # Optional — CLIP teacher backbone (FLIP-style). Without it the teacher
 # degrades to a torchvision backbone so the pipeline still runs end to end.
 # open-clip-torch>=2.24
+
+# Optional — MLflow audit trail (liveness_training/tracking.py). Training
+# logs to the platform's nemo-mlflow server only when MLFLOW_TRACKING_URI is
+# set AND mlflow imports; without it tracking is a silent no-op, so this is
+# deliberately NOT a hard dependency. See README "MLflow tracking".
+# mlflow>=3.15

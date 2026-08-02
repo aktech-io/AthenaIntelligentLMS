@@ -78,6 +78,33 @@ train/val splits everywhere — no identity leaks between shards. The NLD-EA
 `redteam` shard (certification holdout) is excluded by default and only
 reachable via an explicit flag that raises a RuntimeWarning.
 
+## MLflow tracking (optional)
+
+Every teacher/distill run can publish an audit trail (flattened config as
+params, the per-epoch `train_loss`/`val_acer`/`val_apcer_max`/`val_bpcer`
+series, the final metric set, VRAM peak, history JSON + exported ONNX with
+its checksum manifest) to the platform's **nemo-mlflow** tracking server,
+experiment **`liveness-training`**, run name = the `--out` dir basename.
+
+It activates ONLY when `MLFLOW_TRACKING_URI` is set **and** `mlflow` is
+installed (`pip install mlflow` — deliberately not in requirements.txt);
+otherwise training is bit-identical to before, no extra deps needed.
+
+The server is cluster-internal on the box (it has no auth — never exposed via
+ingress). From the laptop, tunnel through SSH and port-forward the k3s
+service in one go:
+
+```bash
+ssh -L 28115:localhost:28115 deploy@lms.athenafinance.cloud \
+    'sudo k3s kubectl -n lms port-forward svc/nemo-mlflow 28115:5000'
+# in another shell:
+MLFLOW_TRACKING_URI=http://localhost:28115 \
+    python -m liveness_training.teacher.train --config configs/teacher_clip.yaml --out runs/teacher
+```
+
+(Against the local docker-compose stack the server is already published on
+the host: `MLFLOW_TRACKING_URI=http://localhost:28115`, no tunnel needed.)
+
 ## VRAM budget (RTX 4060 Laptop, 8 GB)
 
 Measured on this machine (torch 2.13+cu130, fp16 autocast, ViT-B/16 @224,

@@ -95,6 +95,31 @@ python3 -m liveness_redteam run ./sessions \
 Other commands: `sweep` (full ROC of thresholds), `runs` (list stored runs),
 `report --badge` (one-line status for the docs), `taxonomy` (list species).
 
+## Publishing runs to MLflow (optional)
+
+`run --mlflow` additionally publishes the run to the platform's
+**nemo-mlflow** tracking server, experiment **`liveness-redteam`**: params
+(model version/checksum, threshold, frames), metrics (`apcer_<species>` per
+species, worst-species APCER, BPCER, ACER, `bpcer_at_apcer_1pct`), tags
+`l1_gate`/`l2_gate` (pass/fail) and the markdown report as artifact. It
+needs `MLFLOW_TRACKING_URI` set **and** `pip install mlflow` (deliberately
+not in requirements.txt — without `--mlflow` nothing changes and nothing
+imports mlflow).
+
+The server is cluster-internal (no auth — never exposed via ingress). From
+a laptop, tunnel + port-forward in one go, then run:
+
+```bash
+ssh -L 28115:localhost:28115 deploy@lms.athenafinance.cloud \
+    'sudo k3s kubectl -n lms port-forward svc/nemo-mlflow 28115:5000'
+# in another shell:
+MLFLOW_TRACKING_URI=http://localhost:28115 \
+    python3 -m liveness_redteam run ./sessions --db runs/results.db --mlflow
+```
+
+(Against the local docker-compose stack it is already on the host:
+`MLFLOW_TRACKING_URI=http://localhost:28115`.)
+
 ## How an operator captures sessions
 
 A **session** is a directory with a `manifest.json` and its clips. One clip =

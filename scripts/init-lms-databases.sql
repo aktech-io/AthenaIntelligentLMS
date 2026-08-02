@@ -154,4 +154,13 @@ CREATE DATABASE athena_cards
 GRANT ALL PRIVILEGES ON DATABASE athena_cards TO athena;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ─── MLflow tracking server (liveness training / red-team audit trail) ───────
+-- Schema is managed by MLflow's own migrations on first server start.
+SELECT 'Creating athena_mlflow...' AS step;
+CREATE DATABASE athena_mlflow
+    WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
+
+\c athena_mlflow
+GRANT ALL PRIVILEGES ON DATABASE athena_mlflow TO athena;
+
 SELECT 'All LMS databases created successfully.' AS result;

@@ -1104,6 +1104,8 @@ spec:
           value: "bff-gateway"
         - name: DB_NAME
           value: "athena_mobile_gateway"
+        - name: OTP_ECHO_ENABLED
+          value: "false"
         - name: ACCOUNT_SERVICE_URL
           value: "http://account-service:8086"
         - name: OVERDRAFT_SERVICE_URL
@@ -1456,6 +1458,82 @@ spec:
   ports:
   - port: 8102
     targetPort: 8102
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nemo-mlflow-artifacts
+  namespace: lms
+  labels: {app: nemo-mlflow}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemo-mlflow
+  namespace: lms
+  labels: {app: nemo-mlflow}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: nemo-mlflow}
+  template:
+    metadata:
+      labels: {app: nemo-mlflow}
+    spec:
+      containers:
+      - name: nemo-mlflow
+        image: nemo-mlflow:2026.07.18
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef: {name: lms-go-common}
+        env:
+        - name: PORT
+          value: "5000"
+        - name: DB_NAME
+          value: "athena_mlflow"
+        ports:
+        - containerPort: 5000
+        readinessProbe:
+          httpGet: {path: /health, port: 5000}
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: {path: /health, port: 5000}
+          initialDelaySeconds: 40
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: artifacts
+          mountPath: /mlflow/artifacts
+        resources:
+          requests: {cpu: 50m, memory: 256Mi}
+          limits: {cpu: 500m, memory: 1Gi}
+      volumes:
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: nemo-mlflow-artifacts
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemo-mlflow
+  namespace: lms
+  labels: {app: nemo-mlflow}
+spec:
+  selector: {app: nemo-mlflow}
+  ports:
+  - port: 5000
+    targetPort: 5000
 
 ---
 apiVersion: apps/v1

@@ -1,6 +1,6 @@
 name: Deploy Contabo
 
-# Build the 25-image Nemo set to GHCR, then roll the lms namespace on the
+# Build the 26-image Nemo set to GHCR, then roll the lms namespace on the
 # Contabo box over SSH (k3s API is firewalled — everything runs on-box).
 # Mirrors the alpa-api deploy pipeline.
 
@@ -95,6 +95,8 @@ jobs:
             context: ekyc-ml-service
           - image: nemo-portal
             context: lms-portal-ui
+          - image: nemo-mlflow
+            context: deploy/mlflow
     steps:
       - uses: actions/checkout@v4
 

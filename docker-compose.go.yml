@@ -712,6 +712,50 @@ services:
       start_period: 30s
       retries: 3
 
+  # ─── MLflow tracking server (liveness training / red-team audit trail) ──────
+  # Backend store: athena_mlflow on the platform PG (scripts/init-lms-databases.sql);
+  # artifacts on the mlflow-artifacts volume. MLflow has NO auth: host port
+  # 28115 is for localhost/SSH-tunnel use only — never expose it via
+  # ingress/reverse proxy. Clients: liveness-training (experiment
+  # "liveness-training") and liveness-redteam --mlflow ("liveness-redteam").
+  #
+  # NOTE: the AthenaCreditScore base compose carries a legacy `mlflow` service
+  # (mlflow_db, host port 5000). Same-named services MERGE, so entrypoint/
+  # command and ports are pinned (!override) here — the merged service is THIS
+  # one: deploy/mlflow image, athena_mlflow backend, host port 28115 only.
+  # When overlaying on that base, relative contexts resolve against ITS
+  # project dir: it needs a `deploy/mlflow` symlink into this repo, the same
+  # bridge mechanism as its committed `go-services` symlink.
+  mlflow:
+    build:
+      context: ./deploy/mlflow
+      dockerfile: Dockerfile
+    entrypoint: ["/entrypoint.sh"]
+    command: !override []
+    ports: !override ["28115:5000"]
+    environment:
+      PORT: 5000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: athena_mlflow
+      DB_USER: ${POSTGRES_USER:-athena}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-athena_secret}
+    volumes:
+      - mlflow-artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")' || exit 1"]
+      interval: 20s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+volumes:
+  mlflow-artifacts:
+
 networks:
   athena-net:
     name: athena-net

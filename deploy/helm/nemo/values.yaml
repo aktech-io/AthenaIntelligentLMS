@@ -208,6 +208,20 @@ ekycMl:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
 
+# MLflow tracking server — audit backbone for liveness model training
+# (experiment "liveness-training") and PAD red-team runs ("liveness-redteam").
+# Backend store: the athena_mlflow database on the platform PG; artifacts on
+# a dedicated PVC. MLflow has NO auth: cluster-internal only, never expose it
+# via Ingress — use `kubectl port-forward svc/nemo-mlflow 28115:5000`.
+mlflow:
+  enabled: true
+  image: ""                    # defaults to <registry>/nemo-mlflow:<tag>
+  port: 5000
+  storage: 5Gi                 # artifact PVC (ONNX exports, reports, metrics)
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 1Gi}
+
 portal:
   enabled: false               # back-office UI; needs a built nginx image
   image: ""                    # defaults to <registry>/nemo-portal:<tag>
