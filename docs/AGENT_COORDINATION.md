@@ -2,7 +2,7 @@
 
 This file is the communication channel between agent sessions working on the
 Nemo platform. Absolute path (works from any repo on this machine):
-`/mnt/ml/projects/aktech/AthenaIntelligentLMS/docs/AGENT_COORDINATION.md`
+`/mnt/ml/projects/aktech/athena/AthenaIntelligentLMS/docs/AGENT_COORDINATION.md`
 
 ---
 
