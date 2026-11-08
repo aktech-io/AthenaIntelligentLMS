@@ -25,6 +25,9 @@ const (
 	// migration re-attaches to the existing durable queue.
 	BFFNotificationQueue = "athena.wallet.notification.queue"
 	DecisionQueue        = "athena.lms.decision.queue"
+	// InvoicePaymentQueue feeds invoice-service with payment.completed so
+	// buyer payments collected elsewhere settle invoice advances.
+	InvoicePaymentQueue = "athena.lms.invoice.payment.queue"
 
 	// Routing key patterns
 	LoanRoutingPattern     = "loan.#"
@@ -114,6 +117,8 @@ var AllBindings = []Binding{
 	{BFFNotificationQueue, WildcardPattern},
 	// Decision spine (Nemo E1): decision.recorded → decision-service projection
 	{DecisionQueue, DecisionRoutingPattern},
+	// Invoice finance: buyer payments
+	{InvoicePaymentQueue, PaymentCompletedKey},
 }
 
 // DeclareTopology declares the exchange, all queues, and all bindings.
@@ -134,6 +139,7 @@ func DeclareTopology(ch *amqp.Channel, logger *zap.Logger) error {
 		FloatQueue, AccountMobileQueue, OverdraftMobileQueue,
 		BFFNotificationQueue,
 		DecisionQueue,
+		InvoicePaymentQueue,
 	}
 	for _, q := range queues {
 		if _, err := ch.QueueDeclare(q, true, false, false, false, nil); err != nil {

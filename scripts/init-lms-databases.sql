@@ -109,6 +109,16 @@ CREATE DATABASE athena_overdraft
 GRANT ALL PRIVILEGES ON DATABASE athena_overdraft TO athena;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ─── Invoice Finance Service ──────────────────────────────────────────────────
+SELECT 'Creating athena_invoice...' AS step;
+CREATE DATABASE athena_invoice
+    WITH OWNER = athena ENCODING = 'UTF8' TEMPLATE = template0;
+
+\c athena_invoice
+GRANT ALL PRIVILEGES ON DATABASE athena_invoice TO athena;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ─── Media Service ────────────────────────────────────────────────────────────
 SELECT 'Creating athena_media...' AS step;
 CREATE DATABASE athena_media

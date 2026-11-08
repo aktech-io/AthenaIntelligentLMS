@@ -382,3 +382,10 @@ func championVersion(versions map[int]*Policy) *Policy {
 	}
 	return best
 }
+
+// BuiltinYAML returns the raw bytes of an embedded default policy document
+// (e.g. "invoice.advance.ke.yaml") so a service can show/seed the cold
+// default verbatim — the hash recorded on decisions is over these bytes.
+func BuiltinYAML(name string) ([]byte, error) {
+	return builtinFS.ReadFile("policies/" + name)
+}

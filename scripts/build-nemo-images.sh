@@ -27,6 +27,7 @@ GO_SERVICES=(
   account-service product-service loan-origination-service loan-management-service
   payment-service accounting-service float-service collections-service
   compliance-service reporting-service ai-scoring-service overdraft-service
+  invoice-service
   media-service notification-service fraud-detection-service lms-api-gateway
   card-service decision-service
   bff-gateway bff-notification bff-billpay-savings bff-shop

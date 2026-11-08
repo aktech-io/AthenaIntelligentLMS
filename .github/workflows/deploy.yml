@@ -39,6 +39,7 @@ jobs:
           - reporting-service
           - ai-scoring-service
           - overdraft-service
+          - invoice-service
           - media-service
           - notification-service
           - fraud-detection-service

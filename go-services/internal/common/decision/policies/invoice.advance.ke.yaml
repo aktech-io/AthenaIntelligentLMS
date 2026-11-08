@@ -1,0 +1,65 @@
+# Embedded platform default for the invoice-finance advance decision
+# (docs/nemo/invoice-finance/SPEC.md §5). Evaluated by invoice-service after
+# scoring + fraud checks; APPROVE creates an Offer automatically, REFER parks
+# the invoice in the review queue, DECLINE ends the pipeline.
+#
+# Inputs: seller_band (A-D), buyer_tier (A-D; UNRATED is mapped to C by the
+# caller), band_cell ("<seller_band>/<buyer_tier>"), invoice_score (0-100),
+# days_to_due, amount, fraud_flags (count), buyer_confirmed (bool),
+# concentration_pct (0-100).
+#
+# The v1 rule language has no boolean connectives, so the SPEC's single
+# IF-TENOR rule ("days_to_due < 7 or > 120") is expressed as two rows that
+# share the rule id. Band-table detail keys (advance_rate, fee_per_day) land
+# verbatim in Outcome.Detail and drive Offer creation.
+#
+# Operators edit this through PUT /api/v1/invoice-policy, which stores a new
+# version in invoice-service's database; this file is only the cold default.
+policy: invoice.advance
+version: 1
+market: KE
+tenant: "*"
+rules:
+  - id: IF-GATE
+    when: buyer_confirmed == false
+    outcome: DECLINE
+    reason: BUYER_NOT_CONFIRMED
+  - id: IF-FRAUD
+    when: fraud_flags > 0
+    outcome: REFER
+    reason: FRAUD_FLAG
+  - id: IF-TENOR
+    when: days_to_due < 7
+    outcome: DECLINE
+    reason: TENOR_OUT_OF_RANGE
+  - id: IF-TENOR
+    when: days_to_due > 120
+    outcome: DECLINE
+    reason: TENOR_OUT_OF_RANGE
+  - id: IF-CONC
+    when: concentration_pct > 40
+    outcome: REFER
+    reason: BUYER_CONCENTRATION
+  - id: IF-BAND
+    field: band_cell
+    table:
+      # seller A
+      - { band: A/A, advance_rate: 0.90, fee_per_day: 0.0005, outcome: APPROVE }
+      - { band: A/B, advance_rate: 0.90, fee_per_day: 0.0005, outcome: APPROVE }
+      - { band: A/C, advance_rate: 0.80, fee_per_day: 0.0007, outcome: APPROVE }
+      - { band: A/D, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: BUYER_TIER_LOW }
+      # seller B
+      - { band: B/A, advance_rate: 0.80, fee_per_day: 0.0007, outcome: APPROVE }
+      - { band: B/B, advance_rate: 0.80, fee_per_day: 0.0007, outcome: APPROVE }
+      - { band: B/C, advance_rate: 0.80, fee_per_day: 0.0007, outcome: APPROVE }
+      - { band: B/D, advance_rate: 0.80, fee_per_day: 0.0007, outcome: REFER, reason: BUYER_TIER_LOW }
+      # seller C
+      - { band: C/A, advance_rate: 0.70, fee_per_day: 0.0009, outcome: APPROVE }
+      - { band: C/B, advance_rate: 0.70, fee_per_day: 0.0009, outcome: APPROVE }
+      - { band: C/C, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: BUYER_TIER_LOW }
+      - { band: C/D, advance_rate: 0.70, fee_per_day: 0.0009, outcome: DECLINE, reason: BUYER_TIER_LOW }
+      # seller D
+      - { band: D/A, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: SCORE_BAND_LOW }
+      - { band: D/B, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: SCORE_BAND_LOW }
+      - { band: D/C, outcome: DECLINE, reason: SCORE_BAND_LOW }
+      - { band: D/D, outcome: DECLINE, reason: SCORE_BAND_LOW }

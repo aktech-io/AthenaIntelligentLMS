@@ -19,6 +19,13 @@ const (
 	// ReasonPolicyNoMatch is the fail-closed default: no policy rule produced
 	// an outcome, so the evaluator declines rather than inventing one.
 	ReasonPolicyNoMatch = "POLICY_NO_MATCH"
+
+	// Invoice finance (docs/nemo/invoice-finance/SPEC.md §5).
+	ReasonBuyerNotConfirmed  = "BUYER_NOT_CONFIRMED"
+	ReasonFraudFlag          = "FRAUD_FLAG"
+	ReasonTenorOutOfRange    = "TENOR_OUT_OF_RANGE"
+	ReasonBuyerConcentration = "BUYER_CONCENTRATION"
+	ReasonBuyerTierLow       = "BUYER_TIER_LOW"
 )
 
 // reasonRegistry maps every registered code to its stable, regulator-facing
@@ -34,6 +41,11 @@ var reasonRegistry = map[string]string{
 	ReasonBureauHistory:         "Credit bureau history contributed negatively",
 	ReasonFacilityExists:        "An active facility already exists for this subject",
 	ReasonPolicyNoMatch:         "No policy rule matched the application",
+	ReasonBuyerNotConfirmed:     "The invoice buyer has not confirmed the receivable",
+	ReasonFraudFlag:             "A fraud rule flagged the invoice financing request",
+	ReasonTenorOutOfRange:       "Days to invoice due date are outside the financeable range",
+	ReasonBuyerConcentration:    "Buyer concentration in the financed portfolio exceeds the limit",
+	ReasonBuyerTierLow:          "Buyer credit tier is too low for the seller band",
 }
 
 // KnownReason reports whether code is registered.

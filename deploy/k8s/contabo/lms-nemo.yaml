@@ -723,6 +723,73 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: invoice-service
+  namespace: lms
+  labels: {app: invoice-service}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: invoice-service}
+  template:
+    metadata:
+      labels: {app: invoice-service}
+    spec:
+      containers:
+      - name: invoice-service
+        image: nemo-invoice-service:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef: {name: lms-go-common}
+        - secretRef: {name: lms-secrets}
+        env:
+        - name: PORT
+          value: "8101"
+        - name: SERVICE_NAME
+          value: "invoice-service"
+        - name: DB_NAME
+          value: "athena_invoice"
+        - name: EKYC_ML_URL
+          value: "http://nemo-ekyc-ml:8102"
+        - name: DEMO_MODE
+          value: "true"
+        - name: PUBLIC_PORTAL_URL
+          value: "https://lms.athenafinance.cloud"
+        - name: COREBANKING_PROVIDER
+          value: "nemo"
+        ports:
+        - containerPort: 8101
+        readinessProbe:
+          httpGet: {path: /actuator/health, port: 8101}
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: {path: /actuator/health, port: 8101}
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits: {cpu: 500m, memory: 512Mi}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoice-service
+  namespace: lms
+  labels: {app: invoice-service}
+spec:
+  selector: {app: invoice-service}
+  ports:
+  - port: 8101
+    targetPort: 8101
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: media-service
   namespace: lms
   labels: {app: media-service}

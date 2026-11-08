@@ -165,6 +165,34 @@ func defaultRoutes() []RouteConfig {
 			TargetURL:   "http://fraud-detection-service.lms.svc.cluster.local:8100",
 			EnvOverride: "ROUTE_FRAUD_DETECTION_SERVICE_URL",
 		},
+		// Nemo invoice finance (docs/nemo/invoice-finance/SPEC.md §1): one
+		// upstream, three protected prefixes plus the public buyer-confirm /
+		// verify prefix (no JWT; rate-limited like the login route).
+		{
+			ID:          "invoice-service",
+			PathPrefix:  "/lms/api/v1/invoices/",
+			TargetURL:   "http://invoice-service.lms.svc.cluster.local:8101",
+			EnvOverride: "ROUTE_INVOICE_SERVICE_URL",
+		},
+		{
+			ID:          "invoice-service-buyers",
+			PathPrefix:  "/lms/api/v1/buyers/",
+			TargetURL:   "http://invoice-service.lms.svc.cluster.local:8101",
+			EnvOverride: "ROUTE_INVOICE_SERVICE_URL",
+		},
+		{
+			ID:          "invoice-service-policy",
+			PathPrefix:  "/lms/api/v1/invoice-policy/",
+			TargetURL:   "http://invoice-service.lms.svc.cluster.local:8101",
+			EnvOverride: "ROUTE_INVOICE_SERVICE_URL",
+		},
+		{
+			ID:          "invoice-service-public",
+			PathPrefix:  "/lms/api/public/invoices/",
+			TargetURL:   "http://invoice-service.lms.svc.cluster.local:8101",
+			EnvOverride: "ROUTE_INVOICE_SERVICE_URL",
+			Public:      true,
+		},
 	}
 }
 
@@ -419,7 +447,7 @@ func (gw *Gateway) RegisterRoutes(r chi.Router, authMw *auth.Middleware, loginLi
 		proxy := gw.newReverseProxy(route.TargetURL, route.ID)
 		cb := gw.circuitBreakers[route.ID]
 		var mw func(http.Handler) http.Handler
-		if route.ID == "account-service-auth" {
+		if route.ID == "account-service-auth" || route.ID == "invoice-service-public" {
 			mw = loginLimiter
 		}
 		registerRoute(r, route, proxy, cb, mw)

@@ -31,6 +31,7 @@ Eureka service discovery is **disabled** — all service-to-service communicatio
 | reporting-service | 8095 | athena_reporting | `reporting-service.lms.svc.cluster.local:8095` |
 | ai-scoring-service | 8096 | athena_scoring | `ai-scoring-service.lms.svc.cluster.local:8096` |
 | overdraft-service | 8097 | athena_overdraft | `overdraft-service.lms.svc.cluster.local:8097` |
+| invoice-service | 8101 | athena_invoice | `invoice-service.lms.svc.cluster.local:8101` |
 | media-service | 8098 | athena_media | `media-service.lms.svc.cluster.local:8098` |
 | notification-service | 8099 | athena_notifications | `notification-service.lms.svc.cluster.local:8099` |
 | lms-api-gateway | 8105 | — | `lms-api-gateway.lms.svc.cluster.local:8105` |
@@ -234,6 +235,7 @@ Go services run on `28xxx` host ports (internal port unchanged):
 | reporting-service | 8095 | 28095 | athena_reporting |
 | ai-scoring-service | 8096 | 28096 | athena_scoring |
 | overdraft-service | 8097 | 28097 | athena_overdraft |
+| invoice-service | 8101 | 28103 | athena_invoice |
 | media-service | 8098 | 28098 | athena_media |
 | notification-service | 8099 | 28099 | athena_notifications |
 | fraud-detection-service | 8100 | 28100 | athena_fraud |

@@ -71,6 +71,8 @@ func TestAllBindings(t *testing.T) {
 		BFFNotificationQueue: {WildcardPattern},
 		// Decision spine (Nemo E1): decision.recorded projection feed.
 		DecisionQueue: {DecisionRoutingPattern},
+		// Invoice finance: buyer payments settle advances
+		InvoicePaymentQueue: {PaymentCompletedKey},
 	}
 
 	// Build actual bindings map from AllBindings

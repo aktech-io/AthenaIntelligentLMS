@@ -388,6 +388,49 @@ services:
       start_period: 30s
       retries: 3
 
+  # Nemo invoice finance (docs/nemo/invoice-finance/SPEC.md). Container port
+  # 8101 per spec; host port 28103 because 28101 is already taken by
+  # fraud-ml-service on this host.
+  go-invoice-service:
+    build:
+      context: ./go-services
+      dockerfile: deploy/docker/Dockerfile.service
+      args:
+        SERVICE: invoice-service
+    ports: ["28103:8101"]
+    environment:
+      <<: *go-env
+      PORT: 8101
+      DB_HOST: postgres
+      DB_NAME: athena_invoice
+      SERVICE_NAME: go-invoice-service
+      RABBITMQ_CONSUME_ENABLED: "true"
+      DEMO_MODE: "${INVOICE_DEMO_MODE:-true}"
+      PUBLIC_PORTAL_URL: "${PUBLIC_PORTAL_URL:-http://localhost:3001}"
+      COREBANKING_PROVIDER: "${COREBANKING_PROVIDER:-nemo}"
+      EKYC_ML_URL: "http://ekyc-ml-service:8102"
+      MEDIA_SERVICE_URL: "http://go-media-service:8098"
+      NOTIFICATION_SERVICE_URL: "http://go-notification-service:8099"
+      AI_SCORING_URL: "http://go-ai-scoring-service:8096"
+      FRAUD_DETECTION_URL: "http://go-fraud-detection-service:8100"
+      ACCOUNT_SERVICE_URL: "http://go-account-service:8086"
+      LOAN_ORIGINATION_URL: "http://go-loan-origination-service:8088"
+      LOAN_MANAGEMENT_URL: "http://go-loan-management-service:8089"
+      PAYMENT_SERVICE_URL: "http://go-payment-service:8090"
+      PRODUCT_SERVICE_URL: "http://go-product-service:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [athena-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8101/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
   go-notification-service:
     build:
       context: ./go-services
@@ -574,6 +617,7 @@ services:
       ROUTE_MEDIA_SERVICE_URL: "http://go-media-service:8098"
       ROUTE_FRAUD_DETECTION_SERVICE_URL: "http://go-fraud-detection-service:8100"
       ROUTE_CARD_SERVICE_URL: "http://go-card-service:8107"
+      ROUTE_INVOICE_SERVICE_URL: "http://go-invoice-service:8101"
     depends_on:
       rabbitmq:
         condition: service_healthy

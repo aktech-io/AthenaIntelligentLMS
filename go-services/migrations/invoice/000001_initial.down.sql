@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS processed_events;
+DROP TABLE IF EXISTS event_outbox;
+DROP TABLE IF EXISTS invoice_policies;
+DROP TABLE IF EXISTS anchors;
+DROP TRIGGER IF EXISTS trg_ledger_no_update ON ledger_events;
+DROP TRIGGER IF EXISTS trg_ledger_no_delete ON ledger_events;
+DROP FUNCTION IF EXISTS ledger_block_modify();
+DROP TABLE IF EXISTS ledger_events;
+DROP TABLE IF EXISTS decisions;
+DROP TABLE IF EXISTS invoice_payments;
+DROP TABLE IF EXISTS advances;
+DROP TABLE IF EXISTS offers;
+DROP TABLE IF EXISTS buyer_confirmations;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS buyers;

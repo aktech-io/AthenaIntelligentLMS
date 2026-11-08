@@ -107,6 +107,28 @@ services:
     routeKey: FRAUD_DETECTION_SERVICE
     extraEnv:
       FRAUD_ML_SERVICE_URL: http://nemo-fraud-ml:8101
+  # Nemo invoice finance (docs/nemo/invoice-finance/SPEC.md): gateway prefixes
+  # /lms/api/v1/{invoices,buyers,invoice-policy}/ + public /lms/api/public/invoices/.
+  # Upstream URLs must be set because the code defaults assume the Contabo
+  # (<name>.lms.svc.cluster.local) names, not the chart's go-* names.
+  - name: invoice-service
+    port: 8101
+    dbName: athena_invoice
+    routeKey: INVOICE_SERVICE
+    extraEnv:
+      DEMO_MODE: "false"                      # "true" → OTP 000000 + confirm link in API responses
+      PUBLIC_PORTAL_URL: https://portal.example.com
+      COREBANKING_PROVIDER: nemo              # nemo | webhook (then COREBANKING_WEBHOOK_URL/_SECRET)
+      EKYC_ML_URL: http://nemo-ekyc-ml:8102
+      MEDIA_SERVICE_URL: http://go-media-service:8098
+      NOTIFICATION_SERVICE_URL: http://go-notification-service:8099
+      AI_SCORING_URL: http://go-ai-scoring-service:8096
+      FRAUD_DETECTION_URL: http://go-fraud-detection-service:8100
+      ACCOUNT_SERVICE_URL: http://go-account-service:8086
+      LOAN_ORIGINATION_URL: http://go-loan-origination-service:8088
+      LOAN_MANAGEMENT_URL: http://go-loan-management-service:8089
+      PAYMENT_SERVICE_URL: http://go-payment-service:8090
+      PRODUCT_SERVICE_URL: http://go-product-service:8087
   # Decision spine control plane (E1): projects decision.recorded events into
   # the append-only decision_log. Gateway route lands with E1 increment 4.
   - {name: decision-service, port: 8106, dbName: athena_decision}

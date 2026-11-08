@@ -52,6 +52,14 @@ GO_SERVICES = [
     ("reporting-service",        8095, "athena_reporting", {}),
     ("ai-scoring-service",       8096, "athena_scoring", {}),
     ("overdraft-service",        8097, "athena_overdraft", {}),
+    # Nemo invoice finance (docs/nemo/invoice-finance/SPEC.md). Upstream URLs
+    # default to <name>.lms.svc.cluster.local:<port>, which matches this box.
+    ("invoice-service",          8101, "athena_invoice", {
+        "EKYC_ML_URL": "http://nemo-ekyc-ml:8102",
+        "DEMO_MODE": "true",
+        "PUBLIC_PORTAL_URL": "https://lms.athenafinance.cloud",
+        "COREBANKING_PROVIDER": "nemo",
+    }),
     ("media-service",            8098, "athena_media", {}),
     ("notification-service",     8099, "athena_notifications", {}),
     ("fraud-detection-service",  8100, "athena_fraud", {
