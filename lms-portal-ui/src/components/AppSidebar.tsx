@@ -49,6 +49,9 @@ import {
   CheckCheck,
   ScanFace,
   FlaskConical,
+  Inbox,
+  Receipt,
+  Anchor,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/permissions";
@@ -83,6 +86,15 @@ const lendingNav = [
   { title: "Active Loans", url: "/active-loans", icon: Wallet },
   { title: "Repayment Schedule", url: "/repayments", icon: CalendarDays },
   { title: "Loan Modifications", url: "/modifications", icon: RefreshCw },
+];
+
+const invoiceFinanceNav = [
+  { title: "Overview", url: "/invoice-finance", icon: FileText },
+  { title: "Review Queue", url: "/invoice-finance/queue", icon: Inbox },
+  { title: "Invoices", url: "/invoice-finance/invoices", icon: Receipt },
+  { title: "Buyers", url: "/invoice-finance/buyers", icon: Building2 },
+  { title: "Policy", url: "/invoice-finance/policy", icon: Scale },
+  { title: "Anchors", url: "/invoice-finance/anchors", icon: Anchor },
 ];
 
 const productsNav = [
@@ -177,6 +189,7 @@ const tellerNav = [
 
 const navSections = [
   { label: "Lending", items: lendingNav },
+  { label: "Invoice Finance", items: invoiceFinanceNav },
   { label: "Products", items: productsNav },
   { label: "Customers", items: customersNav },
   { label: "Accounts & Deposits", items: accountsNav },
@@ -211,7 +224,7 @@ export function AppSidebar() {
     const openSections: Record<string, boolean> = {};
     navSections.forEach((section) => {
       const hasActiveRoute = section.items.some(
-        (item) => location.pathname === item.url
+        (item) => location.pathname === item.url || (item.url !== "/" && location.pathname.startsWith(item.url + "/"))
       );
       openSections[section.label] = hasActiveRoute;
     });
@@ -240,7 +253,7 @@ export function AppSidebar() {
           <SidebarMenuButton asChild>
             <NavLink
               to={item.url}
-              end={item.url === "/"}
+              end={item.url === "/" || item.url === "/invoice-finance"}
               className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sidebar-foreground/70 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors text-[13px]"
               activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
             >

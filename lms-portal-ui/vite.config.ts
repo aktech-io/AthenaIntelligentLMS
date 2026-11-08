@@ -86,6 +86,12 @@ export default defineConfig(() => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/proxy\/media/, ""),
       },
+      // invoice-service (Nemo invoice finance) — gateway prefix /lms/
+      "/lms": {
+        target: "http://localhost:28103",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/lms/, ""),
+      },
       "/proxy/notifications": {
         target: "http://localhost:28099",
         changeOrigin: true,

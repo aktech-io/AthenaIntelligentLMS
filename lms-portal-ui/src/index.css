@@ -1,117 +1,157 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Jost:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Nemo deep-water palette
+  ─────────────────────────────────────────────
+  abyss      #06222B  → 195 76% 10%
+  water      #0C3541  → 194 69% 15%
+  water-2    #10424F  → 192 66% 19%
+  coral      #FF6A3D  → 14 100% 62%
+  coral-deep #E04E22  → 14 75% 51%
+  aqua       #5BC4B4  → 171 47% 56%
+  aqua-on    #04292F  → 188 84% 10%
+  stripe     #F2F7F5  → 156 24% 96%
+  glass      #8FAEAB  → 174 16% 62%
+  destructive#FF7A6B  → 6 100% 71%
+  border     glass @ 22% (flattened onto the surface it sits on)
+*/
+
 @layer base {
   :root {
-    /* AthenaLMS — Deep Navy + Gold Accent */
-    --background: 213 27% 97%;
-    --foreground: 215 28% 10%;
+    /* Raw brand tokens (hsl triplets) */
+    --nemo-abyss: 195 76% 10%;
+    --nemo-water: 194 69% 15%;
+    --nemo-water-2: 192 66% 19%;
+    --nemo-coral: 14 100% 62%;
+    --nemo-coral-deep: 14 75% 51%;
+    --nemo-aqua: 171 47% 56%;
+    --nemo-aqua-on: 188 84% 10%;
+    --nemo-stripe: 156 24% 96%;
+    --nemo-glass: 174 16% 62%;
+
+    /* Light surface */
+    --background: var(--nemo-stripe);
+    --foreground: var(--nemo-abyss);
 
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 10%;
+    --card-foreground: var(--nemo-abyss);
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 10%;
+    --popover-foreground: var(--nemo-abyss);
 
-    --primary: 214 62% 15%;
-    --primary-foreground: 45 100% 96%;
+    --primary: var(--nemo-coral);
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 213 20% 93%;
-    --secondary-foreground: 215 28% 10%;
+    --secondary: 170 18% 92%;
+    --secondary-foreground: var(--nemo-abyss);
 
-    --muted: 213 20% 95%;
-    --muted-foreground: 215 13% 42%;
+    --muted: 170 18% 92%;
+    --muted-foreground: 190 14% 38%;
 
-    --accent: 42 56% 54%;
-    --accent-foreground: 214 62% 10%;
+    --accent: var(--nemo-aqua);
+    --accent-foreground: var(--nemo-aqua-on);
 
-    --destructive: 0 72% 51%;
+    /* Slightly deeper than #FF7A6B so text on white stays legible */
+    --destructive: 6 85% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 214 62% 15%;
+    --border: 174 16% 85%;
+    --input: 174 16% 85%;
+    --ring: var(--nemo-coral);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Semantic */
-    --success: 160 60% 38%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 48%;
+    --success: var(--nemo-aqua);
+    --success-foreground: var(--nemo-aqua-on);
+    --warning: 38 92% 55%;
     --warning-foreground: 38 92% 10%;
-    --info: 217 80% 52%;
+    --info: 171 47% 40%;
     --info-foreground: 0 0% 100%;
 
-    /* Navy scale */
-    --navy-950: 215 50% 8%;
-    --navy-900: 214 52% 14%;
-    --navy-800: 210 48% 30%;
-    --navy-700: 212 48% 42%;
-    --navy-600: 213 50% 58%;
+    /* Legacy navy scale — remapped to deep water so old utilities keep working */
+    --navy-950: var(--nemo-abyss);
+    --navy-900: var(--nemo-water);
+    --navy-800: var(--nemo-water-2);
+    --navy-700: 192 50% 30%;
+    --navy-600: var(--nemo-glass);
 
-    /* Gold scale */
-    --gold-500: 42 56% 54%;
-    --gold-400: 42 62% 64%;
-    --gold-300: 42 68% 72%;
+    /* Legacy gold scale — remapped to coral */
+    --gold-500: var(--nemo-coral);
+    --gold-400: 14 100% 70%;
+    --gold-300: 14 100% 78%;
 
-    /* Sidebar */
-    --sidebar-background: 214 52% 14%;
-    --sidebar-foreground: 214 20% 78%;
-    --sidebar-primary: 42 56% 54%;
-    --sidebar-primary-foreground: 214 52% 10%;
-    --sidebar-accent: 214 48% 22%;
-    --sidebar-accent-foreground: 214 20% 94%;
-    --sidebar-border: 214 40% 20%;
-    --sidebar-ring: 42 56% 54%;
+    /* Sidebar — always abyss */
+    --sidebar-background: var(--nemo-abyss);
+    --sidebar-foreground: var(--nemo-glass);
+    --sidebar-primary: var(--nemo-coral);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--nemo-water);
+    --sidebar-accent-foreground: var(--nemo-stripe);
+    --sidebar-border: 190 33% 21%; /* glass @ 22% on abyss */
+    --sidebar-ring: var(--nemo-coral);
 
     /* Chart colors */
-    --chart-1: 214 62% 15%;
-    --chart-2: 42 56% 54%;
-    --chart-3: 160 60% 38%;
-    --chart-4: 217 80% 52%;
-    --chart-5: 0 72% 51%;
+    --chart-1: var(--nemo-coral);
+    --chart-2: var(--nemo-aqua);
+    --chart-3: 192 66% 19%;
+    --chart-4: var(--nemo-glass);
+    --chart-5: var(--nemo-coral-deep);
   }
 
   .dark {
-    --background: 215 40% 6%;
-    --foreground: 213 20% 92%;
+    --background: var(--nemo-abyss);
+    --foreground: var(--nemo-stripe);
 
-    --card: 215 35% 10%;
-    --card-foreground: 213 20% 92%;
+    --card: var(--nemo-water);
+    --card-foreground: var(--nemo-stripe);
 
-    --popover: 215 35% 10%;
-    --popover-foreground: 213 20% 92%;
+    --popover: var(--nemo-water);
+    --popover-foreground: var(--nemo-stripe);
 
-    --primary: 42 56% 54%;
-    --primary-foreground: 214 52% 10%;
+    --primary: var(--nemo-coral);
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 30% 16%;
-    --secondary-foreground: 213 20% 92%;
+    --secondary: var(--nemo-water-2);
+    --secondary-foreground: var(--nemo-stripe);
 
-    --muted: 215 30% 14%;
-    --muted-foreground: 213 10% 55%;
+    --muted: 194 60% 17%;
+    --muted-foreground: var(--nemo-glass);
 
-    --accent: 42 56% 54%;
-    --accent-foreground: 214 52% 10%;
+    --accent: var(--nemo-aqua);
+    --accent-foreground: var(--nemo-aqua-on);
 
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 6 100% 71%;
+    --destructive-foreground: var(--nemo-abyss);
 
-    --border: 215 30% 18%;
-    --input: 215 30% 18%;
-    --ring: 42 56% 54%;
+    --border: 191 37% 25%; /* glass @ 22% on water */
+    --input: 191 37% 25%;
+    --ring: var(--nemo-coral);
 
-    --sidebar-background: 215 45% 8%;
-    --sidebar-foreground: 213 20% 78%;
-    --sidebar-primary: 42 56% 54%;
-    --sidebar-primary-foreground: 214 52% 10%;
-    --sidebar-accent: 215 35% 14%;
-    --sidebar-accent-foreground: 213 20% 92%;
-    --sidebar-border: 215 30% 14%;
-    --sidebar-ring: 42 56% 54%;
+    --success: var(--nemo-aqua);
+    --success-foreground: var(--nemo-aqua-on);
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 92% 10%;
+    --info: var(--nemo-aqua);
+    --info-foreground: var(--nemo-aqua-on);
+
+    --navy-700: 192 40% 45%;
+    --navy-600: var(--nemo-glass);
+
+    --sidebar-background: var(--nemo-abyss);
+    --sidebar-foreground: var(--nemo-glass);
+    --sidebar-primary: var(--nemo-coral);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--nemo-water);
+    --sidebar-accent-foreground: var(--nemo-stripe);
+    --sidebar-border: 190 33% 21%;
+    --sidebar-ring: var(--nemo-coral);
+
+    --chart-3: 192 40% 45%;
   }
 }
 
@@ -120,18 +160,26 @@
     @apply border-border;
   }
 
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'DM Sans', system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'DM Serif Display', 'Georgia', serif;
+    font-family: 'Jost', 'DM Sans', system-ui, sans-serif;
+    font-weight: 600;
     @apply tracking-tight;
   }
 
   .font-heading {
-    font-family: 'DM Serif Display', 'Georgia', serif;
+    font-family: 'Jost', 'DM Sans', system-ui, sans-serif;
   }
 
   .font-sans {
@@ -147,7 +195,7 @@
   .glass-card {
     @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
   }
-  
+
   .stat-card {
     @apply bg-card rounded-lg border border-border p-5 transition-all duration-200 hover:shadow-md hover:border-accent/30;
   }
@@ -180,5 +228,14 @@
   }
   .kanban-card:hover {
     @apply shadow-md border-accent/40 -translate-y-0.5;
+  }
+
+  /* Nemo clownfish stripes motif (public pages) */
+  .nemo-stripes {
+    background-image:
+      linear-gradient(90deg, hsl(var(--nemo-coral)) 0 8px, transparent 8px 22px),
+      linear-gradient(90deg, hsl(var(--nemo-stripe)) 0 8px, transparent 8px 22px);
+    background-size: 44px 100%, 44px 100%;
+    background-position: 0 0, 22px 0;
   }
 }

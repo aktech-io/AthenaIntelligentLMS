@@ -6,6 +6,7 @@ import { Bell, Search, Globe, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useLocation, Link } from "react-router-dom";
 import { BranchSwitcher, type BranchSelection } from "@/components/BranchSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -27,6 +28,12 @@ const routeLabels: Record<string, string> = {
   "/ledger": "General Ledger",
   "/compliance": "KYC / Verification",
   "/ai": "AI Model Performance",
+  "/invoice-finance": "Invoice Finance",
+  "/invoice-finance/queue": "Review Queue",
+  "/invoice-finance/invoices": "Invoices",
+  "/invoice-finance/buyers": "Buyers",
+  "/invoice-finance/policy": "Advance Policy",
+  "/invoice-finance/anchors": "Anchors",
 };
 
 export function DashboardLayout({ children, title, subtitle, breadcrumbs }: DashboardLayoutProps) {
@@ -77,6 +84,7 @@ export function DashboardLayout({ children, title, subtitle, breadcrumbs }: Dash
               <button className="p-2 rounded-md hover:bg-muted transition-colors hidden sm:block">
                 <Globe className="h-4 w-4 text-muted-foreground" />
               </button>
+              <ThemeToggle />
               <button className="relative p-2 rounded-md hover:bg-muted transition-colors">
                 <Bell className="h-4 w-4 text-muted-foreground" />
                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />

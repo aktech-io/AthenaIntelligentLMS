@@ -68,6 +68,15 @@ import CashFlowPage from "./pages/CashFlowPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import ControlSettingsPage from "./pages/ControlSettingsPage";
 import ParReportPage from "./pages/ParReportPage";
+import InvoiceFinanceOverviewPage from "./pages/invoice-finance/OverviewPage";
+import ReviewQueuePage from "./pages/invoice-finance/ReviewQueuePage";
+import InvoicesPage from "./pages/invoice-finance/InvoicesPage";
+import InvoiceDetailPage from "./pages/invoice-finance/InvoiceDetailPage";
+import BuyersPage from "./pages/invoice-finance/BuyersPage";
+import PolicyPage from "./pages/invoice-finance/PolicyPage";
+import AnchorsPage from "./pages/invoice-finance/AnchorsPage";
+import ConfirmPage from "./pages/public/ConfirmPage";
+import VerifyPage from "./pages/public/VerifyPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
@@ -171,6 +180,18 @@ const AppRoutes = () => (
       <Route path="/documents" element={<P><DocumentsPage /></P>} />
       <Route path="/approvals" element={<P><ApprovalsPage /></P>} />
       <Route path="/control-settings" element={<P><ControlSettingsPage /></P>} />
+      {/* Invoice Finance (Nemo) */}
+      <Route path="/invoice-finance" element={<P><InvoiceFinanceOverviewPage /></P>} />
+      <Route path="/invoice-finance/queue" element={<P><ReviewQueuePage /></P>} />
+      <Route path="/invoice-finance/invoices" element={<P><InvoicesPage /></P>} />
+      <Route path="/invoice-finance/invoices/:id" element={<P><InvoiceDetailPage /></P>} />
+      <Route path="/invoice-finance/buyers" element={<P><BuyersPage /></P>} />
+      <Route path="/invoice-finance/policy" element={<P><PolicyPage /></P>} />
+      <Route path="/invoice-finance/anchors" element={<P><AnchorsPage /></P>} />
+      {/* Public — no auth, no sidebar */}
+      <Route path="/confirm/:token" element={<ConfirmPage />} />
+      <Route path="/verify/:fingerprint" element={<VerifyPage />} />
+      <Route path="/verify" element={<VerifyPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </ErrorBoundary>
