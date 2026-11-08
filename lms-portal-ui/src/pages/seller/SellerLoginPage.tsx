@@ -52,7 +52,7 @@ const SellerLoginPage = () => {
     setError("");
     setBusy(true);
     try {
-      const r = await sellerAuthService.sendOtp(normalised);
+      const r = await sellerAuthService.sendOtp(normalised, appConfig.tenantId);
       setSent(r);
       setStep("otp");
       setCooldown(30);
@@ -74,7 +74,7 @@ const SellerLoginPage = () => {
     setError("");
     setBusy(true);
     try {
-      const r = await sellerAuthService.verifyOtp(normalised, otp);
+      const r = await sellerAuthService.verifyOtp(normalised, otp, appConfig.tenantId);
       const claims = decodeJwt(r.accessToken) ?? {};
       const name = r.user.fullName || (claims.name as string) || r.user.businessName || normalised;
       loginWithToken(r.accessToken, {

@@ -6,4 +6,5 @@ window.__NEMO_CONFIG__ = {
   mode: "__APP_MODE__",
   demo: "__DEMO_MODE__",
   publicVerifyBase: "__PUBLIC_VERIFY_BASE__",
+  tenantId: "__TENANT_ID__",
 };

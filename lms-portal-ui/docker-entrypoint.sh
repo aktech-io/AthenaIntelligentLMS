@@ -10,6 +10,7 @@ HTML_ROOT="${HTML_ROOT:-/usr/share/nginx/html}"
 APP_MODE="${APP_MODE:-portal}"
 DEMO_MODE="${DEMO_MODE:-false}"
 PUBLIC_VERIFY_BASE="${PUBLIC_VERIFY_BASE:-}"
+TENANT_ID="${TENANT_ID:-default}"   # tenant the seller app signs mobile users into (must match the bank's staff tenant)
 
 case "$APP_MODE" in
   portal|invoice-admin|invoice-client) ;;
@@ -30,10 +31,11 @@ window.__NEMO_CONFIG__ = {
   mode: "$(js_escape "$APP_MODE")",
   demo: ${DEMO_MODE},
   publicVerifyBase: "$(js_escape "$PUBLIC_VERIFY_BASE")",
+  tenantId: "$(js_escape "$TENANT_ID")",
 };
 EOF
 
-echo "docker-entrypoint: APP_MODE=$APP_MODE DEMO_MODE=$DEMO_MODE PUBLIC_VERIFY_BASE=${PUBLIC_VERIFY_BASE:-<same-origin>}"
+echo "docker-entrypoint: APP_MODE=$APP_MODE DEMO_MODE=$DEMO_MODE PUBLIC_VERIFY_BASE=${PUBLIC_VERIFY_BASE:-<same-origin>} TENANT_ID=$TENANT_ID"
 
 if [ "$#" -eq 0 ]; then
   set -- nginx -g 'daemon off;'

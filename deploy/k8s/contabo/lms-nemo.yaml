@@ -1659,6 +1659,8 @@ spec:
           value: "true"
         - name: PUBLIC_VERIFY_BASE
           value: "https://invoice-admin.athenafinance.cloud"
+        - name: TENANT_ID
+          value: "admin"   # staff on this box are seeded in tenant "admin"
         ports:
         - containerPort: 3000
         readinessProbe:
@@ -1733,6 +1735,8 @@ spec:
           value: "true"
         - name: PUBLIC_VERIFY_BASE
           value: "https://invoice.athenafinance.cloud"
+        - name: TENANT_ID
+          value: "admin"   # staff on this box are seeded in tenant "admin"
         ports:
         - containerPort: 3000
         readinessProbe:

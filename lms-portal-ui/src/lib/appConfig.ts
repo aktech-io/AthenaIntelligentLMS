@@ -15,11 +15,13 @@ export interface AppConfig {
   demo: boolean;
   /** Origin for public verify links/QR; empty = current origin. */
   publicVerifyBase: string;
+  /** Tenant the seller app signs mobile users into (same tenant as the bank's staff). */
+  tenantId: string;
 }
 
 declare global {
   interface Window {
-    __NEMO_CONFIG__?: { mode?: unknown; demo?: unknown; publicVerifyBase?: unknown };
+    __NEMO_CONFIG__?: { mode?: unknown; demo?: unknown; publicVerifyBase?: unknown; tenantId?: unknown };
   }
 }
 
@@ -44,7 +46,8 @@ function load(): AppConfig {
   const demoRaw = pick(rt.demo, env.VITE_DEMO_MODE);
   const demo = typeof rt.demo === "boolean" ? rt.demo : parseBool(demoRaw);
   const publicVerifyBase = (pick(rt.publicVerifyBase, env.VITE_PUBLIC_VERIFY_BASE) ?? "").replace(/\/+$/, "");
-  return { mode, demo, publicVerifyBase };
+  const tenantId = (pick(rt.tenantId, env.VITE_TENANT_ID) ?? "default").trim() || "default";
+  return { mode, demo, publicVerifyBase, tenantId };
 }
 
 export const appConfig: AppConfig = load();

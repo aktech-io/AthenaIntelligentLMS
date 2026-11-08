@@ -341,6 +341,8 @@ spec:
           value: "true"
         - name: PUBLIC_VERIFY_BASE
           value: "https://{host}"
+        - name: TENANT_ID
+          value: "admin"   # staff on this box are seeded in tenant "admin"
         ports:
         - containerPort: 3000
         readinessProbe:
