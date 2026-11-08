@@ -91,13 +91,13 @@ const TransactionsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Reference</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Date</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Description</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Debit</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Credit</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Reference</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Description</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Debit</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Credit</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -108,7 +108,7 @@ const TransactionsPage = () => {
                         <TableCell className="text-xs font-mono font-medium">{entry.reference}</TableCell>
                         <TableCell className="text-xs font-sans">{entry.entryDate?.split("T")[0] ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[9px] font-sans ${t.cls}`}>{t.label}</Badge>
+                          <Badge variant="outline" className={`text-[11px] font-sans ${t.cls}`}>{t.label}</Badge>
                         </TableCell>
                         <TableCell className="text-xs font-sans text-muted-foreground max-w-[200px] truncate">
                           {entry.description}
@@ -120,7 +120,7 @@ const TransactionsPage = () => {
                           {entry.totalCredit > 0 ? formatKESFull(entry.totalCredit) : "—"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[9px] font-sans bg-success/15 text-success border-success/30">
+                          <Badge variant="outline" className="text-[11px] font-sans bg-success/15 text-success border-success/30">
                             {entry.status ?? "POSTED"}
                           </Badge>
                         </TableCell>
@@ -143,7 +143,7 @@ const TransactionsPage = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 text-[10px]"
+                className="h-7 text-[11px]"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -152,7 +152,7 @@ const TransactionsPage = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 text-[10px]"
+                className="h-7 text-[11px]"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => p + 1)}
               >

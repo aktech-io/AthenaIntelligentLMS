@@ -173,7 +173,7 @@ const WatchlistPage = () => {
                     return (
                       <TableRow key={e.id} className="table-row-hover">
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{cfg.label}</Badge>
+                          <Badge variant="outline" className={`text-[11px] ${cfg.color}`}>{cfg.label}</Badge>
                         </TableCell>
                         <TableCell className="text-xs">{e.entryType}</TableCell>
                         <TableCell className="text-xs font-medium">{e.name || "—"}</TableCell>
@@ -182,7 +182,7 @@ const WatchlistPage = () => {
                         <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{e.reason || "—"}</TableCell>
                         <TableCell className="text-xs">{e.source || "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${e.active ? "bg-success/15 text-success border-success/30" : "bg-muted text-muted-foreground"}`}>
+                          <Badge variant="outline" className={`text-[11px] ${e.active ? "bg-success/15 text-success border-success/30" : "bg-muted text-muted-foreground"}`}>
                             {e.active ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>

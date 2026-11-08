@@ -110,8 +110,8 @@ const ConsolidatedReportsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Metric</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Value</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Metric</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -136,11 +136,11 @@ const ConsolidatedReportsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Date</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Active</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Disbursed</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">PAR 30</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Active</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Disbursed</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">PAR 30</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

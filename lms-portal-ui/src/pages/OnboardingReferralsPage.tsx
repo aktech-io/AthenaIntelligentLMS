@@ -173,20 +173,20 @@ const OnboardingReferralsPage = () => {
                         <TableCell className="text-xs font-medium">{a.fullName || "—"}</TableCell>
                         <TableCell className="text-xs">{a.phone || "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-[11px]">
                             {DOCUMENT_TYPE_LABELS[a.documentType] ?? a.documentType}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-xs font-mono">{a.nationalId || "—"}</TableCell>
                         <TableCell>
                           {riskCfg ? (
-                            <Badge variant="outline" className={`text-[10px] ${riskCfg.color}`}>{riskCfg.label}</Badge>
+                            <Badge variant="outline" className={`text-[11px] ${riskCfg.color}`}>{riskCfg.label}</Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${statusCfg.color}`}>{statusCfg.label}</Badge>
+                          <Badge variant="outline" className={`text-[11px] ${statusCfg.color}`}>{statusCfg.label}</Badge>
                         </TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{a.createdAt?.split("T")[0] ?? "—"}</TableCell>
                         <TableCell>
@@ -214,11 +214,11 @@ const OnboardingReferralsPage = () => {
           {selected && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className={`text-[10px] ${STATUS_CONFIG[selected.status]?.color ?? "bg-muted text-muted-foreground"}`}>
+                <Badge variant="outline" className={`text-[11px] ${STATUS_CONFIG[selected.status]?.color ?? "bg-muted text-muted-foreground"}`}>
                   {STATUS_CONFIG[selected.status]?.label ?? selected.status}
                 </Badge>
                 {selected.riskTier && RISK_TIER_CONFIG[selected.riskTier] && (
-                  <Badge variant="outline" className={`text-[10px] ${RISK_TIER_CONFIG[selected.riskTier].color}`}>
+                  <Badge variant="outline" className={`text-[11px] ${RISK_TIER_CONFIG[selected.riskTier].color}`}>
                     {RISK_TIER_CONFIG[selected.riskTier].label} Risk
                   </Badge>
                 )}
@@ -305,7 +305,7 @@ const OnboardingReferralsPage = () => {
                   {decisionReasons.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {decisionReasons.map((r, i) => (
-                        <Badge key={i} variant="outline" className={`text-[10px] font-normal ${reasonColor(r)}`}>
+                        <Badge key={i} variant="outline" className={`text-[11px] font-normal ${reasonColor(r)}`}>
                           {r}
                         </Badge>
                       ))}

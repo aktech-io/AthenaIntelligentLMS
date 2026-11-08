@@ -74,7 +74,7 @@ const typeBadge = (type: string) => {
   switch (type) {
     case "HEAD_OFFICE":
       return (
-        <Badge variant="default" className="text-[10px]">
+        <Badge variant="default" className="text-[11px]">
           Head Office
         </Badge>
       );
@@ -82,7 +82,7 @@ const typeBadge = (type: string) => {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+          className="text-[11px] bg-amber-50 text-amber-700 border-amber-200"
         >
           Agency
         </Badge>
@@ -91,7 +91,7 @@ const typeBadge = (type: string) => {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] bg-purple-50 text-purple-700 border-purple-200"
+          className="text-[11px] bg-purple-50 text-purple-700 border-purple-200"
         >
           Satellite
         </Badge>
@@ -100,7 +100,7 @@ const typeBadge = (type: string) => {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] bg-blue-50 text-blue-700 border-blue-200"
+          className="text-[11px] bg-blue-50 text-blue-700 border-blue-200"
         >
           Branch
         </Badge>
@@ -113,7 +113,7 @@ const statusBadge = (status: string) => {
     return (
       <Badge
         variant="outline"
-        className="text-[10px] bg-success/10 text-success border-success/20 gap-1"
+        className="text-[11px] bg-success/10 text-success border-success/20 gap-1"
       >
         <CheckCircle2 className="h-3 w-3" />
         Active
@@ -122,7 +122,7 @@ const statusBadge = (status: string) => {
   return (
     <Badge
       variant="outline"
-      className="text-[10px] text-muted-foreground gap-1"
+      className="text-[11px] text-muted-foreground gap-1"
     >
       Inactive
     </Badge>

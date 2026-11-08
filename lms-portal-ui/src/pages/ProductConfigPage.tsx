@@ -300,15 +300,15 @@ const ProductConfigPage = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Product Name</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Product Name</Label>
                       <Input value={productName} onChange={e => setProductName(e.target.value)} placeholder="e.g. Consumer Personal Loan" className="mt-1 text-xs font-sans" />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Product Code</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Product Code</Label>
                       <Input value={productCode} onChange={e => setProductCode(e.target.value)} placeholder="Auto-generated" className="mt-1 text-xs font-mono" />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Product Type</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Product Type</Label>
                       <Select value={productType} onValueChange={setProductType}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -319,7 +319,7 @@ const ProductConfigPage = () => {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Currency</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Currency</Label>
                       <Select value={currency} onValueChange={setCurrency}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -332,7 +332,7 @@ const ProductConfigPage = () => {
                   </div>
 
                   <div>
-                    <Label className="text-[10px] uppercase tracking-wider font-sans">Target Segments</Label>
+                    <Label className="text-[11px] uppercase tracking-wider font-sans">Target Segments</Label>
                     <div className="flex gap-2 mt-1.5">
                       {["Retail", "SME", "Corporate", "MFI", "Agri"].map(seg => (
                         <button
@@ -350,15 +350,15 @@ const ProductConfigPage = () => {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Min Customer Age</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Min Customer Age</Label>
                       <Input value={minAge} onChange={e => setMinAge(e.target.value)} className="mt-1 text-xs font-mono" />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Max Customer Age</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Max Customer Age</Label>
                       <Input value={maxAge} onChange={e => setMaxAge(e.target.value)} className="mt-1 text-xs font-mono" />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Min KYC Tier</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Min KYC Tier</Label>
                       <Select value={minKyc} onValueChange={setMinKyc}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -371,7 +371,7 @@ const ProductConfigPage = () => {
                   </div>
 
                   <div>
-                    <Label className="text-[10px] uppercase tracking-wider font-sans">Product Description</Label>
+                    <Label className="text-[11px] uppercase tracking-wider font-sans">Product Description</Label>
                     <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the product..." className="mt-1 text-xs font-sans" rows={3} />
                   </div>
                 </CardContent>
@@ -387,15 +387,15 @@ const ProductConfigPage = () => {
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Minimum ({currency})</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Minimum ({currency})</Label>
                           <Input value={minAmount} onChange={e => setMinAmount(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Maximum ({currency})</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Maximum ({currency})</Label>
                           <Input value={maxAmount} onChange={e => setMaxAmount(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Default ({currency})</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Default ({currency})</Label>
                           <Input value={defaultAmount} onChange={e => setDefaultAmount(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                       </div>
@@ -408,15 +408,15 @@ const ProductConfigPage = () => {
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Minimum</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Minimum</Label>
                           <Input value={minTenor} onChange={e => setMinTenor(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Maximum</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Maximum</Label>
                           <Input value={maxTenor} onChange={e => setMaxTenor(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Default</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Default</Label>
                           <Input value={defaultTenor} onChange={e => setDefaultTenor(+e.target.value)} type="number" className="mt-1 text-xs font-mono" />
                         </div>
                       </div>
@@ -429,7 +429,7 @@ const ProductConfigPage = () => {
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Method</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Method</Label>
                           <Select value={interestMethod} onValueChange={setInterestMethod}>
                             <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -440,7 +440,7 @@ const ProductConfigPage = () => {
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Rate Type</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Rate Type</Label>
                           <Select value={rateType} onValueChange={setRateType}>
                             <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -451,7 +451,7 @@ const ProductConfigPage = () => {
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Annual Rate (%)</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Annual Rate (%)</Label>
                           <Input value={annualRate} onChange={e => setAnnualRate(+e.target.value)} type="number" step="0.1" className="mt-1 text-xs font-mono" />
                         </div>
                       </div>
@@ -462,7 +462,7 @@ const ProductConfigPage = () => {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm font-sans font-semibold">Fees</CardTitle>
-                        <Button variant="outline" size="sm" className="text-[10px] h-7 font-sans" onClick={addFee}>
+                        <Button variant="outline" size="sm" className="text-[11px] h-7 font-sans" onClick={addFee}>
                           <Plus className="h-3 w-3 mr-1" /> Add Fee
                         </Button>
                       </div>
@@ -471,11 +471,11 @@ const ProductConfigPage = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-[10px] uppercase font-sans">Fee Name</TableHead>
-                            <TableHead className="text-[10px] uppercase font-sans">Type</TableHead>
-                            <TableHead className="text-[10px] uppercase font-sans">Amount</TableHead>
-                            <TableHead className="text-[10px] uppercase font-sans">Timing</TableHead>
-                            <TableHead className="text-[10px] uppercase font-sans w-10"></TableHead>
+                            <TableHead className="text-[11px] uppercase font-sans">Fee Name</TableHead>
+                            <TableHead className="text-[11px] uppercase font-sans">Type</TableHead>
+                            <TableHead className="text-[11px] uppercase font-sans">Amount</TableHead>
+                            <TableHead className="text-[11px] uppercase font-sans">Timing</TableHead>
+                            <TableHead className="text-[11px] uppercase font-sans w-10"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -515,11 +515,11 @@ const ProductConfigPage = () => {
                     <CardContent className="p-4">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Grace Period (days)</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Grace Period (days)</Label>
                           <Input value={gracePeriod} onChange={e => setGracePeriod(e.target.value)} className="mt-1 text-xs font-mono" />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase tracking-wider font-sans">Repayment Frequency</Label>
+                          <Label className="text-[11px] uppercase tracking-wider font-sans">Repayment Frequency</Label>
                           <Select value={repaymentFreq} onValueChange={setRepaymentFreq}>
                             <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -543,25 +543,25 @@ const ProductConfigPage = () => {
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="p-3 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[9px] text-muted-foreground font-sans uppercase">Monthly EMI</p>
+                          <p className="text-[11px] text-muted-foreground font-sans uppercase">Monthly EMI</p>
                           <p className="text-lg font-mono font-bold">{formatKES(Math.round(emiCalc.emi))}</p>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[9px] text-muted-foreground font-sans uppercase">Total Interest</p>
+                          <p className="text-[11px] text-muted-foreground font-sans uppercase">Total Interest</p>
                           <p className="text-lg font-mono font-bold">{formatKES(Math.round(emiCalc.totalInterest))}</p>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[9px] text-muted-foreground font-sans uppercase">Total Cost</p>
+                          <p className="text-[11px] text-muted-foreground font-sans uppercase">Total Cost</p>
                           <p className="text-lg font-mono font-bold">{formatKES(Math.round(emiCalc.totalCost))}</p>
                         </div>
                         <div className="p-3 bg-muted/50 rounded-lg text-center">
-                          <p className="text-[9px] text-muted-foreground font-sans uppercase">APR / EIR</p>
+                          <p className="text-[11px] text-muted-foreground font-sans uppercase">APR / EIR</p>
                           <p className="text-lg font-mono font-bold">{emiCalc.apr.toFixed(1)}%</p>
                         </div>
                       </div>
 
                       <div className="pt-2">
-                        <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider mb-2">Amortisation — Principal vs Interest</p>
+                        <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider mb-2">Amortisation — Principal vs Interest</p>
                         <ResponsiveContainer width="100%" height={200}>
                           <BarChart data={emiCalc.schedule.slice(0, 24)}>
                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 20%, 88%)" />
@@ -575,7 +575,7 @@ const ProductConfigPage = () => {
                       </div>
 
                       <div className="pt-2 border-t space-y-1.5">
-                        <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">Configuration Summary</p>
+                        <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">Configuration Summary</p>
                         {[
                           ["Product", productName || "—"],
                           ["Amount Range", `${formatKES(minAmount)} — ${formatKES(maxAmount)}`],
@@ -584,7 +584,7 @@ const ProductConfigPage = () => {
                           ["Method", interestMethod],
                           ["Frequency", repaymentFreq],
                         ].map(([k, v]) => (
-                          <div key={k} className="flex justify-between text-[10px]">
+                          <div key={k} className="flex justify-between text-[11px]">
                             <span className="text-muted-foreground font-sans">{k}</span>
                             <span className="font-mono font-medium">{v}</span>
                           </div>
@@ -603,7 +603,7 @@ const ProductConfigPage = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Payment Day of Month</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Payment Day of Month</Label>
                       <Select value={paymentDay} onValueChange={setPaymentDay}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -612,11 +612,11 @@ const ProductConfigPage = () => {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">First Payment Offset (days after disbursement)</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">First Payment Offset (days after disbursement)</Label>
                       <Input value={firstPaymentOffset} onChange={e => setFirstPaymentOffset(e.target.value)} className="mt-1 text-xs font-mono" />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Rounding Method</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Rounding Method</Label>
                       <Select value={roundingMethod} onValueChange={setRoundingMethod}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -625,7 +625,7 @@ const ProductConfigPage = () => {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Early Settlement</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Early Settlement</Label>
                       <Select value={earlySettlement} onValueChange={setEarlySettlement}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -635,12 +635,12 @@ const ProductConfigPage = () => {
                     </div>
                     {earlySettlement === "Fee Applies" && (
                       <div>
-                        <Label className="text-[10px] uppercase tracking-wider font-sans">Early Settlement Fee Formula</Label>
+                        <Label className="text-[11px] uppercase tracking-wider font-sans">Early Settlement Fee Formula</Label>
                         <Input value={earlySettlementFee} onChange={e => setEarlySettlementFee(e.target.value)} className="mt-1 text-xs font-sans" placeholder="e.g. 2 months interest" />
                       </div>
                     )}
                     <div>
-                      <Label className="text-[10px] uppercase tracking-wider font-sans">Overpayment Handling</Label>
+                      <Label className="text-[11px] uppercase tracking-wider font-sans">Overpayment Handling</Label>
                       <Select value={overpaymentHandling} onValueChange={setOverpaymentHandling}>
                         <SelectTrigger className="mt-1 text-xs font-sans"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -659,7 +659,7 @@ const ProductConfigPage = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-sans font-semibold">Step 4: GL & Accounting Rules</CardTitle>
-                    <Button variant="outline" size="sm" className="text-[10px] h-7 font-sans" onClick={() => setGlMappings(defaultGLMappings)}>
+                    <Button variant="outline" size="sm" className="text-[11px] h-7 font-sans" onClick={() => setGlMappings(defaultGLMappings)}>
                       Load Standard Template
                     </Button>
                   </div>
@@ -668,9 +668,9 @@ const ProductConfigPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[10px] uppercase font-sans">Event</TableHead>
-                        <TableHead className="text-[10px] uppercase font-sans">Debit Account</TableHead>
-                        <TableHead className="text-[10px] uppercase font-sans">Credit Account</TableHead>
+                        <TableHead className="text-[11px] uppercase font-sans">Event</TableHead>
+                        <TableHead className="text-[11px] uppercase font-sans">Debit Account</TableHead>
+                        <TableHead className="text-[11px] uppercase font-sans">Credit Account</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -716,11 +716,11 @@ const ProductConfigPage = () => {
                             <Switch checked={enabled} onCheckedChange={() => toggleStage(stage.id)} />
                             <div>
                               <p className="text-xs font-sans font-medium">{stage.label}</p>
-                              <p className="text-[10px] text-muted-foreground font-sans">{stage.threshold}</p>
+                              <p className="text-[11px] text-muted-foreground font-sans">{stage.threshold}</p>
                             </div>
                           </div>
                           {enabled && (
-                            <Badge variant="outline" className="text-[9px] font-sans bg-primary/10 text-primary border-primary/20">
+                            <Badge variant="outline" className="text-[11px] font-sans bg-primary/10 text-primary border-primary/20">
                               Step {enabledStages.indexOf(stage.id) + 1}
                             </Badge>
                           )}
@@ -731,22 +731,22 @@ const ProductConfigPage = () => {
 
                   {/* Visual flow */}
                   <div className="pt-4 border-t">
-                    <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider mb-3">Approval Flow</p>
+                    <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider mb-3">Approval Flow</p>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className="bg-muted text-muted-foreground font-sans text-[10px]">Application</Badge>
+                      <Badge className="bg-muted text-muted-foreground font-sans text-[11px]">Application</Badge>
                       {enabledStages.map((id, i) => {
                         const stage = workflowStages.find(s => s.id === id);
                         return (
                           <span key={id} className="flex items-center gap-2">
                             <span className="text-muted-foreground">→</span>
-                            <Badge variant="outline" className="text-[10px] font-sans bg-primary/10 text-primary border-primary/20">
+                            <Badge variant="outline" className="text-[11px] font-sans bg-primary/10 text-primary border-primary/20">
                               {stage?.label}
                             </Badge>
                           </span>
                         );
                       })}
                       <span className="text-muted-foreground">→</span>
-                      <Badge className="bg-success/15 text-success font-sans text-[10px]">Disbursement</Badge>
+                      <Badge className="bg-success/15 text-success font-sans text-[11px]">Disbursement</Badge>
                     </div>
                   </div>
 
@@ -757,13 +757,13 @@ const ProductConfigPage = () => {
                         <Switch checked={requiresTwoPersonAuth} onCheckedChange={setRequiresTwoPersonAuth} />
                         <div>
                           <p className="text-xs font-sans font-medium">Require dual approval (maker-checker)</p>
-                          <p className="text-[10px] text-muted-foreground font-sans">A second authoriser must approve before this product can be approved/disbursed.</p>
+                          <p className="text-[11px] text-muted-foreground font-sans">A second authoriser must approve before this product can be approved/disbursed.</p>
                         </div>
                       </div>
                     </div>
                     {requiresTwoPersonAuth && (
                       <div>
-                        <Label className="text-[10px] uppercase tracking-wider font-sans">Approval threshold (KES)</Label>
+                        <Label className="text-[11px] uppercase tracking-wider font-sans">Approval threshold (KES)</Label>
                         <Input
                           value={authThreshold}
                           onChange={e => setAuthThreshold(e.target.value)}
@@ -772,7 +772,7 @@ const ProductConfigPage = () => {
                           placeholder="0"
                           className="mt-1 text-xs font-mono"
                         />
-                        <p className="text-[10px] text-muted-foreground font-sans mt-1">0 or blank means dual approval is always required.</p>
+                        <p className="text-[11px] text-muted-foreground font-sans mt-1">0 or blank means dual approval is always required.</p>
                       </div>
                     )}
                   </div>
@@ -787,7 +787,7 @@ const ProductConfigPage = () => {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-sans font-semibold">Document Checklist</CardTitle>
-                      <Button variant="outline" size="sm" className="text-[10px] h-7 font-sans" onClick={addDoc}>
+                      <Button variant="outline" size="sm" className="text-[11px] h-7 font-sans" onClick={addDoc}>
                         <Plus className="h-3 w-3 mr-1" /> Add Document
                       </Button>
                     </div>
@@ -796,12 +796,12 @@ const ProductConfigPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-[10px] uppercase font-sans">Document</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans">Required</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans">Formats</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans">Max Size</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans">Expiry Tracked</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans w-10"></TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Document</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Required</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Formats</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Max Size</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Expiry Tracked</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans w-10"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -832,10 +832,10 @@ const ProductConfigPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-[10px] uppercase font-sans">Event</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans text-center">SMS</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans text-center">Email</TableHead>
-                          <TableHead className="text-[10px] uppercase font-sans text-center">Push</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans">Event</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans text-center">SMS</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans text-center">Email</TableHead>
+                          <TableHead className="text-[11px] uppercase font-sans text-center">Push</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -892,9 +892,9 @@ const ProductConfigPage = () => {
                     <span className="text-2xl">{tpl.icon}</span>
                     <div className="flex-1">
                       <h4 className="text-xs font-sans font-semibold">{tpl.name}</h4>
-                      <p className="text-[10px] text-muted-foreground font-sans mt-1">{tpl.description}</p>
-                      <p className="text-[9px] font-mono text-muted-foreground mt-1.5 bg-muted/50 px-2 py-1 rounded">{tpl.keyParams}</p>
-                      <Button size="sm" className="mt-2 text-[10px] h-7 font-sans">Load Template</Button>
+                      <p className="text-[11px] text-muted-foreground font-sans mt-1">{tpl.description}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground mt-1.5 bg-muted/50 px-2 py-1 rounded">{tpl.keyParams}</p>
+                      <Button size="sm" className="mt-2 text-[11px] h-7 font-sans">Load Template</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -934,7 +934,7 @@ const ProductConfigPage = () => {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-destructive font-sans">This action will make the product available for origination immediately.</p>
+          <p className="text-[11px] text-destructive font-sans">This action will make the product available for origination immediately.</p>
           <DialogFooter>
             <Button variant="outline" size="sm" className="text-xs font-sans" onClick={() => setConfirmOpen(false)}>Cancel</Button>
             <Button size="sm" className="text-xs font-sans bg-success hover:bg-success/90 text-white" onClick={handleActivate} disabled={activating}>

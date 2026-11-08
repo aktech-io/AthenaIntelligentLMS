@@ -18,10 +18,10 @@ import { notificationService, NotificationLog, NotificationConfig } from "@/serv
 // ─── Status badge helper ───────────────────────────────────────────────────────
 const statusBadge = (status: string) => {
   if (status === "SENT")
-    return <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 gap-1"><CheckCircle2 className="h-3 w-3" />{status}</Badge>;
+    return <Badge variant="outline" className="text-[11px] bg-success/10 text-success border-success/20 gap-1"><CheckCircle2 className="h-3 w-3" />{status}</Badge>;
   if (status === "FAILED")
-    return <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20 gap-1"><XCircle className="h-3 w-3" />{status}</Badge>;
-  return <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1"><MinusCircle className="h-3 w-3" />{status}</Badge>;
+    return <Badge variant="outline" className="text-[11px] bg-destructive/10 text-destructive border-destructive/20 gap-1"><XCircle className="h-3 w-3" />{status}</Badge>;
+  return <Badge variant="outline" className="text-[11px] text-muted-foreground gap-1"><MinusCircle className="h-3 w-3" />{status}</Badge>;
 };
 
 // ─── Email Config Tab ──────────────────────────────────────────────────────────
@@ -282,15 +282,15 @@ function LogsTab() {
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-3">
         <div className="border rounded-lg p-3">
-          <p className="text-[10px] text-muted-foreground">Total Notifications</p>
+          <p className="text-[11px] text-muted-foreground">Total Notifications</p>
           <p className="text-xl font-heading mt-0.5">{totalElements}</p>
         </div>
         <div className="border rounded-lg p-3">
-          <p className="text-[10px] text-muted-foreground">Sent (this page)</p>
+          <p className="text-[11px] text-muted-foreground">Sent (this page)</p>
           <p className="text-xl font-heading text-success mt-0.5">{sentCount}</p>
         </div>
         <div className="border rounded-lg p-3">
-          <p className="text-[10px] text-muted-foreground">Failed / Skipped</p>
+          <p className="text-[11px] text-muted-foreground">Failed / Skipped</p>
           <p className="text-xl font-heading text-destructive mt-0.5">{failedCount}</p>
         </div>
       </div>

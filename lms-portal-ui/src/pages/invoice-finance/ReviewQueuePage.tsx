@@ -114,12 +114,12 @@ const ReviewQueuePage = () => {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {it.reasons.map((r) => (
-                              <Badge key={r} variant="outline" className="text-[10px] font-mono bg-warning/10 text-warning border-warning/30">
+                              <Badge key={r} variant="outline" className="text-[11px] font-mono bg-warning/10 text-warning border-warning/30">
                                 {r}
                               </Badge>
                             ))}
                             {it.fraudFlags.map((f) => (
-                              <Badge key={f} variant="outline" className="text-[10px] font-mono bg-destructive/10 text-destructive border-destructive/30">
+                              <Badge key={f} variant="outline" className="text-[11px] font-mono bg-destructive/10 text-destructive border-destructive/30">
                                 <ShieldAlert className="h-3 w-3 mr-1" /> {f}
                               </Badge>
                             ))}

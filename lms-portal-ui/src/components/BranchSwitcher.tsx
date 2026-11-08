@@ -62,7 +62,7 @@ export function BranchSwitcher({ currentBranch, onBranchChange }: BranchSwitcher
         <div className="max-h-64 overflow-y-auto">
           {branchesByCountry.map(({ country, branches: cBranches }) => (
             <div key={country.code} className="px-1 pb-1">
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <span>{country.flag}</span>
                 <span>{country.name}</span>
               </div>
@@ -85,7 +85,7 @@ export function BranchSwitcher({ currentBranch, onBranchChange }: BranchSwitcher
                   </span>
                   <span className="flex-1 text-left">{branch.name}</span>
                   {branch.type === "HEAD_OFFICE" && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">HEAD</span>
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">HEAD</span>
                   )}
                 </button>
               ))}

@@ -175,7 +175,7 @@ const LoanDetailPage = () => {
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to Loans
           </Button>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={`text-[10px] font-sans ${st.cls}`}>{st.label}</Badge>
+            <Badge variant="outline" className={`text-[11px] font-sans ${st.cls}`}>{st.label}</Badge>
             <Button size="sm" className="text-xs font-sans" onClick={() => setPaymentOpen(true)}>
               <DollarSign className="h-3.5 w-3.5 mr-1" /> Post Payment
             </Button>
@@ -188,7 +188,7 @@ const LoanDetailPage = () => {
             <motion.div key={c.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
               <Card>
                 <CardContent className="p-3">
-                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-sans">{c.label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">{c.label}</p>
                   <p className={`text-sm font-mono font-bold mt-0.5 ${c.highlight ? "text-destructive" : ""}`}>{c.value}</p>
                 </CardContent>
               </Card>
@@ -220,13 +220,13 @@ const LoanDetailPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[10px] font-sans">#</TableHead>
-                        <TableHead className="text-[10px] font-sans">Due Date</TableHead>
-                        <TableHead className="text-[10px] font-sans text-right">Principal</TableHead>
-                        <TableHead className="text-[10px] font-sans text-right">Interest</TableHead>
-                        <TableHead className="text-[10px] font-sans text-right">Total Due</TableHead>
-                        <TableHead className="text-[10px] font-sans text-right">Balance</TableHead>
-                        <TableHead className="text-[10px] font-sans">Status</TableHead>
+                        <TableHead className="text-[11px] font-sans">#</TableHead>
+                        <TableHead className="text-[11px] font-sans">Due Date</TableHead>
+                        <TableHead className="text-[11px] font-sans text-right">Principal</TableHead>
+                        <TableHead className="text-[11px] font-sans text-right">Interest</TableHead>
+                        <TableHead className="text-[11px] font-sans text-right">Total Due</TableHead>
+                        <TableHead className="text-[11px] font-sans text-right">Balance</TableHead>
+                        <TableHead className="text-[11px] font-sans">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -239,7 +239,7 @@ const LoanDetailPage = () => {
                           <TableCell className="text-xs font-mono text-right font-semibold">{formatKES(row.totalDue)}</TableCell>
                           <TableCell className="text-xs font-mono text-right">{formatKESFull(row.totalDue - (row.totalPaid ?? 0))}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[9px] font-sans capitalize ${statusBadge[row.status?.toUpperCase()] ?? statusBadge["PENDING"]}`}>
+                            <Badge variant="outline" className={`text-[11px] font-sans capitalize ${statusBadge[row.status?.toUpperCase()] ?? statusBadge["PENDING"]}`}>
                               {row.status ?? "pending"}
                             </Badge>
                           </TableCell>
@@ -268,12 +268,12 @@ const LoanDetailPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[10px] font-sans">ID</TableHead>
-                        <TableHead className="text-[10px] font-sans">Date</TableHead>
-                        <TableHead className="text-[10px] font-sans text-right">Amount</TableHead>
-                        <TableHead className="text-[10px] font-sans">Method</TableHead>
-                        <TableHead className="text-[10px] font-sans">Reference</TableHead>
-                        <TableHead className="text-[10px] font-sans">Status</TableHead>
+                        <TableHead className="text-[11px] font-sans">ID</TableHead>
+                        <TableHead className="text-[11px] font-sans">Date</TableHead>
+                        <TableHead className="text-[11px] font-sans text-right">Amount</TableHead>
+                        <TableHead className="text-[11px] font-sans">Method</TableHead>
+                        <TableHead className="text-[11px] font-sans">Reference</TableHead>
+                        <TableHead className="text-[11px] font-sans">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -284,13 +284,13 @@ const LoanDetailPage = () => {
                           <TableCell className="text-xs font-mono text-right font-semibold">
                             {formatKES(tx.amount)}
                             {(tx.unallocatedAmount ?? 0) > 0 && (
-                              <div className="text-[9px] font-sans font-normal text-warning">{formatKES(tx.unallocatedAmount!)} unallocated</div>
+                              <div className="text-[11px] font-sans font-normal text-warning">{formatKES(tx.unallocatedAmount!)} unallocated</div>
                             )}
                           </TableCell>
                           <TableCell className="text-xs font-sans">{tx.paymentMethod ?? "—"}</TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{tx.reference ?? "—"}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[9px] font-sans capitalize ${statusBadge[tx.status?.toUpperCase() ?? ""] ?? "bg-muted text-muted-foreground"}`}>
+                            <Badge variant="outline" className={`text-[11px] font-sans capitalize ${statusBadge[tx.status?.toUpperCase() ?? ""] ?? "bg-muted text-muted-foreground"}`}>
                               {tx.status ?? "completed"}
                             </Badge>
                           </TableCell>
@@ -320,7 +320,7 @@ const LoanDetailPage = () => {
                   ["Status", loan.status],
                 ].map(([label, value]) => (
                   <div key={label}>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans mb-0.5">{label}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans mb-0.5">{label}</p>
                     <p className="text-sm font-sans font-medium">{value}</p>
                   </div>
                 ))}

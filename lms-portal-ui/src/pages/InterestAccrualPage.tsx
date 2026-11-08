@@ -318,13 +318,13 @@ const InterestAccrualPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider">Account #</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Customer</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Accrued Interest</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Last Accrual Date</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Actions</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Account #</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Accrued Interest</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Last Accrual Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,7 +335,7 @@ const InterestAccrualPage = () => {
                         {acc.accountName || acc.customerId}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {acc.accountType}
                         </Badge>
                       </TableCell>

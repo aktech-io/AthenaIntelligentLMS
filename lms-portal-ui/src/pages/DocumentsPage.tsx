@@ -40,7 +40,7 @@ const statusBadge = (status: string) => {
     DELETED: "bg-destructive/10 text-destructive border-destructive/20",
   };
   return (
-    <Badge variant="outline" className={`text-[10px] ${map[status] ?? ""}`}>{status}</Badge>
+    <Badge variant="outline" className={`text-[11px] ${map[status] ?? ""}`}>{status}</Badge>
   );
 };
 
@@ -200,7 +200,7 @@ const DocumentsPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-muted-foreground">Total Files</span>
+                  <span className="text-[11px] text-muted-foreground">Total Files</span>
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <p className="text-xl font-heading">{stats.totalDocuments}</p>
@@ -209,17 +209,17 @@ const DocumentsPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-muted-foreground">Storage Used</span>
+                  <span className="text-[11px] text-muted-foreground">Storage Used</span>
                   <HardDrive className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <p className="text-xl font-heading">{fmtBytes(stats.usedSpace)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{stats.usedPercentage?.toFixed(1)}% of disk</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{stats.usedPercentage?.toFixed(1)}% of disk</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-muted-foreground">Free Space</span>
+                  <span className="text-[11px] text-muted-foreground">Free Space</span>
                   <HardDrive className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <p className="text-xl font-heading">{fmtBytes(stats.freeSpace)}</p>
@@ -228,18 +228,18 @@ const DocumentsPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-muted-foreground">By File Type</span>
+                  <span className="text-[11px] text-muted-foreground">By File Type</span>
                   <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <div className="space-y-0.5 mt-1">
                   {Object.entries(stats.documentsByType ?? {}).slice(0, 3).map(([type, count]) => (
-                    <div key={type} className="flex justify-between text-[10px]">
+                    <div key={type} className="flex justify-between text-[11px]">
                       <span className="text-muted-foreground truncate">{type}</span>
                       <span className="font-medium">{count}</span>
                     </div>
                   ))}
                   {Object.keys(stats.documentsByType ?? {}).length === 0 &&
-                    <p className="text-[10px] text-muted-foreground">No files yet</p>}
+                    <p className="text-[11px] text-muted-foreground">No files yet</p>}
                 </div>
               </CardContent>
             </Card>
@@ -335,7 +335,7 @@ const DocumentsPage = () => {
                       </TableCell>
                       <TableCell className="text-xs">{f.customerId ?? <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{f.category}</Badge>
+                        <Badge variant="outline" className="text-[11px]">{f.category}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{f.mediaType}</TableCell>
                       <TableCell className="text-xs tabular-nums">{fmtBytes(f.fileSize ?? 0)}</TableCell>
@@ -349,7 +349,7 @@ const DocumentsPage = () => {
                           <a
                             href={mediaService.downloadUrl(f.id)}
                             download={f.originalFilename}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded border border-border hover:bg-muted transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-muted transition-colors"
                           >
                             <Download className="h-3 w-3" /> Download
                           </a>

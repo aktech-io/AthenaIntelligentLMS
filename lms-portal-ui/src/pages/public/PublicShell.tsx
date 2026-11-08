@@ -11,7 +11,7 @@ export function PublicShell({ children, caption }: { children: React.ReactNode; 
           <NemoMark className="h-9 w-9" />
           <div>
             <p className="font-heading text-base tracking-wide leading-none">Nemo</p>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">{caption ?? "Invoice finance"}</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground mt-0.5">{caption ?? "Invoice finance"}</p>
           </div>
         </div>
         <ThemeToggle />

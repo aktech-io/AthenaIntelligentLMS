@@ -20,30 +20,30 @@ import { formatKES } from "@/lib/format";
 const stageBadge = (stage: string) => {
   switch (stage) {
     case "WATCH":
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">Watch</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[11px]">Watch</Badge>;
     case "SUBSTANDARD":
-      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">Substandard</Badge>;
+      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">Substandard</Badge>;
     case "DOUBTFUL":
-      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Doubtful</Badge>;
+      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[11px]">Doubtful</Badge>;
     case "LOSS":
-      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[10px]">Loss</Badge>;
+      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[11px]">Loss</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{stage}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{stage}</Badge>;
   }
 };
 
 const priorityBadge = (priority: string) => {
   switch (priority) {
     case "LOW":
-      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Low</Badge>;
+      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[11px]">Low</Badge>;
     case "NORMAL":
-      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[10px]">Normal</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[11px]">Normal</Badge>;
     case "HIGH":
-      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">High</Badge>;
+      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">High</Badge>;
     case "CRITICAL":
-      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[10px]">Critical</Badge>;
+      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[11px]">Critical</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{priority}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{priority}</Badge>;
   }
 };
 
@@ -136,7 +136,7 @@ const LegalPage = () => {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               Legal Cases
               {!isLoading && (
-                <Badge variant="secondary" className="text-[10px]">{allCases.length}</Badge>
+                <Badge variant="secondary" className="text-[11px]">{allCases.length}</Badge>
               )}
             </CardTitle>
           </CardHeader>
@@ -152,7 +152,7 @@ const LegalPage = () => {
                 <Scale className="h-8 w-8 mb-2 text-muted-foreground/50" />
                 <p className="text-sm font-medium">No legal cases</p>
                 <p className="text-xs mt-1">Legal cases will appear here when loans are escalated for recovery.</p>
-                <p className="text-[10px] mt-3 text-muted-foreground/70">
+                <p className="text-[11px] mt-3 text-muted-foreground/70">
                   Cases with status PENDING_LEGAL or stage LOSS are shown here.
                 </p>
               </div>
@@ -160,15 +160,15 @@ const LegalPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Case #</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Customer</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Loan ID</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Stage</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Priority</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Assigned To</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Opened</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Case #</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Loan ID</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Stage</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Priority</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Assigned To</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Opened</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

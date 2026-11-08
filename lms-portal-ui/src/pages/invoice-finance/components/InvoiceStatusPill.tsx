@@ -39,7 +39,7 @@ export function InvoiceStatusPill({ status, className }: { status?: PillStatus |
     <Badge
       variant="outline"
       className={cn(
-        "text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap",
+        "text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap",
         styles[s] ?? "bg-muted text-muted-foreground border-border",
         className
       )}
@@ -59,7 +59,7 @@ export function TierPill({ tier }: { tier?: string | null }) {
     UNRATED: "bg-muted text-muted-foreground border-border",
   };
   return (
-    <Badge variant="outline" className={cn("text-[10px] font-mono font-semibold", cls[t] ?? cls.UNRATED)}>
+    <Badge variant="outline" className={cn("text-[11px] font-mono font-semibold", cls[t] ?? cls.UNRATED)}>
       {t}
     </Badge>
   );

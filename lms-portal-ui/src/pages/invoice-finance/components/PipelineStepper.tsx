@@ -78,7 +78,7 @@ export function PipelineStepper({ status, statusReason, notes, polling, classNam
             )}
             <span
               className={cn(
-                "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px]",
+                "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px]",
                 complete && "bg-accent border-accent text-accent-foreground",
                 failed && "bg-destructive border-destructive text-destructive-foreground",
                 current && "border-primary text-primary bg-card",

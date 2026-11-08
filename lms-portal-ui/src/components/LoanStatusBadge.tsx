@@ -20,7 +20,7 @@ interface LoanStatusBadgeProps {
 export function LoanStatusBadge({ status }: LoanStatusBadgeProps) {
   const config = statusConfig[status];
   return (
-    <Badge variant="outline" className={cn("text-[10px] font-semibold uppercase tracking-wider", config.className)}>
+    <Badge variant="outline" className={cn("text-[11px] font-semibold uppercase tracking-wider", config.className)}>
       {config.label}
     </Badge>
   );

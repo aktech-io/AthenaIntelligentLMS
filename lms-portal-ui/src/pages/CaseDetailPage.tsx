@@ -146,15 +146,15 @@ const statusBadge = (status: string) => {
 const ptpStatusBadge = (status: string) => {
   switch (status) {
     case "PENDING":
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">Pending</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[11px]">Pending</Badge>;
     case "FULFILLED":
-      return <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px]">Fulfilled</Badge>;
+      return <Badge className="bg-green-100 text-green-700 border-green-200 text-[11px]">Fulfilled</Badge>;
     case "BROKEN":
-      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Broken</Badge>;
+      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[11px]">Broken</Badge>;
     case "CANCELLED":
-      return <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-[10px]">Cancelled</Badge>;
+      return <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-[11px]">Cancelled</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{status}</Badge>;
   }
 };
 
@@ -433,12 +433,12 @@ const CaseDetailPage = () => {
                               {action.actionType.replace(/_/g, " ")}
                             </span>
                             {action.outcome && (
-                              <Badge variant="outline" className="text-[10px]">
+                              <Badge variant="outline" className="text-[11px]">
                                 {action.outcome.replace(/_/g, " ")}
                               </Badge>
                             )}
                             {action.contactMethod && (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-[11px]">
                                 via {action.contactMethod}
                               </Badge>
                             )}
@@ -446,7 +446,7 @@ const CaseDetailPage = () => {
                           {action.notes && (
                             <p className="text-xs text-muted-foreground mt-1">{action.notes}</p>
                           )}
-                          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
                             {action.performedBy && (
                               <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" /> {action.performedBy}
@@ -488,12 +488,12 @@ const CaseDetailPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Promise Date</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Created By</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Notes</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Created</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Promise Date</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Created By</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Notes</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Created</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

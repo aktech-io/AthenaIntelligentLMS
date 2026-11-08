@@ -186,7 +186,7 @@ const ControlSettingsPage = () => {
                         <p className="text-sm font-medium font-sans">
                           {operationLabels[c.operation] ?? c.operation}
                         </p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                           {c.operation}
                         </p>
                       </div>
@@ -270,7 +270,7 @@ const ControlSettingsPage = () => {
                         <p className="text-sm font-medium font-sans">
                           {loanOperationLabels[c.operation] ?? c.operation}
                         </p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                           {c.operation}
                         </p>
                       </div>
@@ -301,7 +301,7 @@ const ControlSettingsPage = () => {
                             onChange={(e) => setState({ threshold: e.target.value })}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground font-sans">
+                        <p className="text-[11px] text-muted-foreground font-sans">
                           0 = always require dual approval
                         </p>
                       </div>

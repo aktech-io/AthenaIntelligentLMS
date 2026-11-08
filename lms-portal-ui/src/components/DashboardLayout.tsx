@@ -56,13 +56,13 @@ export function DashboardLayout({ children, title, subtitle, breadcrumbs }: Dash
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           {/* Top bar — 64px */}
-          <header className="h-16 border-b bg-card flex items-center justify-between px-5 shrink-0">
+          <header className="h-16 border-b border-border/70 bg-card/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 sticky top-0 z-20">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
                 {crumbs.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-1.5">
-                    {i > 0 && <ChevronRight className="h-3 w-3" />}
+                    {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-accent/70" />}
                     {crumb.href ? (
                       <Link to={crumb.href} className="hover:text-foreground transition-colors">{crumb.label}</Link>
                     ) : (
@@ -75,34 +75,34 @@ export function DashboardLayout({ children, title, subtitle, breadcrumbs }: Dash
             <div className="flex items-center gap-3">
               <BranchSwitcher currentBranch={currentBranch} onBranchChange={setCurrentBranch} />
               <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80" />
                 <Input
-                  placeholder="Search customers, loans, applications..."
-                  className="pl-9 h-9 w-72 text-xs bg-muted/50 border-0 font-sans"
+                  placeholder="Search customers, loans, applications…"
+                  className="pl-9 h-10 w-80 text-sm bg-muted/60 border border-border/60 focus-visible:border-accent font-sans rounded-lg"
                 />
               </div>
               <button className="p-2 rounded-md hover:bg-muted transition-colors hidden sm:block">
-                <Globe className="h-4 w-4 text-muted-foreground" />
+                <Globe className="h-[18px] w-[18px] text-muted-foreground" />
               </button>
               <ThemeToggle />
               <button className="relative p-2 rounded-md hover:bg-muted transition-colors">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                <Bell className="h-[18px] w-[18px] text-muted-foreground" />
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
               </button>
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-xs font-medium text-primary-foreground font-sans ml-1">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-[hsl(var(--nemo-coral-deep))] flex items-center justify-center text-xs font-bold text-primary-foreground font-sans ml-1 shadow-glow">
                 {user?.initials || "??"}
               </div>
             </div>
           </header>
 
           {/* Page header */}
-          <div className="px-5 pt-5 pb-3">
-            <h1 className="font-heading text-xl">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground font-sans mt-0.5">{subtitle}</p>}
+          <div className="px-6 pt-7 pb-4">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">{title}</h1>
+            {subtitle && <p className="text-base text-muted-foreground font-sans mt-1 max-w-3xl">{subtitle}</p>}
           </div>
 
           {/* Content */}
-          <main className="flex-1 overflow-auto px-5 pb-6">
+          <main className="flex-1 overflow-auto px-6 pb-10">
             {children}
           </main>
         </div>

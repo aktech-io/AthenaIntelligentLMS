@@ -144,7 +144,7 @@ const FraudAlertsPage = () => {
                   <ShieldAlert className="h-4 w-4 text-destructive" />
                 </div>
                 <p className="text-2xl font-heading">{summary?.openAlerts ?? 0}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {summary?.criticalAlerts ?? 0} critical
                 </p>
               </CardContent>
@@ -156,7 +156,7 @@ const FraudAlertsPage = () => {
                   <Clock className="h-4 w-4 text-warning" />
                 </div>
                 <p className="text-2xl font-heading">{summary?.underReviewAlerts ?? 0}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {summary?.escalatedAlerts ?? 0} escalated
                 </p>
               </CardContent>
@@ -177,7 +177,7 @@ const FraudAlertsPage = () => {
                   <UserCheck className="h-4 w-4 text-info" />
                 </div>
                 <p className="text-2xl font-heading">{summary?.highRiskCustomers ?? 0}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[11px] text-muted-foreground mt-1">
                   {summary?.criticalRiskCustomers ?? 0} critical
                 </p>
               </CardContent>
@@ -270,7 +270,7 @@ const FraudAlertsPage = () => {
                         </TableCell>
                         <TableCell className="text-xs font-mono">{a.customerId ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${severityColor[a.severity]}`}>
+                          <Badge variant="outline" className={`text-[11px] ${severityColor[a.severity]}`}>
                             {a.severity}
                           </Badge>
                         </TableCell>
@@ -281,7 +281,7 @@ const FraudAlertsPage = () => {
                           {a.description}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${statusColor[a.status] ?? ""}`}>
+                          <Badge variant="outline" className={`text-[11px] ${statusColor[a.status] ?? ""}`}>
                             {a.status?.replace(/_/g, " ")}
                           </Badge>
                         </TableCell>

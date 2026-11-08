@@ -135,7 +135,7 @@ const OverdraftManagementPage = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-muted-foreground">Band {band}</span>
-                    <Badge variant="outline" className={`text-[10px] ${bandBadgeStyle[band]}`}>
+                    <Badge variant="outline" className={`text-[11px] ${bandBadgeStyle[band]}`}>
                       {band}
                     </Badge>
                   </div>
@@ -183,7 +183,7 @@ const OverdraftManagementPage = () => {
                     <TableRow key={f.id} className="table-row-hover">
                       <TableCell className="text-xs font-medium">{f.customerId}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${bandBadgeStyle[f.creditBand] || ""}`}>
+                        <Badge variant="outline" className={`text-[11px] ${bandBadgeStyle[f.creditBand] || ""}`}>
                           {f.creditBand} ({f.creditScore})
                         </Badge>
                       </TableCell>
@@ -200,7 +200,7 @@ const OverdraftManagementPage = () => {
                         {(num(f.interestRate) * 100).toFixed(0)}%
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${statusStyle[f.status] || ""}`}>
+                        <Badge variant="outline" className={`text-[11px] ${statusStyle[f.status] || ""}`}>
                           {f.status}
                         </Badge>
                       </TableCell>

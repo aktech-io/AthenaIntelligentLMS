@@ -544,7 +544,7 @@ const DepositProductsPage = () => {
                       <CardTitle className="text-sm font-sans">
                         {product.name}
                       </CardTitle>
-                      <CardDescription className="text-[10px] font-mono">
+                      <CardDescription className="text-[11px] font-mono">
                         {product.productCode}
                       </CardDescription>
                     </div>
@@ -554,7 +554,7 @@ const DepositProductsPage = () => {
                   <div className="flex items-center gap-2 mb-3">
                     <Badge
                       variant="outline"
-                      className={`text-[9px] font-sans font-semibold ${
+                      className={`text-[11px] font-sans font-semibold ${
                         categoryColors[product.productCategory] ?? ""
                       }`}
                     >
@@ -562,7 +562,7 @@ const DepositProductsPage = () => {
                     </Badge>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] font-sans font-semibold ${
+                      className={`text-[11px] font-sans font-semibold ${
                         statusColors[product.status] ?? ""
                       }`}
                     >
@@ -572,7 +572,7 @@ const DepositProductsPage = () => {
 
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t mb-3">
                     <div>
-                      <p className="text-[9px] text-muted-foreground font-sans">
+                      <p className="text-[11px] text-muted-foreground font-sans">
                         Interest Rate
                       </p>
                       <p className="text-xs font-mono font-semibold">
@@ -580,7 +580,7 @@ const DepositProductsPage = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[9px] text-muted-foreground font-sans">
+                      <p className="text-[11px] text-muted-foreground font-sans">
                         Min Balance
                       </p>
                       <p className="text-xs font-mono font-semibold">
@@ -590,7 +590,7 @@ const DepositProductsPage = () => {
                   </div>
 
                   {product.description && (
-                    <p className="text-[10px] text-muted-foreground mb-3 line-clamp-2">
+                    <p className="text-[11px] text-muted-foreground mb-3 line-clamp-2">
                       {product.description}
                     </p>
                   )}
@@ -600,7 +600,7 @@ const DepositProductsPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[10px] h-7 font-sans flex-1 text-green-700 hover:text-green-800 hover:bg-green-50"
+                        className="text-[11px] h-7 font-sans flex-1 text-green-700 hover:text-green-800 hover:bg-green-50"
                         disabled={activateMutation.isPending}
                         onClick={() => activateMutation.mutate(product.id)}
                       >
@@ -615,7 +615,7 @@ const DepositProductsPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[10px] h-7 font-sans flex-1 text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                        className="text-[11px] h-7 font-sans flex-1 text-amber-700 hover:text-amber-800 hover:bg-amber-50"
                         disabled={deactivateMutation.isPending}
                         onClick={() => deactivateMutation.mutate(product.id)}
                       >

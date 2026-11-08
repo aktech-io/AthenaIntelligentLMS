@@ -141,7 +141,7 @@ const AIPage = () => {
                     {mlHealth?.models && (
                       <div className="mt-2 space-y-0.5">
                         {Object.entries(mlHealth.models).map(([k, v]) => (
-                          <p key={k} className="text-[10px] text-muted-foreground">
+                          <p key={k} className="text-[11px] text-muted-foreground">
                             {k}: <span className={v === "loaded" ? "text-success" : "text-destructive"}>{v}</span>
                           </p>
                         ))}
@@ -157,7 +157,7 @@ const AIPage = () => {
                       <Zap className="h-4 w-4 text-info" />
                     </div>
                     <p className="text-2xl font-heading">{scoringStats?.totalScored ?? 0}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[11px] text-muted-foreground mt-1">
                       Avg latency: {scoringStats?.avgLatencyMs?.toFixed(0) ?? "—"}ms
                     </p>
                   </CardContent>
@@ -170,7 +170,7 @@ const AIPage = () => {
                       <TrendingUp className="h-4 w-4 text-warning" />
                     </div>
                     <p className="text-2xl font-heading">{scoringStats?.avgScore?.toFixed(2) ?? "—"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[11px] text-muted-foreground mt-1">
                       0 = clean, 1 = high fraud risk
                     </p>
                   </CardContent>
@@ -185,7 +185,7 @@ const AIPage = () => {
                     <p className="text-2xl font-heading text-destructive">
                       {(scoringStats?.highCount ?? 0) + (scoringStats?.criticalCount ?? 0)}
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-[11px] text-muted-foreground mt-1">
                       {scoringStats?.highCount ?? 0} high, {scoringStats?.criticalCount ?? 0} critical
                     </p>
                   </CardContent>
@@ -278,9 +278,9 @@ const AIPage = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium">Anomaly Detector</p>
-                          <p className="text-[10px] text-muted-foreground">Isolation Forest — unsupervised</p>
+                          <p className="text-[11px] text-muted-foreground">Isolation Forest — unsupervised</p>
                         </div>
-                        <Badge variant="outline" className="text-[9px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {(trainingStatus?.anomaly as Record<string, unknown>)?.status as string ?? "idle"}
                         </Badge>
                       </div>
@@ -295,9 +295,9 @@ const AIPage = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium">Fraud Scorer</p>
-                          <p className="text-[10px] text-muted-foreground">LightGBM — supervised</p>
+                          <p className="text-[11px] text-muted-foreground">LightGBM — supervised</p>
                         </div>
-                        <Badge variant="outline" className="text-[9px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {(trainingStatus?.lgbm as Record<string, unknown>)?.status as string ?? "idle"}
                         </Badge>
                       </div>
@@ -393,12 +393,12 @@ const AIPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Customer ID</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Application</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Trigger</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Requested</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider font-sans">Completed</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Customer ID</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Application</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Trigger</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Requested</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider font-sans">Completed</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -408,7 +408,7 @@ const AIPage = () => {
                             <TableCell className="text-xs font-mono text-muted-foreground">{req.loanApplicationId?.slice(0, 8) ?? "—"}</TableCell>
                             <TableCell className="text-xs font-sans text-muted-foreground">{req.triggerEvent ?? "—"}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={`text-[9px] font-sans ${
+                              <Badge variant="outline" className={`text-[11px] font-sans ${
                                 req.status === "COMPLETED" ? "bg-success/15 text-success border-success/30" :
                                 req.status === "FAILED" ? "bg-destructive/15 text-destructive border-destructive/30" :
                                 "bg-warning/15 text-warning border-warning/30"

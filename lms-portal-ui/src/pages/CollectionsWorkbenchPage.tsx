@@ -70,30 +70,30 @@ const OUTCOMES = [
 const stageBadge = (stage: string) => {
   switch (stage) {
     case "WATCH":
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">Watch</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[11px]">Watch</Badge>;
     case "SUBSTANDARD":
-      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">Substandard</Badge>;
+      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">Substandard</Badge>;
     case "DOUBTFUL":
-      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Doubtful</Badge>;
+      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[11px]">Doubtful</Badge>;
     case "LOSS":
-      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[10px]">Loss</Badge>;
+      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[11px]">Loss</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{stage}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{stage}</Badge>;
   }
 };
 
 const priorityBadge = (priority: string) => {
   switch (priority) {
     case "LOW":
-      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Low</Badge>;
+      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[11px]">Low</Badge>;
     case "NORMAL":
-      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[10px]">Normal</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[11px]">Normal</Badge>;
     case "HIGH":
-      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">High</Badge>;
+      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">High</Badge>;
     case "CRITICAL":
-      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[10px]">Critical</Badge>;
+      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[11px]">Critical</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{priority}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{priority}</Badge>;
   }
 };
 
@@ -267,14 +267,14 @@ const CollectionsWorkbenchPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Case #</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Customer</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Stage</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Priority</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Last Action</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Actions</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Case #</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Stage</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Priority</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Last Action</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -299,7 +299,7 @@ const CollectionsWorkbenchPage = () => {
                         <TableCell className="text-xs font-sans text-muted-foreground">
                           {c.lastActionAt ? new Date(c.lastActionAt).toLocaleDateString() : "Never"}
                           {overdue && (
-                            <Badge className="ml-1.5 bg-red-100 text-red-700 border-red-200 text-[9px]">Overdue</Badge>
+                            <Badge className="ml-1.5 bg-red-100 text-red-700 border-red-200 text-[11px]">Overdue</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -307,7 +307,7 @@ const CollectionsWorkbenchPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-[10px] font-sans"
+                              className="h-7 text-[11px] font-sans"
                               onClick={(e) => openActionDialog(c.id, e)}
                             >
                               <Phone className="h-3 w-3 mr-1" /> Log Action
@@ -315,7 +315,7 @@ const CollectionsWorkbenchPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-[10px] font-sans"
+                              className="h-7 text-[11px] font-sans"
                               onClick={(e) => { e.stopPropagation(); navigate(`/collections/case/${c.id}`); }}
                             >
                               <Eye className="h-3 w-3 mr-1" /> View

@@ -207,14 +207,14 @@ const FixedDepositsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider">Account #</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Customer</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Rate</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Term</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Maturity Date</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Auto-Renew</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Account #</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Term</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Maturity Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Auto-Renew</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,7 +242,7 @@ const FixedDepositsPage = () => {
                       <TableCell className="text-xs">{formatDate(fd.maturityDate)}</TableCell>
                       <TableCell className="text-xs">
                         {fd.autoRenew ? (
-                          <Badge variant="outline" className="text-[10px] bg-blue-500/15 text-blue-600 border-blue-500/30">
+                          <Badge variant="outline" className="text-[11px] bg-blue-500/15 text-blue-600 border-blue-500/30">
                             Yes
                           </Badge>
                         ) : (
@@ -252,7 +252,7 @@ const FixedDepositsPage = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] font-semibold ${statusColor(fd.status)}`}
+                          className={`text-[11px] font-semibold ${statusColor(fd.status)}`}
                         >
                           {fd.status}
                         </Badge>

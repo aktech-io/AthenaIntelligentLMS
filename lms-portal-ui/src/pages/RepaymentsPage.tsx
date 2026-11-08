@@ -124,7 +124,7 @@ const RepaymentsPage = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] ${
+                          className={`text-[11px] ${
                             e.status === "POSTED"
                               ? "bg-success/10 text-success border-success/20"
                               : "bg-muted text-muted-foreground"

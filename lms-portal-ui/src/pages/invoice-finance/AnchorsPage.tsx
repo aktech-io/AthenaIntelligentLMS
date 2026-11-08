@@ -54,7 +54,7 @@ const AnchorsPage = () => {
                           {a.fromSeq}–{a.toSeq} <span className="text-muted-foreground">({a.toSeq - a.fromSeq + 1})</span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={a.method === "OTS" ? "bg-accent/15 text-accent border-accent/40 font-mono text-[10px]" : "font-mono text-[10px] text-muted-foreground"}>
+                          <Badge variant="outline" className={a.method === "OTS" ? "bg-accent/15 text-accent border-accent/40 font-mono text-[11px]" : "font-mono text-[11px] text-muted-foreground"}>
                             {a.method === "OTS" ? "OpenTimestamps" : a.method}
                           </Badge>
                         </TableCell>

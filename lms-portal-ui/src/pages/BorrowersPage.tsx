@@ -236,14 +236,14 @@ const BorrowersPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider">Customer ID</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Name</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Phone</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Email</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">KYC</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Created</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Customer ID</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Name</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Phone</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Email</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">KYC</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -270,14 +270,14 @@ const BorrowersPage = () => {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline"
-                            className={`text-[10px] font-semibold ${kycColors[cust.kycStatus ?? ""] ?? "bg-muted text-muted-foreground border-border"}`}>
+                            className={`text-[11px] font-semibold ${kycColors[cust.kycStatus ?? ""] ?? "bg-muted text-muted-foreground border-border"}`}>
                             {cust.kycStatus ?? "—"}
                           </Badge>
                           {cust.kycStatus !== "VERIFIED" && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-6 px-2 text-[10px]"
+                              className="h-6 px-2 text-[11px]"
                               disabled={verifyKycMutation.isPending && verifyKycMutation.variables === cust.id}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -294,7 +294,7 @@ const BorrowersPage = () => {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline"
-                          className={`text-[10px] font-semibold ${statusColors[cust.status] ?? "bg-muted text-muted-foreground border-border"}`}>
+                          className={`text-[11px] font-semibold ${statusColors[cust.status] ?? "bg-muted text-muted-foreground border-border"}`}>
                           {cust.status}
                         </Badge>
                       </TableCell>

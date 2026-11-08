@@ -52,7 +52,7 @@ const PolicyPage = () => {
                 <CardTitle className="text-sm font-heading flex items-center gap-2">
                   <Scale className="h-4 w-4 text-primary" /> invoice.advance
                 </CardTitle>
-                <Badge variant="outline" className="font-mono text-[10px]">
+                <Badge variant="outline" className="font-mono text-[11px]">
                   v{q.data.version}
                 </Badge>
                 <span className="inline-flex items-center text-[11px] font-mono text-muted-foreground">

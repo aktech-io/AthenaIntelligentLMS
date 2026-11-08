@@ -215,7 +215,7 @@ export default function SetupWizardPage() {
         <div className="w-60 shrink-0">
           <div className="mb-4">
             <Progress value={progress} className="h-2" />
-            <p className="text-[10px] text-muted-foreground mt-1 font-sans">{Math.round(progress)}% complete</p>
+            <p className="text-[11px] text-muted-foreground mt-1 font-sans">{Math.round(progress)}% complete</p>
           </div>
           <div className="space-y-1">
             {steps.map((step) => {
@@ -379,7 +379,7 @@ export default function SetupWizardPage() {
                           <div key={code} className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
                             <span className="text-sm font-mono font-medium">{country.currency}</span>
                             <span className="text-xs text-muted-foreground">{country.name}</span>
-                            <Badge variant="outline" className="text-[10px] ml-auto">Primary</Badge>
+                            <Badge variant="outline" className="text-[11px] ml-auto">Primary</Badge>
                           </div>
                         ) : null;
                       })}
@@ -441,7 +441,7 @@ export default function SetupWizardPage() {
                           <div key={b.id} className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted">
                             <span>{b.type === "HEAD_OFFICE" ? "\u{1f3db}" : "\u{1f3e6}"}</span>
                             <span className="font-medium">{b.name}</span>
-                            <Badge variant="outline" className="text-[10px] ml-auto">{b.type}</Badge>
+                            <Badge variant="outline" className="text-[11px] ml-auto">{b.type}</Badge>
                           </div>
                         ))}
                       </div>
@@ -520,7 +520,7 @@ export default function SetupWizardPage() {
                               <tr key={acct.id} className="border-t">
                                 <td className="p-2 font-mono">{acct.accountCode}</td>
                                 <td className="p-2">{acct.accountName}</td>
-                                <td className="p-2"><Badge variant="outline" className="text-[10px]">{acct.accountType}</Badge></td>
+                                <td className="p-2"><Badge variant="outline" className="text-[11px]">{acct.accountType}</Badge></td>
                               </tr>
                             ))}
                           </tbody>
@@ -587,7 +587,7 @@ export default function SetupWizardPage() {
                               </div>
                               <div className="flex items-center justify-between">
                                 <Button size="sm" variant="outline" className="text-xs">Configure API Keys</Button>
-                                <span className="text-[10px] flex items-center gap-1 text-muted-foreground">
+                                <span className="text-[11px] flex items-center gap-1 text-muted-foreground">
                                   <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
                                   Not set
                                 </span>

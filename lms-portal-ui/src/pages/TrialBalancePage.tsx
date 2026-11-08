@@ -87,12 +87,12 @@ const TrialBalancePage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px] font-sans w-20">Code</TableHead>
-                    <TableHead className="text-[10px] font-sans">Account Name</TableHead>
-                    <TableHead className="text-[10px] font-sans">Type</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Debit (KES)</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Credit (KES)</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Balance (KES)</TableHead>
+                    <TableHead className="text-[11px] font-sans w-20">Code</TableHead>
+                    <TableHead className="text-[11px] font-sans">Account Name</TableHead>
+                    <TableHead className="text-[11px] font-sans">Type</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Debit (KES)</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Credit (KES)</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Balance (KES)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

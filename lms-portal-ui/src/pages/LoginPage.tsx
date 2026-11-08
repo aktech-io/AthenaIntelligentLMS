@@ -187,7 +187,7 @@ const LoginPage = () => {
 
             {/* Demo credentials */}
             <div className="mt-6 rounded-lg bg-muted/50 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans font-semibold mb-2">
                 Demo Credentials
               </p>
               <div className="space-y-1">
@@ -207,7 +207,7 @@ const LoginPage = () => {
                     className="w-full flex items-center justify-between text-xs font-mono px-2 py-1.5 rounded hover:bg-muted transition-colors"
                   >
                     <span className="text-muted-foreground">{cred.email}</span>
-                    <span className="text-[10px] font-sans text-accent font-medium">{cred.role}</span>
+                    <span className="text-[11px] font-sans text-accent font-medium">{cred.role}</span>
                   </button>
                 ))}
               </div>
@@ -215,7 +215,7 @@ const LoginPage = () => {
           </CardContent>
         </Card>
 
-        <p className="text-center text-[10px] text-white/30 mt-6 font-sans">
+        <p className="text-center text-[11px] text-white/30 mt-6 font-sans">
           © 2026 Nemo. All rights reserved.
         </p>
       </motion.div>

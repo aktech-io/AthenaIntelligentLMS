@@ -428,7 +428,7 @@ const AccountDetailPage = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge
               variant="outline"
-              className={`text-[10px] font-semibold ${
+              className={`text-[11px] font-semibold ${
                 statusColors[account.status?.toUpperCase()] ??
                 "bg-muted text-muted-foreground"
               }`}
@@ -539,7 +539,7 @@ const AccountDetailPage = () => {
                 />
                 {cashMode === "withdraw" &&
                   parseFloat(cashAmount || "0") > availBal && (
-                    <p className="text-[10px] text-destructive mt-1">
+                    <p className="text-[11px] text-destructive mt-1">
                       Amount exceeds available balance.
                     </p>
                   )}
@@ -625,7 +625,7 @@ const AccountDetailPage = () => {
                   onChange={(e) => setTransferAmount(e.target.value)}
                 />
                 {parseFloat(transferAmount || "0") > availBal && (
-                  <p className="text-[10px] text-destructive mt-1">
+                  <p className="text-[11px] text-destructive mt-1">
                     Amount exceeds available balance.
                   </p>
                 )}
@@ -690,7 +690,7 @@ const AccountDetailPage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                 Available Balance
               </p>
               <p className="text-lg font-mono font-bold mt-1">
@@ -704,7 +704,7 @@ const AccountDetailPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                 Current Balance
               </p>
               <p className="text-lg font-mono font-bold mt-1">
@@ -718,7 +718,7 @@ const AccountDetailPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                 Accrued Interest
               </p>
               <p className="text-lg font-mono font-bold mt-1 text-green-600">
@@ -728,7 +728,7 @@ const AccountDetailPage = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                 Interest Rate
               </p>
               <p className="text-lg font-mono font-bold mt-1">
@@ -825,7 +825,7 @@ const AccountDetailPage = () => {
                     : []),
                 ].map(([label, value]) => (
                   <div key={label as string}>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans mb-0.5">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans mb-0.5">
                       {label}
                     </p>
                     <p className="text-sm font-sans font-medium">{value}</p>
@@ -855,12 +855,12 @@ const AccountDetailPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Description</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Description</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -870,7 +870,7 @@ const AccountDetailPage = () => {
                               {fmtDate(tx.valueDate ?? tx.createdAt)}
                             </TableCell>
                             <TableCell className="text-xs font-sans">
-                              <Badge variant="outline" className="text-[9px]">
+                              <Badge variant="outline" className="text-[11px]">
                                 {tx.transactionType}
                               </Badge>
                             </TableCell>
@@ -971,13 +971,13 @@ const AccountDetailPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Direction</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Counterparty</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Direction</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Counterparty</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -994,7 +994,7 @@ const AccountDetailPage = () => {
                             <TableCell className="text-xs font-sans">
                               <Badge
                                 variant="outline"
-                                className={`text-[9px] ${
+                                className={`text-[11px] ${
                                   isOutgoing
                                     ? "bg-red-100 text-red-700 border-red-300"
                                     : "bg-green-100 text-green-700 border-green-300"
@@ -1007,14 +1007,14 @@ const AccountDetailPage = () => {
                               {counterparty ?? "--"}
                             </TableCell>
                             <TableCell className="text-xs font-sans">
-                              <Badge variant="outline" className="text-[9px]">
+                              <Badge variant="outline" className="text-[11px]">
                                 {t.transferType}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-xs font-sans">
                               <Badge
                                 variant="outline"
-                                className={`text-[9px] ${
+                                className={`text-[11px] ${
                                   statusColors[t.status?.toUpperCase()] ??
                                   "bg-muted text-muted-foreground"
                                 }`}
@@ -1093,11 +1093,11 @@ const AccountDetailPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance Used</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Rate</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Daily Amount</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Posted</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance Used</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Daily Amount</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Posted</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1114,7 +1114,7 @@ const AccountDetailPage = () => {
                             <TableCell>
                               <Badge
                                 variant="outline"
-                                className={`text-[9px] ${
+                                className={`text-[11px] ${
                                   a.posted
                                     ? "bg-green-100 text-green-700 border-green-300"
                                     : "bg-amber-100 text-amber-700 border-amber-300"
@@ -1152,12 +1152,12 @@ const AccountDetailPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="text-[10px] uppercase tracking-wider">Period</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Gross Interest</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">WHT</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider text-right">Net Interest</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Posted At</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Posted By</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Period</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Gross Interest</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">WHT</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider text-right">Net Interest</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Posted At</TableHead>
+                          <TableHead className="text-[11px] uppercase tracking-wider">Posted By</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1250,7 +1250,7 @@ const AccountDetailPage = () => {
                         </CardTitle>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                               Account
                             </p>
                             <p className="text-xs font-mono font-medium">
@@ -1258,7 +1258,7 @@ const AccountDetailPage = () => {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                               Customer
                             </p>
                             <p className="text-xs font-sans font-medium">
@@ -1266,7 +1266,7 @@ const AccountDetailPage = () => {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                               Opening Balance
                             </p>
                             <p className="text-xs font-mono font-medium">
@@ -1274,7 +1274,7 @@ const AccountDetailPage = () => {
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                               Closing Balance
                             </p>
                             <p className="text-xs font-mono font-bold">
@@ -1295,12 +1295,12 @@ const AccountDetailPage = () => {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Description</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Description</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1310,7 +1310,7 @@ const AccountDetailPage = () => {
                                     {fmtDate(tx.valueDate ?? tx.createdAt)}
                                   </TableCell>
                                   <TableCell className="text-xs font-sans">
-                                    <Badge variant="outline" className="text-[9px]">
+                                    <Badge variant="outline" className="text-[11px]">
                                       {tx.transactionType}
                                     </Badge>
                                   </TableCell>

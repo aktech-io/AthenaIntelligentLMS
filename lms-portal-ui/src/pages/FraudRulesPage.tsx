@@ -362,7 +362,7 @@ const FraudRulesPage = () => {
                   <AccordionItem key={category} value={category}>
                     <AccordionTrigger className="text-xs font-medium py-2">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`text-[10px] ${categoryColor[category] ?? ""}`}>
+                        <Badge variant="outline" className={`text-[11px] ${categoryColor[category] ?? ""}`}>
                           {category}
                         </Badge>
                         <span>{catRules.length} rules</span>
@@ -378,12 +378,12 @@ const FraudRulesPage = () => {
                                 <div className="flex items-center gap-2">
                                   <code className="text-xs font-mono font-bold">{doc.code}</code>
                                   {matchingRule && (
-                                    <Badge variant="outline" className={`text-[9px] ${severityColor[matchingRule.severity]}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${severityColor[matchingRule.severity]}`}>
                                       {matchingRule.severity}
                                     </Badge>
                                   )}
                                   {matchingRule && (
-                                    <span className={`text-[10px] ${matchingRule.enabled ? "text-green-600" : "text-muted-foreground"}`}>
+                                    <span className={`text-[11px] ${matchingRule.enabled ? "text-green-600" : "text-muted-foreground"}`}>
                                       {matchingRule.enabled ? "Active" : "Disabled"}
                                     </span>
                                   )}
@@ -392,17 +392,17 @@ const FraudRulesPage = () => {
                               <p className="text-xs font-medium">{doc.summary}</p>
                               <p className="text-[11px] text-muted-foreground">{doc.howItWorks}</p>
                               <div className="bg-muted/50 rounded p-2">
-                                <p className="text-[10px] text-muted-foreground"><strong>Example:</strong> {doc.example}</p>
+                                <p className="text-[11px] text-muted-foreground"><strong>Example:</strong> {doc.example}</p>
                               </div>
                               {doc.params.length > 0 && (
                                 <div className="space-y-1">
-                                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Parameters</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Parameters</p>
                                   {doc.params.map((p) => {
                                     const currentVal = matchingRule?.parameters?.[p.key];
                                     return (
                                       <div key={p.key} className="flex items-center justify-between text-[11px] py-0.5">
                                         <span className="text-muted-foreground">
-                                          <code className="font-mono text-[10px]">{p.key}</code> — {p.description}
+                                          <code className="font-mono text-[11px]">{p.key}</code> — {p.description}
                                         </span>
                                         <span className="font-mono font-medium ml-2 whitespace-nowrap">
                                           {currentVal !== undefined ? String(currentVal) : String(p.defaultValue)}
@@ -414,7 +414,7 @@ const FraudRulesPage = () => {
                                 </div>
                               )}
                               {doc.regulatoryBasis && (
-                                <p className="text-[10px] text-blue-600 flex items-start gap-1">
+                                <p className="text-[11px] text-blue-600 flex items-start gap-1">
                                   <Info className="h-3 w-3 mt-0.5 shrink-0" />
                                   {doc.regulatoryBasis}
                                 </p>
@@ -478,16 +478,16 @@ const FraudRulesPage = () => {
                           <TableCell className="text-xs font-mono font-medium">{rule.ruleCode}</TableCell>
                           <TableCell className="text-xs">{rule.ruleName}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[10px] ${categoryColor[rule.category] ?? ""}`}>
+                            <Badge variant="outline" className={`text-[11px] ${categoryColor[rule.category] ?? ""}`}>
                               {rule.category}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[10px] ${severityColor[rule.severity]}`}>
+                            <Badge variant="outline" className={`text-[11px] ${severityColor[rule.severity]}`}>
                               {rule.severity}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-[10px] text-muted-foreground max-w-[200px] truncate font-mono" title={thresholdSummary}>
+                          <TableCell className="text-[11px] text-muted-foreground max-w-[200px] truncate font-mono" title={thresholdSummary}>
                             {thresholdSummary}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[250px] truncate" title={doc?.summary ?? rule.description ?? ""}>
@@ -519,10 +519,10 @@ const FraudRulesPage = () => {
               <DialogHeader>
                 <DialogTitle className="text-sm flex items-center gap-2">
                   <span className="font-mono">{editRule.ruleCode}</span>
-                  <Badge variant="outline" className={`text-[10px] ${categoryColor[editRule.category]}`}>
+                  <Badge variant="outline" className={`text-[11px] ${categoryColor[editRule.category]}`}>
                     {editRule.category}
                   </Badge>
-                  <Badge variant="outline" className={`text-[10px] ${severityColor[editRule.severity]}`}>
+                  <Badge variant="outline" className={`text-[11px] ${severityColor[editRule.severity]}`}>
                     {editRule.severity}
                   </Badge>
                 </DialogTitle>
@@ -538,10 +538,10 @@ const FraudRulesPage = () => {
                     <p className="text-xs">{ruleDoc.summary}</p>
                     <p className="text-[11px] text-muted-foreground">{ruleDoc.howItWorks}</p>
                     <div className="bg-background rounded p-2 border">
-                      <p className="text-[10px] text-muted-foreground"><strong>Example:</strong> {ruleDoc.example}</p>
+                      <p className="text-[11px] text-muted-foreground"><strong>Example:</strong> {ruleDoc.example}</p>
                     </div>
                     {ruleDoc.regulatoryBasis && (
-                      <p className="text-[10px] text-blue-600 flex items-start gap-1">
+                      <p className="text-[11px] text-blue-600 flex items-start gap-1">
                         <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                         <strong>Regulatory:</strong> {ruleDoc.regulatoryBasis}
                       </p>
@@ -554,7 +554,7 @@ const FraudRulesPage = () => {
                 {/* Severity */}
                 <div>
                   <Label className="text-xs">Alert Severity</Label>
-                  <p className="text-[10px] text-muted-foreground mb-1">Determines how urgently this alert is treated in triage</p>
+                  <p className="text-[11px] text-muted-foreground mb-1">Determines how urgently this alert is treated in triage</p>
                   <Select value={editSeverity} onValueChange={setEditSeverity}>
                     <SelectTrigger className="mt-1 text-xs h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -574,11 +574,11 @@ const FraudRulesPage = () => {
                       <div key={p.key}>
                         <div className="flex items-center justify-between">
                           <Label className="text-[11px] font-medium">{p.label}</Label>
-                          <span className="text-[10px] text-muted-foreground font-mono">
+                          <span className="text-[11px] text-muted-foreground font-mono">
                             default: {p.defaultValue}{unitLabel(p.type, p.unit) ? ` ${unitLabel(p.type, p.unit)}` : ""}
                           </span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground mb-1">{p.description}</p>
+                        <p className="text-[11px] text-muted-foreground mb-1">{p.description}</p>
                         <div className="flex items-center gap-2">
                           <Input
                             type="number"
@@ -587,7 +587,7 @@ const FraudRulesPage = () => {
                             className="text-xs font-mono h-8 w-40"
                           />
                           {unitLabel(p.type, p.unit) && (
-                            <span className="text-[10px] text-muted-foreground">{unitLabel(p.type, p.unit)}</span>
+                            <span className="text-[11px] text-muted-foreground">{unitLabel(p.type, p.unit)}</span>
                           )}
                         </div>
                       </div>
@@ -606,7 +606,7 @@ const FraudRulesPage = () => {
                   <Label className="text-xs">Monitored Events</Label>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {editRule.eventTypes?.split(",").map((evt) => (
-                      <Badge key={evt} variant="outline" className="text-[9px] font-mono">
+                      <Badge key={evt} variant="outline" className="text-[11px] font-mono">
                         {evt.trim()}
                       </Badge>
                     ))}

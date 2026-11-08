@@ -113,7 +113,7 @@ const KYBPage = () => {
                       <TableCell className="text-xs">{c.customerType}</TableCell>
                       <TableCell className="text-xs">{c.createdAt?.split("T")[0] ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${statusStyle[c.status] || ""}`}>
+                        <Badge variant="outline" className={`text-[11px] ${statusStyle[c.status] || ""}`}>
                           {c.status}
                         </Badge>
                       </TableCell>

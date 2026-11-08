@@ -272,12 +272,12 @@ const AccountOpeningPage = () => {
                   </div>
                   <div className="text-right">
                     {c.nationalId && (
-                      <p className="text-[10px] font-mono text-muted-foreground">
+                      <p className="text-[11px] font-mono text-muted-foreground">
                         ID: {c.nationalId}
                       </p>
                     )}
                     {c.kycTier !== undefined && (
-                      <Badge variant="outline" className="text-[9px] mt-1">
+                      <Badge variant="outline" className="text-[11px] mt-1">
                         KYC Tier {c.kycTier}
                       </Badge>
                     )}
@@ -348,7 +348,7 @@ const AccountOpeningPage = () => {
                     <CardTitle className="text-sm font-sans">
                       {product.name}
                     </CardTitle>
-                    <CardDescription className="text-[10px] font-mono">
+                    <CardDescription className="text-[11px] font-mono">
                       {product.productCode}
                     </CardDescription>
                   </div>
@@ -362,7 +362,7 @@ const AccountOpeningPage = () => {
               <CardContent className="p-4 pt-0">
                 <Badge
                   variant="outline"
-                  className={`text-[9px] font-sans mb-2 ${
+                  className={`text-[11px] font-sans mb-2 ${
                     categoryColors[product.productCategory] ?? ""
                   }`}
                 >
@@ -370,7 +370,7 @@ const AccountOpeningPage = () => {
                 </Badge>
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                   <div>
-                    <p className="text-[9px] text-muted-foreground font-sans">
+                    <p className="text-[11px] text-muted-foreground font-sans">
                       Interest Rate
                     </p>
                     <p className="text-xs font-mono font-semibold">
@@ -378,7 +378,7 @@ const AccountOpeningPage = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-muted-foreground font-sans">
+                    <p className="text-[11px] text-muted-foreground font-sans">
                       Min Balance
                     </p>
                     <p className="text-xs font-mono font-semibold">
@@ -387,7 +387,7 @@ const AccountOpeningPage = () => {
                   </div>
                 </div>
                 {product.description && (
-                  <p className="text-[10px] text-muted-foreground mt-2 line-clamp-2">
+                  <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">
                     {product.description}
                   </p>
                 )}
@@ -455,7 +455,7 @@ const AccountOpeningPage = () => {
         />
         {selectedProduct && parseFloat(initialDeposit || "0") > 0 &&
           parseFloat(initialDeposit) < selectedProduct.minOpeningBalance && (
-            <p className="text-[10px] text-destructive">
+            <p className="text-[11px] text-destructive">
               Minimum opening balance is {formatKES(selectedProduct.minOpeningBalance)}
             </p>
           )}
@@ -479,7 +479,7 @@ const AccountOpeningPage = () => {
               onChange={(e) => setTermDays(e.target.value)}
             />
             {selectedProduct.minTermDays && selectedProduct.maxTermDays && (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 Allowed: {selectedProduct.minTermDays} - {selectedProduct.maxTermDays} days
               </p>
             )}
@@ -543,7 +543,7 @@ const AccountOpeningPage = () => {
             {selectedCustomer?.email ?? selectedCustomer?.phoneNumber ?? "N/A"}
           </p>
           {selectedCustomer?.kycTier !== undefined && (
-            <Badge variant="outline" className="text-[9px]">
+            <Badge variant="outline" className="text-[11px]">
               KYC Tier {selectedCustomer.kycTier}
             </Badge>
           )}
@@ -558,13 +558,13 @@ const AccountOpeningPage = () => {
           <p className="text-sm font-sans font-semibold">
             {selectedProduct?.name}
           </p>
-          <p className="text-[10px] font-mono text-muted-foreground">
+          <p className="text-[11px] font-mono text-muted-foreground">
             {selectedProduct?.productCode}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <Badge
               variant="outline"
-              className={`text-[9px] ${
+              className={`text-[11px] ${
                 categoryColors[selectedProduct?.productCategory ?? ""] ?? ""
               }`}
             >

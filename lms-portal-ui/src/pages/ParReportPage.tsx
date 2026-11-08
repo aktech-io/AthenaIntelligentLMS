@@ -30,7 +30,7 @@ const ParStat = ({ label, value, hint }: ParStatProps) => {
   return (
     <Card className={`border-2 ${tone}`}>
       <CardContent className="p-4">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-sans">{label}</p>
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-sans">{label}</p>
         <p className={`text-2xl font-bold font-mono mt-1 ${valueTone}`}>{fmtPct(value)}</p>
         <p className="text-[11px] text-muted-foreground mt-1 font-sans">{hint}</p>
       </CardContent>
@@ -107,10 +107,10 @@ const ParReportPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px] font-sans">Bucket</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Loans</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Outstanding (KES)</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">% of Portfolio</TableHead>
+                    <TableHead className="text-[11px] font-sans">Bucket</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Loans</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Outstanding (KES)</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">% of Portfolio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

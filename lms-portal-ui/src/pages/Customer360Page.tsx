@@ -395,15 +395,15 @@ const Customer360Page = () => {
                   </div>
                   <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Name</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Name</p>
                       <p className="text-sm font-semibold mt-0.5">{customer.firstName} {customer.lastName}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Customer ID</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Customer ID</p>
                       <p className="text-sm font-mono mt-0.5">{customer.customerId}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Type</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Type</p>
                       <p className="text-sm mt-0.5">{customer.customerType}</p>
                     </div>
                     {customer.phone && (
@@ -427,22 +427,22 @@ const Customer360Page = () => {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Badge variant="outline"
-                      className={`text-[10px] font-semibold ${statusColors[customer.status] ?? ""}`}>
+                      className={`text-[11px] font-semibold ${statusColors[customer.status] ?? ""}`}>
                       {customer.status}
                     </Badge>
                     <Badge variant="outline"
-                      className={`text-[10px] font-semibold ${kycColors[customer.kycStatus ?? ""] ?? ""}`}>
+                      className={`text-[11px] font-semibold ${kycColors[customer.kycStatus ?? ""] ?? ""}`}>
                       <Shield className="h-2.5 w-2.5 mr-1" />
                       KYC: {customer.kycStatus ?? "—"}
                     </Badge>
                     {riskProfile && (
                       <Badge variant="outline"
-                        className={`text-[10px] font-semibold ${severityColors[riskProfile.riskLevel] ?? ""}`}>
+                        className={`text-[11px] font-semibold ${severityColors[riskProfile.riskLevel] ?? ""}`}>
                         <AlertTriangle className="h-2.5 w-2.5 mr-1" />
                         Risk: {riskProfile.riskLevel}
                       </Badge>
                     )}
-                    <Button variant="outline" size="sm" className="text-[10px] h-7 mt-1"
+                    <Button variant="outline" size="sm" className="text-[11px] h-7 mt-1"
                       onClick={() => {
                         setEditForm({
                           firstName: customer.firstName,
@@ -464,15 +464,15 @@ const Customer360Page = () => {
                 {accounts && accounts.length > 0 && (
                   <div className="mt-4 pt-3 border-t flex items-center gap-6">
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Available Balance</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Total Available Balance</p>
                       <p className="text-lg font-bold font-mono">{formatKES(totalBalance)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Accounts</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Accounts</p>
                       <p className="text-lg font-bold font-mono">{accounts.length}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active Loans</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Active Loans</p>
                       <p className="text-lg font-bold font-mono">
                         {customerLoans.filter((l) => l.status === "ACTIVE" || l.status === "DISBURSED").length}
                       </p>
@@ -589,13 +589,13 @@ const Customer360Page = () => {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead className="text-[10px] uppercase tracking-wider">Account Number</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Currency</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Available</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Created</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Account Number</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Currency</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Available</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Created</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -614,7 +614,7 @@ const Customer360Page = () => {
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline"
-                                      className={`text-[10px] ${statusColors[acc.status] ?? ""}`}>
+                                      className={`text-[11px] ${statusColors[acc.status] ?? ""}`}>
                                       {acc.status}
                                     </Badge>
                                   </TableCell>
@@ -661,12 +661,12 @@ const Customer360Page = () => {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Account</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance After</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Account</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance After</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -716,13 +716,13 @@ const Customer360Page = () => {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead className="text-[10px] uppercase tracking-wider">Loan ID</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Product</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Disbursed</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Outstanding</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-center">DPD</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider" />
+                              <TableHead className="text-[11px] uppercase tracking-wider">Loan ID</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Product</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Disbursed</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Outstanding</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-center">DPD</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider" />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -738,12 +738,12 @@ const Customer360Page = () => {
                                 }`}>{loan.dpd ?? 0}</TableCell>
                                 <TableCell>
                                   <Badge variant="outline"
-                                    className={`text-[9px] capitalize ${loanStatusCls[loan.status] ?? "bg-muted text-muted-foreground border-border"}`}>
+                                    className={`text-[11px] capitalize ${loanStatusCls[loan.status] ?? "bg-muted text-muted-foreground border-border"}`}>
                                     {loan.status}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  <Button variant="ghost" size="sm" className="text-[10px] h-6"
+                                  <Button variant="ghost" size="sm" className="text-[11px] h-6"
                                     onClick={(e) => { e.stopPropagation(); setSelectedLoanId(loan.id); }}>
                                     Schedule
                                   </Button>
@@ -763,19 +763,19 @@ const Customer360Page = () => {
                         <CardTitle className="text-xs font-semibold uppercase tracking-wider">
                           Repayment Schedule — Loan {selectedLoanId.slice(0, 8)}...
                         </CardTitle>
-                        <Button variant="ghost" size="sm" className="text-[10px] h-6"
+                        <Button variant="ghost" size="sm" className="text-[11px] h-6"
                           onClick={() => setSelectedLoanId(null)}>Close</Button>
                       </CardHeader>
                       <CardContent className="p-0">
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead className="text-[10px] uppercase tracking-wider">#</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Due Date</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Principal</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Interest</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Total</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">#</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Due Date</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Principal</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Interest</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Total</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -788,7 +788,7 @@ const Customer360Page = () => {
                                 <TableCell className="text-xs font-mono text-right font-semibold">{formatKES(inst.totalDue ?? 0)}</TableCell>
                                 <TableCell>
                                   <Badge variant="outline"
-                                    className={`text-[9px] ${installmentStatusCls[inst.status] ?? "bg-muted text-muted-foreground border-border"}`}>
+                                    className={`text-[11px] ${installmentStatusCls[inst.status] ?? "bg-muted text-muted-foreground border-border"}`}>
                                     {inst.status}
                                   </Badge>
                                 </TableCell>
@@ -820,12 +820,12 @@ const Customer360Page = () => {
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                              <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Loan</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Method</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
-                              <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Loan</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Method</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
+                              <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -844,7 +844,7 @@ const Customer360Page = () => {
                                   {r.reference ?? "—"}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline" className="text-[9px] bg-success/15 text-success border-success/30">
+                                  <Badge variant="outline" className="text-[11px] bg-success/15 text-success border-success/30">
                                     {r.status ?? "COMPLETED"}
                                   </Badge>
                                 </TableCell>
@@ -875,20 +875,20 @@ const Customer360Page = () => {
                         ) : (
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Account</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Account</p>
                               <p className="text-sm font-mono">{wallet.accountNumber}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Current Balance</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Current Balance</p>
                               <p className="text-lg font-bold font-mono">{formatKES(wallet.currentBalance ?? 0)}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Available</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Available</p>
                               <p className="text-lg font-bold font-mono">{formatKES(wallet.availableBalance ?? 0)}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
-                              <Badge variant="outline" className={`text-[10px] mt-1 ${statusColors[wallet.status] ?? ""}`}>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Status</p>
+                              <Badge variant="outline" className={`text-[11px] mt-1 ${statusColors[wallet.status] ?? ""}`}>
                                 {wallet.status}
                               </Badge>
                             </div>
@@ -908,28 +908,28 @@ const Customer360Page = () => {
                         <CardContent>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Approved Limit</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Approved Limit</p>
                               <p className="text-lg font-bold font-mono">{formatKES(overdraftFacility.approvedLimit ?? 0)}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Drawn</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Drawn</p>
                               <p className="text-lg font-bold font-mono text-warning">{formatKES(overdraftFacility.drawnAmount ?? 0)}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Available</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Available</p>
                               <p className="text-lg font-bold font-mono text-success">{formatKES(overdraftFacility.availableOverdraft ?? 0)}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Interest Rate</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Interest Rate</p>
                               <p className="text-sm font-mono">{(overdraftFacility.interestRate ?? 0).toFixed(2)}%</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Credit Band</p>
-                              <Badge variant="outline" className="text-[10px]">{overdraftFacility.creditBand}</Badge>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Credit Band</p>
+                              <Badge variant="outline" className="text-[11px]">{overdraftFacility.creditBand}</Badge>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
-                              <Badge variant="outline" className={`text-[10px] ${statusColors[overdraftFacility.status] ?? ""}`}>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Status</p>
+                              <Badge variant="outline" className={`text-[11px] ${statusColors[overdraftFacility.status] ?? ""}`}>
                                 {overdraftFacility.status}
                               </Badge>
                             </div>
@@ -955,11 +955,11 @@ const Customer360Page = () => {
                             <Table>
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance After</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance After</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -997,11 +997,11 @@ const Customer360Page = () => {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Drawn</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Rate</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Interest</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Ref</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Drawn</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Interest</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Ref</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1040,7 +1040,7 @@ const Customer360Page = () => {
                           {/* Statement controls */}
                           <div className="flex flex-wrap items-end gap-3">
                             <div>
-                              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Account</Label>
+                              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Account</Label>
                               <select className="w-48 h-8 rounded-md border text-xs px-2 mt-1 block"
                                 value={stmtAccountId ?? ""}
                                 onChange={(e) => setStmtAccountId(e.target.value || null)}>
@@ -1051,7 +1051,7 @@ const Customer360Page = () => {
                               </select>
                             </div>
                             <div>
-                              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Type</Label>
+                              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Type</Label>
                               <select className="w-28 h-8 rounded-md border text-xs px-2 mt-1 block"
                                 value={stmtType}
                                 onChange={(e) => setStmtType(e.target.value as "full" | "mini")}>
@@ -1062,12 +1062,12 @@ const Customer360Page = () => {
                             {stmtType === "full" && (
                               <>
                                 <div>
-                                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</Label>
+                                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">From</Label>
                                   <Input type="date" className="w-36 h-8 text-xs mt-1" value={stmtFrom}
                                     onChange={(e) => setStmtFrom(e.target.value)} />
                                 </div>
                                 <div>
-                                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</Label>
+                                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">To</Label>
                                   <Input type="date" className="w-36 h-8 text-xs mt-1" value={stmtTo}
                                     onChange={(e) => setStmtTo(e.target.value)} />
                                 </div>
@@ -1090,31 +1090,31 @@ const Customer360Page = () => {
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground uppercase">Account</p>
+                                  <p className="text-[11px] text-muted-foreground uppercase">Account</p>
                                   <p className="font-mono">{statementData.accountNumber}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground uppercase">Opening Balance</p>
+                                  <p className="text-[11px] text-muted-foreground uppercase">Opening Balance</p>
                                   <p className="font-mono">{formatKES(statementData.openingBalance ?? 0)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground uppercase">Closing Balance</p>
+                                  <p className="text-[11px] text-muted-foreground uppercase">Closing Balance</p>
                                   <p className="font-mono font-semibold">{formatKES(statementData.closingBalance ?? 0)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground uppercase">Period</p>
+                                  <p className="text-[11px] text-muted-foreground uppercase">Period</p>
                                   <p className="font-mono">{statementData.periodFrom} — {statementData.periodTo}</p>
                                 </div>
                               </div>
                               <Table>
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
-                                    <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                                    <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
-                                    <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
-                                    <TableHead className="text-[10px] uppercase tracking-wider">Description</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
+                                    <TableHead className="text-[11px] uppercase tracking-wider">Description</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1143,11 +1143,11 @@ const Customer360Page = () => {
                             <Table>
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider text-right">Balance</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Reference</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider text-right">Balance</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Reference</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -1193,25 +1193,25 @@ const Customer360Page = () => {
                         ) : (
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Risk Score</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Risk Score</p>
                               <p className={`text-2xl font-bold font-mono ${riskColors[riskProfile.riskLevel] ?? ""}`}>
                                 {riskProfile.riskScore}
                               </p>
-                              <Badge variant="outline" className={`text-[9px] mt-1 ${severityColors[riskProfile.riskLevel] ?? ""}`}>
+                              <Badge variant="outline" className={`text-[11px] mt-1 ${severityColors[riskProfile.riskLevel] ?? ""}`}>
                                 {riskProfile.riskLevel}
                               </Badge>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Alerts</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Total Alerts</p>
                               <p className="text-2xl font-bold font-mono">{riskProfile.totalAlerts}</p>
-                              <p className="text-[10px] text-muted-foreground">{riskProfile.openAlerts} open</p>
+                              <p className="text-[11px] text-muted-foreground">{riskProfile.openAlerts} open</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Confirmed Fraud</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Confirmed Fraud</p>
                               <p className="text-2xl font-bold font-mono text-destructive">{riskProfile.confirmedFraud}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">False Positives</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">False Positives</p>
                               <p className="text-2xl font-bold font-mono text-muted-foreground">{riskProfile.falsePositives}</p>
                             </div>
                           </div>
@@ -1235,11 +1235,11 @@ const Customer360Page = () => {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[10px] uppercase tracking-wider">Type</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Severity</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Description</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Type</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Severity</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Description</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1248,12 +1248,12 @@ const Customer360Page = () => {
                                   onClick={() => navigate("/fraud")}>
                                   <TableCell className="text-xs font-mono">{alert.alertType}</TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={`text-[9px] ${severityColors[alert.severity] ?? ""}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${severityColors[alert.severity] ?? ""}`}>
                                       {alert.severity}
                                     </Badge>
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={`text-[9px] ${alertStatusColors[alert.status] ?? ""}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${alertStatusColors[alert.status] ?? ""}`}>
                                       {alert.status}
                                     </Badge>
                                   </TableCell>
@@ -1287,10 +1287,10 @@ const Customer360Page = () => {
                             <Table>
                               <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Linked Customer</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Link Type</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Value</TableHead>
-                                  <TableHead className="text-[10px] uppercase tracking-wider">Flagged</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Linked Customer</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Link Type</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Value</TableHead>
+                                  <TableHead className="text-[11px] uppercase tracking-wider">Flagged</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -1304,7 +1304,7 @@ const Customer360Page = () => {
                                     <TableCell className="text-xs font-mono">{link.linkValue}</TableCell>
                                     <TableCell>
                                       {link.flagged ? (
-                                        <Badge variant="outline" className="text-[9px] bg-destructive/15 text-destructive border-destructive/30">
+                                        <Badge variant="outline" className="text-[11px] bg-destructive/15 text-destructive border-destructive/30">
                                           Flagged
                                         </Badge>
                                       ) : (
@@ -1336,12 +1336,12 @@ const Customer360Page = () => {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[10px] uppercase tracking-wider">Event</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">ML Score</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Risk</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Latency</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Event</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">ML Score</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Risk</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Latency</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Date</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1352,7 +1352,7 @@ const Customer360Page = () => {
                                     {(s.mlScore ?? 0).toFixed(3)}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={`text-[9px] ${severityColors[s.riskLevel] ?? ""}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${severityColors[s.riskLevel] ?? ""}`}>
                                       {s.riskLevel}
                                     </Badge>
                                   </TableCell>
@@ -1389,11 +1389,11 @@ const Customer360Page = () => {
                           <Table>
                             <TableHeader>
                               <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-[10px] uppercase tracking-wider">Case #</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Title</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Priority</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                                <TableHead className="text-[10px] uppercase tracking-wider">Opened</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Case #</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Title</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Priority</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="text-[11px] uppercase tracking-wider">Opened</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1403,12 +1403,12 @@ const Customer360Page = () => {
                                   <TableCell className="text-xs font-mono text-info">{c.caseNumber}</TableCell>
                                   <TableCell className="text-xs max-w-[250px] truncate">{c.title}</TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={`text-[9px] ${severityColors[c.priority] ?? ""}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${severityColors[c.priority] ?? ""}`}>
                                       {c.priority}
                                     </Badge>
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="outline" className={`text-[9px] ${alertStatusColors[c.status] ?? ""}`}>
+                                    <Badge variant="outline" className={`text-[11px] ${alertStatusColors[c.status] ?? ""}`}>
                                       {(c.status ?? "").replace(/_/g, " ")}
                                     </Badge>
                                   </TableCell>

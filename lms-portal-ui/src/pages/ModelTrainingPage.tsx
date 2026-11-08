@@ -57,7 +57,7 @@ const bpcerOf = (m: Record<string, number>): number | undefined => m["bpcer"] ??
 
 const RunStatusChip = ({ status }: { status: string }) => {
   const cfg = RUN_STATUS[status] ?? { label: status, color: "bg-muted/50 text-muted-foreground" };
-  return <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>{cfg.label}</Badge>;
+  return <Badge variant="outline" className={`text-[11px] ${cfg.color}`}>{cfg.label}</Badge>;
 };
 
 // Gate verdicts carry an icon + label, never color alone.
@@ -67,7 +67,7 @@ const GateChip = ({ verdict }: { verdict?: string }) => {
   return (
     <Badge
       variant="outline"
-      className={`text-[10px] gap-0.5 ${
+      className={`text-[11px] gap-0.5 ${
         pass
           ? "bg-success/15 text-success border-success/30"
           : "bg-destructive/15 text-destructive border-destructive/30"
@@ -217,7 +217,7 @@ const ModelTrainingPage = () => {
               {deployed?.reachable && deployed.status && (
                 <Badge
                   variant="outline"
-                  className={`text-[10px] ${
+                  className={`text-[11px] ${
                     deployed.status === "ok"
                       ? "bg-success/15 text-success border-success/30"
                       : "bg-warning/15 text-warning border-warning/30"

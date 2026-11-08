@@ -208,7 +208,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Total Alerts</span>
+                  <span className="text-[11px] text-muted-foreground">Total Alerts</span>
                   <Activity className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <p className="text-xl font-heading">{allAlerts.length}</p>
@@ -217,7 +217,7 @@ const FraudDashboardPage = () => {
             <Card className="border-destructive/30">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Open</span>
+                  <span className="text-[11px] text-muted-foreground">Open</span>
                   <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
                 </div>
                 <p className="text-xl font-heading text-destructive">{summary?.openAlerts ?? 0}</p>
@@ -226,7 +226,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Critical</span>
+                  <span className="text-[11px] text-muted-foreground">Critical</span>
                   <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
                 </div>
                 <p className="text-xl font-heading">{summary?.criticalAlerts ?? 0}</p>
@@ -235,7 +235,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Reviewing</span>
+                  <span className="text-[11px] text-muted-foreground">Reviewing</span>
                   <Gauge className="h-3.5 w-3.5 text-warning" />
                 </div>
                 <p className="text-xl font-heading">{summary?.underReviewAlerts ?? 0}</p>
@@ -244,7 +244,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Escalated</span>
+                  <span className="text-[11px] text-muted-foreground">Escalated</span>
                   <ArrowUpRight className="h-3.5 w-3.5 text-red-500" />
                 </div>
                 <p className="text-xl font-heading">{summary?.escalatedAlerts ?? 0}</p>
@@ -253,7 +253,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">Confirmed</span>
+                  <span className="text-[11px] text-muted-foreground">Confirmed</span>
                   <AlertTriangle className="h-3.5 w-3.5 text-red-700" />
                 </div>
                 <p className="text-xl font-heading">{summary?.confirmedFraud ?? 0}</p>
@@ -262,7 +262,7 @@ const FraudDashboardPage = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">High Risk</span>
+                  <span className="text-[11px] text-muted-foreground">High Risk</span>
                   <Users className="h-3.5 w-3.5 text-info" />
                 </div>
                 <p className="text-xl font-heading">{summary?.highRiskCustomers ?? 0}</p>
@@ -301,8 +301,8 @@ const FraudDashboardPage = () => {
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anomaly Detector</p>
-                <Badge variant="outline" className={`text-[10px] ${
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Anomaly Detector</p>
+                <Badge variant="outline" className={`text-[11px] ${
                   mlHealth?.models?.anomaly_detector === "loaded"
                     ? "bg-success/15 text-success border-success/30"
                     : "bg-muted text-muted-foreground"
@@ -311,8 +311,8 @@ const FraudDashboardPage = () => {
                 </Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fraud Scorer (LightGBM)</p>
-                <Badge variant="outline" className={`text-[10px] ${
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Fraud Scorer (LightGBM)</p>
+                <Badge variant="outline" className={`text-[11px] ${
                   mlHealth?.models?.fraud_scorer === "loaded"
                     ? "bg-success/15 text-success border-success/30"
                     : "bg-muted text-muted-foreground"
@@ -321,8 +321,8 @@ const FraudDashboardPage = () => {
                 </Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anomaly Training</p>
-                <Badge variant="outline" className={`text-[10px] ${
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Anomaly Training</p>
+                <Badge variant="outline" className={`text-[11px] ${
                   trainStatus?.anomaly?.status === "completed" ? "bg-success/15 text-success border-success/30" :
                   trainStatus?.anomaly?.status === "running" ? "bg-info/15 text-info border-info/30" :
                   trainStatus?.anomaly?.status === "failed" ? "bg-destructive/15 text-destructive border-destructive/30" :
@@ -332,8 +332,8 @@ const FraudDashboardPage = () => {
                 </Badge>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Scorer Training</p>
-                <Badge variant="outline" className={`text-[10px] ${
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Scorer Training</p>
+                <Badge variant="outline" className={`text-[11px] ${
                   trainStatus?.lgbm?.status === "completed" ? "bg-success/15 text-success border-success/30" :
                   trainStatus?.lgbm?.status === "running" ? "bg-info/15 text-info border-info/30" :
                   trainStatus?.lgbm?.status === "failed" ? "bg-destructive/15 text-destructive border-destructive/30" :
@@ -351,30 +351,30 @@ const FraudDashboardPage = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
-                <p className="text-[10px] text-muted-foreground mb-1">Resolution Rate</p>
+                <p className="text-[11px] text-muted-foreground mb-1">Resolution Rate</p>
                 <p className="text-xl font-heading">{(analytics.resolutionRate * 100).toFixed(1)}%</p>
-                <p className="text-[10px] text-muted-foreground">{analytics.resolvedAlerts} / {analytics.totalAlerts} resolved</p>
+                <p className="text-[11px] text-muted-foreground">{analytics.resolvedAlerts} / {analytics.totalAlerts} resolved</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-[10px] text-muted-foreground mb-1">Precision Rate</p>
+                <p className="text-[11px] text-muted-foreground mb-1">Precision Rate</p>
                 <p className="text-xl font-heading">{(analytics.precisionRate * 100).toFixed(1)}%</p>
-                <p className="text-[10px] text-muted-foreground">{analytics.confirmedFraudCount} confirmed / {analytics.confirmedFraudCount + analytics.falsePositiveCount} reviewed</p>
+                <p className="text-[11px] text-muted-foreground">{analytics.confirmedFraudCount} confirmed / {analytics.confirmedFraudCount + analytics.falsePositiveCount} reviewed</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-[10px] text-muted-foreground mb-1">Active Cases</p>
+                <p className="text-[11px] text-muted-foreground mb-1">Active Cases</p>
                 <p className="text-xl font-heading">{analytics.activeCases}</p>
-                <p className="text-[10px] text-muted-foreground">Under investigation</p>
+                <p className="text-[11px] text-muted-foreground">Under investigation</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-[10px] text-muted-foreground mb-1">False Positives</p>
+                <p className="text-[11px] text-muted-foreground mb-1">False Positives</p>
                 <p className="text-xl font-heading text-success">{analytics.falsePositiveCount}</p>
-                <p className="text-[10px] text-muted-foreground">Dismissed alerts</p>
+                <p className="text-[11px] text-muted-foreground">Dismissed alerts</p>
               </CardContent>
             </Card>
           </div>
@@ -510,7 +510,7 @@ const FraudDashboardPage = () => {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">High Risk Customers</CardTitle>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-[11px]">
                 {highRiskPage?.totalElements ?? 0} total
               </Badge>
             </div>
@@ -546,7 +546,7 @@ const FraudDashboardPage = () => {
                       onClick={() => navigate(`/borrowers/${c.customerId}`)}>
                       <TableCell className="text-xs font-mono">{c.customerId}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${
+                        <Badge variant="outline" className={`text-[11px] ${
                           c.riskLevel === "CRITICAL" ? "bg-red-500/15 text-red-600 border-red-500/30" :
                           c.riskLevel === "HIGH" ? "bg-destructive/15 text-destructive border-destructive/30" :
                           "bg-warning/15 text-warning border-warning/30"
@@ -594,7 +594,7 @@ const FraudDashboardPage = () => {
                   Live Transaction Feed
                   <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse inline-block" />
                 </CardTitle>
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-[11px]">
                   Last {recentEvents.length} events
                 </Badge>
               </div>
@@ -630,7 +630,7 @@ const FraudDashboardPage = () => {
                       </TableCell>
                       <TableCell className="text-xs">
                         {ev.riskScore != null ? (
-                          <Badge variant="outline" className={`text-[9px] ${
+                          <Badge variant="outline" className={`text-[11px] ${
                             ev.riskScore >= 0.7 ? "bg-destructive/15 text-destructive border-destructive/30" :
                             ev.riskScore >= 0.3 ? "bg-warning/15 text-warning border-warning/30" :
                             "bg-muted text-muted-foreground"
@@ -687,7 +687,7 @@ const FraudDashboardPage = () => {
                         <TableCell className="text-xs">{a.alertType?.replace(/_/g, " ")}</TableCell>
                         <TableCell className="text-xs font-mono">{a.customerId ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${
+                          <Badge variant="outline" className={`text-[11px] ${
                             a.severity === "CRITICAL" ? "bg-red-500/15 text-red-600 border-red-500/30" :
                             "bg-destructive/15 text-destructive border-destructive/30"
                           }`}>
@@ -698,7 +698,7 @@ const FraudDashboardPage = () => {
                           {a.description}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px]">{a.status?.replace(/_/g, " ")}</Badge>
+                          <Badge variant="outline" className="text-[11px]">{a.status?.replace(/_/g, " ")}</Badge>
                         </TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{a.createdAt?.split("T")[0] ?? "—"}</TableCell>
                       </TableRow>

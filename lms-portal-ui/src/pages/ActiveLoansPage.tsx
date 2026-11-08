@@ -132,11 +132,11 @@ const ActiveLoansPage = () => {
                 >
                   <Card>
                     <CardContent className="p-4">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">
                         {c.label}
                       </p>
                       <p className="text-lg font-mono font-bold mt-0.5">{c.value}</p>
-                      <p className="text-[10px] text-muted-foreground font-sans">{c.sub}</p>
+                      <p className="text-[11px] text-muted-foreground font-sans">{c.sub}</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -161,7 +161,7 @@ const ActiveLoansPage = () => {
                   key={s}
                   size="sm"
                   variant={stageFilter === s ? "default" : "outline"}
-                  className="text-[10px] h-7 font-sans capitalize"
+                  className="text-[11px] h-7 font-sans capitalize"
                   onClick={() => setStageFilter(s)}
                 >
                   {s === "all" ? "All" : stageConfig[s].label}
@@ -194,15 +194,15 @@ const ActiveLoansPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px] font-sans">Loan ID</TableHead>
-                    <TableHead className="text-[10px] font-sans">Customer</TableHead>
-                    <TableHead className="text-[10px] font-sans">Product</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Outstanding</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">EMI</TableHead>
-                    <TableHead className="text-[10px] font-sans">Next Due</TableHead>
-                    <TableHead className="text-[10px] font-sans text-center">DPD</TableHead>
-                    <TableHead className="text-[10px] font-sans">Status</TableHead>
-                    <TableHead className="text-[10px] font-sans text-right">Rate</TableHead>
+                    <TableHead className="text-[11px] font-sans">Loan ID</TableHead>
+                    <TableHead className="text-[11px] font-sans">Customer</TableHead>
+                    <TableHead className="text-[11px] font-sans">Product</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Outstanding</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">EMI</TableHead>
+                    <TableHead className="text-[11px] font-sans">Next Due</TableHead>
+                    <TableHead className="text-[11px] font-sans text-center">DPD</TableHead>
+                    <TableHead className="text-[11px] font-sans">Status</TableHead>
+                    <TableHead className="text-[11px] font-sans text-right">Rate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,7 +224,7 @@ const ActiveLoansPage = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[9px] font-sans ${stageConfig[loan.stage].cls}`}
+                          className={`text-[11px] font-sans ${stageConfig[loan.stage].cls}`}
                         >
                           {stageConfig[loan.stage].label}
                         </Badge>

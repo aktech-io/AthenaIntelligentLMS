@@ -163,7 +163,7 @@ const InvoicesPage = () => {
                             </TableCell>
                             <TableCell>
                               <InvoiceStatusPill status={inv.status} />
-                              {inv.statusReason && <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">{inv.statusReason}</div>}
+                              {inv.statusReason && <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">{inv.statusReason}</div>}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(inv.updatedAt)}</TableCell>
                           </TableRow>

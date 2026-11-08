@@ -344,7 +344,7 @@ const InvoiceDetailPage = () => {
                         <span className={cn("tabular-nums truncate col-span-2 sm:col-span-1", needsSeller.has(k) && "text-warning")}>
                           {fieldValue(inv, k)}
                           {needsSeller.has(k) && (
-                            <Badge variant="outline" className="ml-2 text-[9px] bg-warning/10 text-warning border-warning/30">
+                            <Badge variant="outline" className="ml-2 text-[11px] bg-warning/10 text-warning border-warning/30">
                               seller to confirm
                             </Badge>
                           )}
@@ -427,17 +427,17 @@ const InvoiceDetailPage = () => {
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1">
                       {(inv.decision.reasons ?? []).map((r) => (
-                        <Badge key={r} variant="outline" className="font-mono text-[10px]">
+                        <Badge key={r} variant="outline" className="font-mono text-[11px]">
                           {r}
                         </Badge>
                       ))}
                       {inv.decision.ruleId && (
-                        <Badge variant="outline" className="font-mono text-[10px] text-muted-foreground">
+                        <Badge variant="outline" className="font-mono text-[11px] text-muted-foreground">
                           {inv.decision.ruleId}
                         </Badge>
                       )}
                       {(inv.decision.fraudFlags ?? []).map((f) => (
-                        <Badge key={f} variant="outline" className="font-mono text-[10px] bg-destructive/10 text-destructive border-destructive/30">
+                        <Badge key={f} variant="outline" className="font-mono text-[11px] bg-destructive/10 text-destructive border-destructive/30">
                           <ShieldAlert className="h-3 w-3 mr-1" /> {f}
                         </Badge>
                       ))}
@@ -570,12 +570,12 @@ const InvoiceDetailPage = () => {
             <CardTitle className="text-sm font-heading">Ledger timeline</CardTitle>
             <div className="flex items-center gap-2">
               {anchored && (
-                <Badge variant="outline" className="text-[10px] bg-accent/10 text-accent border-accent/30">
+                <Badge variant="outline" className="text-[11px] bg-accent/10 text-accent border-accent/30">
                   <Anchor className="h-3 w-3 mr-1" /> anchored
                 </Badge>
               )}
               {tl.data && (
-                <Badge variant="outline" className={cn("text-[10px]", tl.data.chainOk ? "bg-accent/15 text-accent border-accent/40" : "bg-destructive/15 text-destructive border-destructive/40")}>
+                <Badge variant="outline" className={cn("text-[11px]", tl.data.chainOk ? "bg-accent/15 text-accent border-accent/40" : "bg-destructive/15 text-destructive border-destructive/40")}>
                   {tl.data.chainOk ? <ShieldCheck className="h-3 w-3 mr-1" /> : <ShieldAlert className="h-3 w-3 mr-1" />}
                   {tl.data.chainOk ? "chain OK" : "chain BROKEN"}
                 </Badge>
@@ -620,7 +620,7 @@ const InvoiceDetailPage = () => {
                                 .join("  ")}
                             </p>
                           )}
-                          <div className="text-[10px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
+                          <div className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
                             <span>hash {shortHash(e.hash, 8)}</span>
                             <span>prev {shortHash(e.prevHash, 6)}</span>
                             {e.anchorId && (

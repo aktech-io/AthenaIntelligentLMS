@@ -137,20 +137,20 @@ const ApprovalsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider">Operation</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Entity</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Amount</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Maker</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">Created</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">Actions</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Operation</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Entity</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Amount</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Maker</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Created</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((a) => (
                     <TableRow key={a.id} className="table-row-hover">
                       <TableCell className="text-xs font-sans">
-                        <Badge variant="outline" className="text-[9px]">
+                        <Badge variant="outline" className="text-[11px]">
                           {a.operation}
                         </Badge>
                       </TableCell>
@@ -184,7 +184,7 @@ const ApprovalsPage = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[9px] ${
+                          className={`text-[11px] ${
                             statusColors[a.status] ?? "bg-muted text-muted-foreground"
                           }`}
                         >
@@ -219,7 +219,7 @@ const ApprovalsPage = () => {
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground font-sans">
+                          <span className="text-[11px] text-muted-foreground font-sans">
                             {a.checkerId ? `by ${a.checkerId}` : "--"}
                           </span>
                         )}

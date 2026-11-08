@@ -147,7 +147,7 @@ const ProductsPage = () => {
                           <h3 className="text-sm font-sans font-semibold leading-tight">
                             {product.name}
                           </h3>
-                          <p className="text-[10px] font-mono text-muted-foreground">
+                          <p className="text-[11px] font-mono text-muted-foreground">
                             {product.code}
                           </p>
                         </div>
@@ -157,13 +157,13 @@ const ProductsPage = () => {
                     <div className="flex items-center gap-2 mb-3">
                       <Badge
                         variant="outline"
-                        className={`text-[9px] font-sans font-semibold ${typeColors[product.type] ?? ""}`}
+                        className={`text-[11px] font-sans font-semibold ${typeColors[product.type] ?? ""}`}
                       >
                         {product.type}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={`text-[9px] font-sans font-semibold capitalize ${statusColors[product.status] ?? ""}`}
+                        className={`text-[11px] font-sans font-semibold capitalize ${statusColors[product.status] ?? ""}`}
                       >
                         {product.status}
                       </Badge>
@@ -175,13 +175,13 @@ const ProductsPage = () => {
                       product.type === "FLOAT") ? (
                       <div className="grid grid-cols-2 gap-2 mb-3 pt-2 border-t">
                         <div>
-                          <p className="text-[9px] text-muted-foreground font-sans">Rate</p>
+                          <p className="text-[11px] text-muted-foreground font-sans">Rate</p>
                           <p className="text-xs font-mono font-semibold">
                             {product.annualRate}% p.a.
                           </p>
                         </div>
                         <div>
-                          <p className="text-[9px] text-muted-foreground font-sans">Frequency</p>
+                          <p className="text-[11px] text-muted-foreground font-sans">Frequency</p>
                           <p className="text-xs font-sans font-medium">
                             {product.repaymentFrequency}
                           </p>
@@ -193,7 +193,7 @@ const ProductsPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[10px] h-7 font-sans flex-1"
+                        className="text-[11px] h-7 font-sans flex-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate("/product-config");
@@ -204,14 +204,14 @@ const ProductsPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[10px] h-7 font-sans flex-1"
+                        className="text-[11px] h-7 font-sans flex-1"
                       >
                         <Copy className="h-3 w-3 mr-1" /> Clone
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-[10px] h-7 font-sans flex-1"
+                        className="text-[11px] h-7 font-sans flex-1"
                       >
                         <BarChart3 className="h-3 w-3 mr-1" /> Analytics
                       </Button>

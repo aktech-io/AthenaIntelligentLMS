@@ -222,12 +222,12 @@ const SARReportsPage = () => {
                       <TableRow key={r.id} className="table-row-hover">
                         <TableCell className="text-xs font-mono font-medium">{r.reportNumber}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${r.reportType === "CTR" ? "bg-info/15 text-info border-info/30" : "bg-warning/15 text-warning border-warning/30"}`}>
+                          <Badge variant="outline" className={`text-[11px] ${r.reportType === "CTR" ? "bg-info/15 text-info border-info/30" : "bg-warning/15 text-warning border-warning/30"}`}>
                             {r.reportType}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${sc.color}`}>{sc.label}</Badge>
+                          <Badge variant="outline" className={`text-[11px] ${sc.color}`}>{sc.label}</Badge>
                         </TableCell>
                         <TableCell className="text-xs">
                           {r.subjectName || r.subjectCustomerId || "—"}
@@ -325,10 +325,10 @@ const SARReportsPage = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3">
                   <span>{detailReport.reportNumber}</span>
-                  <Badge variant="outline" className={`text-[10px] ${STATUS_CONFIG[detailReport.status].color}`}>
+                  <Badge variant="outline" className={`text-[11px] ${STATUS_CONFIG[detailReport.status].color}`}>
                     {STATUS_CONFIG[detailReport.status].label}
                   </Badge>
-                  <Badge variant="outline" className="text-[10px]">{detailReport.reportType}</Badge>
+                  <Badge variant="outline" className="text-[11px]">{detailReport.reportType}</Badge>
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">

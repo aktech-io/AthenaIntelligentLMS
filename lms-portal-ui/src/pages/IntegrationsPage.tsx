@@ -113,7 +113,7 @@ const IntegrationsPage = () => {
                 <span className="text-xs text-muted-foreground font-sans">Gateway</span>
               </div>
               <p className="text-sm font-medium font-mono mt-1">nginx reverse proxy</p>
-              <p className="text-[10px] text-muted-foreground">lms-portal-ui:3001</p>
+              <p className="text-[11px] text-muted-foreground">lms-portal-ui:3001</p>
             </CardContent>
           </Card>
         </div>
@@ -144,7 +144,7 @@ const IntegrationsPage = () => {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="text-[10px] bg-success/10 text-success border-success/20"
+                        className="text-[11px] bg-success/10 text-success border-success/20"
                       >
                         {intg.status}
                       </Badge>

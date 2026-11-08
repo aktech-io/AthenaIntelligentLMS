@@ -221,10 +221,10 @@ const FraudCasesPage = () => {
                         <TableCell className="text-xs max-w-[200px] truncate">{c.title}</TableCell>
                         <TableCell className="text-xs font-mono">{c.customerId ?? "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${severityColor[c.priority]}`}>{c.priority}</Badge>
+                          <Badge variant="outline" className={`text-[11px] ${severityColor[c.priority]}`}>{c.priority}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[10px] ${caseStatusColor[c.status] ?? ""}`}>
+                          <Badge variant="outline" className={`text-[11px] ${caseStatusColor[c.status] ?? ""}`}>
                             {c.status?.replace(/_/g, " ")}
                           </Badge>
                         </TableCell>
@@ -232,7 +232,7 @@ const FraudCasesPage = () => {
                         <TableCell className="text-xs">{c.totalExposure ? formatKES(c.totalExposure) : "—"}</TableCell>
                         <TableCell className="text-xs">
                           {(c as Record<string, unknown>).slaBreached ? (
-                            <Badge variant="outline" className="text-[9px] bg-destructive/15 text-destructive border-destructive/30">
+                            <Badge variant="outline" className="text-[11px] bg-destructive/15 text-destructive border-destructive/30">
                               Breached
                             </Badge>
                           ) : (c as Record<string, unknown>).slaDeadline ? (
@@ -319,7 +319,7 @@ const FraudCasesPage = () => {
               <DialogHeader>
                 <DialogTitle className="text-sm flex items-center gap-2">
                   <span className="font-mono">{detailCase.caseNumber}</span>
-                  <Badge variant="outline" className={`text-[10px] ${caseStatusColor[detailCase.status]}`}>
+                  <Badge variant="outline" className={`text-[11px] ${caseStatusColor[detailCase.status]}`}>
                     {detailCase.status?.replace(/_/g, " ")}
                   </Badge>
                 </DialogTitle>
@@ -409,14 +409,14 @@ const FraudCasesPage = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-medium">{ev.action.replace(/_/g, " ")}</span>
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-[11px] text-muted-foreground">
                                 {new Date(ev.timestamp).toLocaleString()}
                               </span>
                             </div>
                             {ev.description && (
-                              <p className="text-[10px] text-muted-foreground truncate">{ev.description}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{ev.description}</p>
                             )}
-                            <p className="text-[10px] text-muted-foreground">by {ev.performedBy}</p>
+                            <p className="text-[11px] text-muted-foreground">by {ev.performedBy}</p>
                           </div>
                         </div>
                       ))}
@@ -436,7 +436,7 @@ const FraudCasesPage = () => {
                       <div key={note.id} className="rounded-md bg-muted p-2.5">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium">{note.author}</span>
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                             <Clock className="h-2.5 w-2.5" />
                             {note.createdAt?.split("T")[0]}
                           </span>

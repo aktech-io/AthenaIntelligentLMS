@@ -42,30 +42,30 @@ const PRIORITIES = ["", "LOW", "NORMAL", "HIGH", "CRITICAL"] as const;
 const stageBadge = (stage: string) => {
   switch (stage) {
     case "WATCH":
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px]">Watch</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[11px]">Watch</Badge>;
     case "SUBSTANDARD":
-      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">Substandard</Badge>;
+      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">Substandard</Badge>;
     case "DOUBTFUL":
-      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Doubtful</Badge>;
+      return <Badge className="bg-red-100 text-red-700 border-red-200 text-[11px]">Doubtful</Badge>;
     case "LOSS":
-      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[10px]">Loss</Badge>;
+      return <Badge className="bg-red-200 text-red-900 border-red-300 text-[11px]">Loss</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{stage}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{stage}</Badge>;
   }
 };
 
 const priorityBadge = (priority: string) => {
   switch (priority) {
     case "LOW":
-      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[10px]">Low</Badge>;
+      return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200 text-[11px]">Low</Badge>;
     case "NORMAL":
-      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[10px]">Normal</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 text-[11px]">Normal</Badge>;
     case "HIGH":
-      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[10px]">High</Badge>;
+      return <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200 text-[11px]">High</Badge>;
     case "CRITICAL":
-      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[10px]">Critical</Badge>;
+      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-[11px]">Critical</Badge>;
     default:
-      return <Badge variant="outline" className="text-[10px]">{priority}</Badge>;
+      return <Badge variant="outline" className="text-[11px]">{priority}</Badge>;
   }
 };
 
@@ -182,7 +182,7 @@ const CollectionsPage = () => {
           <CardContent className="p-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">Stage</label>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">Stage</label>
                 <Select value={stage} onValueChange={(v) => { setStage(v === "ALL" ? "" : v); setPage(0); }}>
                   <SelectTrigger className="w-[140px] h-9 text-xs">
                     <SelectValue placeholder="All Stages" />
@@ -196,7 +196,7 @@ const CollectionsPage = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">Priority</label>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">Priority</label>
                 <Select value={priority} onValueChange={(v) => { setPriority(v === "ALL" ? "" : v); setPage(0); }}>
                   <SelectTrigger className="w-[140px] h-9 text-xs">
                     <SelectValue placeholder="All Priorities" />
@@ -210,7 +210,7 @@ const CollectionsPage = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">DPD Min</label>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">DPD Min</label>
                 <Input
                   type="number"
                   placeholder="0"
@@ -220,7 +220,7 @@ const CollectionsPage = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">DPD Max</label>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">DPD Max</label>
                 <Input
                   type="number"
                   placeholder="999"
@@ -230,7 +230,7 @@ const CollectionsPage = () => {
                 />
               </div>
               <div className="space-y-1 flex-1 min-w-[200px]">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">Search</label>
+                <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-sans">Search</label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -251,7 +251,7 @@ const CollectionsPage = () => {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               Collection Cases
               {!casesLoading && (
-                <Badge variant="secondary" className="text-[10px]">{totalElements} total</Badge>
+                <Badge variant="secondary" className="text-[11px]">{totalElements} total</Badge>
               )}
             </CardTitle>
           </CardHeader>
@@ -276,15 +276,15 @@ const CollectionsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Case #</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Customer</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Loan ID</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Stage</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Priority</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Assigned To</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Last Action</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Case #</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Loan ID</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">DPD</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Stage</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Priority</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Outstanding</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Assigned To</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Last Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

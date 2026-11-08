@@ -254,11 +254,11 @@ export function AppSidebar() {
             <NavLink
               to={item.url}
               end={item.url === "/" || item.url === "/invoice-finance"}
-              className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sidebar-foreground/70 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors text-[13px]"
-              activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+              className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-accent/80 [&_svg]:transition-colors hover:[&_svg]:text-accent"
+              activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold !border-primary [&_svg]:!text-primary shadow-[inset_0_1px_0_hsl(var(--nemo-glass)/0.12)]"
             >
               <div className="relative shrink-0">
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-[18px] w-[18px]" />
                 {showWarningDot && (
                   <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400 ring-1 ring-sidebar" />
                 )}
@@ -284,10 +284,10 @@ export function AppSidebar() {
           <NemoMark className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div>
-              <h2 className="font-heading text-sidebar-accent-foreground text-base tracking-wide">
+              <h2 className="font-heading text-sidebar-accent-foreground text-lg font-bold tracking-[0.08em] uppercase leading-none">
                 Nemo
               </h2>
-              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest font-sans">
+              <p className="text-[11px] text-sidebar-foreground/80 uppercase tracking-[0.18em] font-sans mt-1">
                 Neobank in a Box
               </p>
             </div>
@@ -305,10 +305,10 @@ export function AppSidebar() {
                   <NavLink
                     to="/"
                     end
-                    className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sidebar-foreground/70 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors text-[13px]"
-                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                    className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-accent/80 hover:[&_svg]:text-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold !border-primary [&_svg]:!text-primary"
                   >
-                    <LayoutDashboard className="h-4 w-4 shrink-0" />
+                    <LayoutDashboard className="h-[18px] w-[18px] shrink-0" />
                     {!collapsed && <span>Overview Dashboard</span>}
                   </NavLink>
                 </SidebarMenuButton>
@@ -326,17 +326,17 @@ export function AppSidebar() {
             <SidebarGroup>
               {!collapsed ? (
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="text-sidebar-foreground/40 text-[9px] uppercase tracking-[0.15em] px-3 mb-0.5 mt-1 font-sans font-semibold cursor-pointer hover:text-sidebar-foreground/70 transition-colors select-none flex items-center justify-between w-full">
+                  <SidebarGroupLabel className="text-accent/90 text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold cursor-pointer hover:text-accent transition-colors select-none flex items-center justify-between w-full h-auto">
                     <span>{section.label}</span>
                     <ChevronDown
-                      className={`h-3 w-3 shrink-0 transition-transform duration-200 ${
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
                         openSections[section.label] ? "rotate-0" : "-rotate-90"
                       }`}
                     />
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
               ) : (
-                <SidebarGroupLabel className="text-sidebar-foreground/40 text-[9px] uppercase tracking-[0.15em] px-3 mb-0.5 mt-1 font-sans font-semibold">
+                <SidebarGroupLabel className="text-accent/90 text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold h-auto">
                   {section.label}
                 </SidebarGroupLabel>
               )}
@@ -353,15 +353,15 @@ export function AppSidebar() {
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-3 px-2">
-            <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-medium text-sidebar-accent-foreground font-sans">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-[hsl(var(--nemo-coral-deep))] flex items-center justify-center text-xs font-bold text-white font-sans shadow-glow">
               {user?.initials || "??"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-accent-foreground truncate font-sans">{user?.name || "Guest"}</p>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate font-sans">{user?.role || ""}</p>
+              <p className="text-sm font-semibold text-sidebar-accent-foreground truncate font-sans">{user?.name || "Guest"}</p>
+              <p className="text-xs text-sidebar-foreground/90 truncate font-sans">{user?.role || ""}</p>
             </div>
             <button onClick={handleLogout} className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors" title="Log out">
-              <LogOut className="h-4 w-4 text-sidebar-foreground/50 hover:text-destructive" />
+              <LogOut className="h-[18px] w-[18px] text-sidebar-foreground/80 hover:text-destructive" />
             </button>
           </div>
         )}

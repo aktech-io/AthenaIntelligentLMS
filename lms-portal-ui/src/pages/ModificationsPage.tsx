@@ -58,7 +58,7 @@ const ModificationsPage = () => {
               <RefreshCw className="h-8 w-8 mb-2 text-muted-foreground/50" />
               <p className="text-sm font-medium">No modification requests</p>
               <p className="text-xs mt-1">Loan modification requests (reschedules, top-ups, rate changes) will appear here.</p>
-              <p className="text-[10px] mt-3 text-muted-foreground/70">
+              <p className="text-[11px] mt-3 text-muted-foreground/70">
                 Modifications can be initiated from the Loan Detail page for active loans.
               </p>
             </div>

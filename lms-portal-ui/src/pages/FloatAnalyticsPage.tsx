@@ -108,12 +108,12 @@ const FloatAnalyticsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Account</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Code</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Limit</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Drawn</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Available</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Account</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Code</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Limit</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Drawn</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Available</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -125,7 +125,7 @@ const FloatAnalyticsPage = () => {
                       <TableCell className="text-xs font-mono text-right">{formatKES(acc.drawnAmount)}</TableCell>
                       <TableCell className="text-xs font-mono text-right">{formatKES(acc.available)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[9px] font-sans bg-success/15 text-success border-success/30">
+                        <Badge variant="outline" className="text-[11px] font-sans bg-success/15 text-success border-success/30">
                           {acc.status}
                         </Badge>
                       </TableCell>
@@ -158,11 +158,11 @@ const FloatAnalyticsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Reference</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Description</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Reference</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Description</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -170,7 +170,7 @@ const FloatAnalyticsPage = () => {
                     <TableRow key={txn.id} className="table-row-hover">
                       <TableCell className="text-xs font-mono font-medium">{txn.reference ?? txn.id?.slice(0, 8)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[9px] font-sans ${
+                        <Badge variant="outline" className={`text-[11px] font-sans ${
                           txn.transactionType?.includes("DRAW") ? "bg-warning/15 text-warning border-warning/30" :
                           txn.transactionType?.includes("REPLENISH") ? "bg-success/15 text-success border-success/30" :
                           "bg-muted text-muted-foreground border-border"
@@ -194,10 +194,10 @@ const FloatAnalyticsPage = () => {
           <div className="flex items-center justify-between text-xs text-muted-foreground font-sans">
             <span>Page {txnPage + 1} of {txnTotalPages}</span>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-[10px]" disabled={txnPage === 0} onClick={() => setTxnPage(p => p - 1)}>
+              <Button variant="outline" size="sm" className="h-7 text-[11px]" disabled={txnPage === 0} onClick={() => setTxnPage(p => p - 1)}>
                 <ChevronLeft className="h-3 w-3 mr-1" /> Previous
               </Button>
-              <Button variant="outline" size="sm" className="h-7 text-[10px]" disabled={txnPage >= txnTotalPages - 1} onClick={() => setTxnPage(p => p + 1)}>
+              <Button variant="outline" size="sm" className="h-7 text-[11px]" disabled={txnPage >= txnTotalPages - 1} onClick={() => setTxnPage(p => p + 1)}>
                 Next <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             </div>

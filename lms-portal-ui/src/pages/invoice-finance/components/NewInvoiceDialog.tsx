@@ -212,7 +212,7 @@ export function NewInvoiceDialog({ open, onOpenChange, onCreated }: Props) {
                           >
                             <span>
                               {c.firstName} {c.lastName}
-                              {c.customerType && <span className="ml-2 text-[10px] uppercase text-muted-foreground">{c.customerType}</span>}
+                              {c.customerType && <span className="ml-2 text-[11px] uppercase text-muted-foreground">{c.customerType}</span>}
                             </span>
                             <span className="text-xs font-mono text-muted-foreground">{c.customerId}</span>
                           </button>

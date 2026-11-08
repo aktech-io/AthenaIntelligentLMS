@@ -210,28 +210,28 @@ const AccountsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Account #
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Customer
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Type
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Product
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">
                       Balance
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider text-right">
+                    <TableHead className="text-[11px] uppercase tracking-wider text-right">
                       Rate
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Status
                     </TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider">
+                    <TableHead className="text-[11px] uppercase tracking-wider">
                       Last Activity
                     </TableHead>
                   </TableRow>
@@ -264,7 +264,7 @@ const AccountsPage = () => {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] font-semibold ${
+                          className={`text-[11px] font-semibold ${
                             statusColors[acc.status?.toUpperCase()] ??
                             "bg-muted text-muted-foreground"
                           }`}

@@ -242,7 +242,7 @@ const LoansPage = () => {
                   <div className="flex items-center justify-between mb-2 px-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-sans font-semibold">{config.label}</span>
-                      <Badge variant="outline" className="text-[10px] font-mono h-5 min-w-[24px] justify-center">
+                      <Badge variant="outline" className="text-[11px] font-mono h-5 min-w-[24px] justify-center">
                         {stageCounts[stage]}
                       </Badge>
                     </div>
@@ -260,21 +260,21 @@ const LoansPage = () => {
                           onClick={() => openDetail(app)}
                         >
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary font-sans shrink-0">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary font-sans shrink-0">
                               {app.customerInitials}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-sans font-medium truncate">{app.customerName}</p>
-                              <p className="text-[10px] text-muted-foreground font-mono">{app.id}</p>
+                              <p className="text-[11px] text-muted-foreground font-mono">{app.id}</p>
                             </div>
                           </div>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-mono font-bold">{formatKES(app.amount)}</span>
                           </div>
                           <div className="flex items-center gap-1.5 mb-2">
-                            <Badge variant="outline" className={`text-[9px] font-sans ${app.productColor}`}>{app.product}</Badge>
+                            <Badge variant="outline" className={`text-[11px] font-sans ${app.productColor}`}>{app.product}</Badge>
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground font-sans">
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground font-sans">
                             <div className="flex items-center gap-1">
                               <div className="h-4 w-4 rounded-full border-2 flex items-center justify-center" style={{
                                 borderColor: app.riskScore > 700 ? "hsl(160, 60%, 38%)" : app.riskScore > 600 ? "hsl(38, 92%, 48%)" : "hsl(0, 72%, 51%)"
@@ -314,15 +314,15 @@ const LoansPage = () => {
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Application ID</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Customer</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Product</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Score</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Stage</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Date</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider font-sans">Actions</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Application ID</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Customer</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Product</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Amount</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Score</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Stage</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Date</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-wider font-sans">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -331,14 +331,14 @@ const LoansPage = () => {
                           <TableCell className="text-xs font-mono font-medium">{app.id}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-semibold text-primary font-sans">
+                              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary font-sans">
                                 {app.customerInitials}
                               </div>
                               <span className="text-xs font-sans font-medium">{app.customerName}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[10px] font-sans ${app.productColor}`}>{app.product}</Badge>
+                            <Badge variant="outline" className={`text-[11px] font-sans ${app.productColor}`}>{app.product}</Badge>
                           </TableCell>
                           <TableCell className="text-xs font-mono font-medium text-right">{formatKES(app.amount)}</TableCell>
                           <TableCell>
@@ -347,14 +347,14 @@ const LoansPage = () => {
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-[10px] font-sans font-semibold ${stageConfig[app.stage].color}`}>
+                            <Badge variant="outline" className={`text-[11px] font-sans font-semibold ${stageConfig[app.stage].color}`}>
                               {stageConfig[app.stage].label}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs font-sans text-muted-foreground">{app.backendStatus}</TableCell>
                           <TableCell className="text-xs font-sans text-muted-foreground">{app.date}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" className="h-7 text-[10px] font-sans">
+                            <Button variant="ghost" size="sm" className="h-7 text-[11px] font-sans">
                               <Eye className="h-3 w-3 mr-1" /> View
                             </Button>
                           </TableCell>
@@ -459,12 +459,12 @@ function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <div className="mt-1 flex items-center justify-between rounded-md border px-3 py-2">
                 <div className="min-w-0">
                   <p className="text-xs font-sans font-medium truncate">{selectedCustomer.firstName} {selectedCustomer.lastName}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground">{selectedCustomer.customerId}</p>
+                  <p className="text-[11px] font-mono text-muted-foreground">{selectedCustomer.customerId}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-[10px] font-sans shrink-0"
+                  className="h-7 text-[11px] font-sans shrink-0"
                   onClick={() => { setSelectedCustomer(null); setCustomerSearch(""); }}
                 >
                   Change
@@ -493,7 +493,7 @@ function NewApplicationDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                           className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted"
                         >
                           <span className="text-xs font-sans font-medium">{c.firstName} {c.lastName}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">{c.customerId}</span>
+                          <span className="text-[11px] font-mono text-muted-foreground">{c.customerId}</span>
                         </button>
                       ))
                     )}
@@ -633,16 +633,16 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
             <h3 className="font-heading text-lg">{app.customerName}</h3>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs font-mono text-muted-foreground">{app.id}</span>
-              <Badge variant="outline" className={`text-[10px] font-sans font-semibold ${stageConfig[app.stage].color}`}>
+              <Badge variant="outline" className={`text-[11px] font-sans font-semibold ${stageConfig[app.stage].color}`}>
                 {stageConfig[app.stage].label}
               </Badge>
-              <Badge variant="outline" className="text-[10px] font-mono">{app.backendStatus}</Badge>
+              <Badge variant="outline" className="text-[11px] font-mono">{app.backendStatus}</Badge>
             </div>
           </div>
         </div>
         <div className="space-y-1.5">
           <Progress value={progressPct} className="h-1.5" />
-          <div className="flex justify-between text-[9px] text-muted-foreground font-sans">
+          <div className="flex justify-between text-[11px] text-muted-foreground font-sans">
             {stageSteps.map((s) => (
               <span key={s} className={s === app.stage ? "text-primary font-semibold" : ""}>
                 {stageConfig[s as ApplicationStage].label}
@@ -675,7 +675,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                 <div key={field.label} className="flex items-start gap-2.5">
                   <field.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">{field.label}</p>
+                    <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">{field.label}</p>
                     <p className="text-xs font-sans font-medium">{field.value}</p>
                   </div>
                 </div>
@@ -683,15 +683,15 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4">
               <Card className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground font-sans mb-1">Loan Amount</p>
+                <p className="text-[11px] text-muted-foreground font-sans mb-1">Loan Amount</p>
                 <p className="text-sm font-mono font-bold">{formatKES(app.amount)}</p>
               </Card>
               <Card className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground font-sans mb-1">Tenor</p>
+                <p className="text-[11px] text-muted-foreground font-sans mb-1">Tenor</p>
                 <p className="text-sm font-mono font-bold">{app.tenor} months</p>
               </Card>
               <Card className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground font-sans mb-1">Purpose</p>
+                <p className="text-[11px] text-muted-foreground font-sans mb-1">Purpose</p>
                 <p className="text-sm font-sans font-semibold">{app.purpose}</p>
               </Card>
             </div>
@@ -701,9 +701,9 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
             <Card className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">AthenaScore</p>
+                  <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">AthenaScore</p>
                   <p className="text-3xl font-mono font-bold mt-1">{app.compositeScore}</p>
-                  <Badge variant="outline" className={`text-[10px] mt-1 ${
+                  <Badge variant="outline" className={`text-[11px] mt-1 ${
                     app.compositeScore > 750 ? "bg-success/15 text-success border-success/30" :
                     app.compositeScore > 680 ? "bg-info/15 text-info border-info/30" :
                     app.compositeScore > 600 ? "bg-warning/15 text-warning border-warning/30" :
@@ -744,7 +744,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                       )}
                       <div>
                         <p className="text-xs font-sans font-medium">{doc.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-sans capitalize">{doc.status}</p>
+                        <p className="text-[11px] text-muted-foreground font-sans capitalize">{doc.status}</p>
                       </div>
                     </div>
                   </div>
@@ -811,7 +811,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                   <p className="text-xs font-sans font-semibold text-success">Approve Application</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">Approved Amount (KES)</label>
+                      <label className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">Approved Amount (KES)</label>
                       <Input
                         type="number"
                         className="mt-1 text-xs font-mono"
@@ -820,7 +820,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">Interest Rate (%)</label>
+                      <label className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">Interest Rate (%)</label>
                       <Input
                         type="number"
                         className="mt-1 text-xs font-mono"
@@ -843,7 +843,7 @@ function ApplicationDetail({ app, onClose }: { app: LoanApplication; onClose: ()
                 <Card className="p-4 space-y-3 border-l-4 border-l-destructive">
                   <p className="text-xs font-sans font-semibold text-destructive">Decline Application</p>
                   <div>
-                    <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">Reason / Notes</label>
+                    <label className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">Reason / Notes</label>
                     <Textarea
                       placeholder="Enter decline reason..."
                       className="mt-1 text-xs font-sans"

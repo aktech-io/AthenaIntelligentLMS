@@ -144,7 +144,7 @@ const WalletsPage = () => {
                         {Number(w.availableBalance).toLocaleString()}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${statusStyle[w.status] || ""}`}>
+                        <Badge variant="outline" className={`text-[11px] ${statusStyle[w.status] || ""}`}>
                           {w.status}
                         </Badge>
                       </TableCell>

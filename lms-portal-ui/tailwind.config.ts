@@ -13,6 +13,22 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        // HCI pass: nothing below 13px anywhere; body text 15px.
+        xs: ["0.8125rem", { lineHeight: "1.25rem" }],   // 13px
+        sm: ["0.9rem", { lineHeight: "1.4rem" }],       // 14.4px
+        base: ["0.95rem", { lineHeight: "1.55rem" }],   // 15.2px
+        lg: ["1.125rem", { lineHeight: "1.75rem" }],
+        xl: ["1.3rem", { lineHeight: "1.8rem" }],
+        "2xl": ["1.65rem", { lineHeight: "2.1rem" }],
+        "3xl": ["2rem", { lineHeight: "2.4rem" }],
+        "4xl": ["2.5rem", { lineHeight: "1.1" }],
+      },
+      boxShadow: {
+        glow: "0 0 0 1px hsl(var(--primary) / 0.35), 0 6px 20px -6px hsl(var(--primary) / 0.55)",
+        "glow-aqua": "0 0 0 1px hsl(var(--accent) / 0.35), 0 6px 20px -6px hsl(var(--accent) / 0.5)",
+        card: "inset 0 1px 0 hsl(var(--nemo-glass) / 0.14), 0 10px 30px -18px rgba(0,0,0,.6)",
+      },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],
         heading: ["Jost", "DM Sans", "system-ui", "sans-serif"],

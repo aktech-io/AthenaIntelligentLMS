@@ -171,7 +171,7 @@ const AuditLogsPage = () => {
                   badge = (
                     <Badge
                       variant="outline"
-                      className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
+                      className="gap-1 text-[11px] bg-destructive/10 text-destructive border-destructive/20"
                     >
                       <ShieldAlert className="h-3 w-3" />
                       unavailable
@@ -179,7 +179,7 @@ const AuditLogsPage = () => {
                   );
                 } else if (!result) {
                   badge = (
-                    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                    <Badge variant="outline" className="gap-1 text-[11px] text-muted-foreground">
                       <ShieldQuestion className="h-3 w-3" />
                       not verified
                     </Badge>
@@ -188,7 +188,7 @@ const AuditLogsPage = () => {
                   badge = (
                     <Badge
                       variant="outline"
-                      className="gap-1 text-[10px] bg-success/10 text-success border-success/20"
+                      className="gap-1 text-[11px] bg-success/10 text-success border-success/20"
                     >
                       <ShieldCheck className="h-3 w-3" />
                       chain intact ({result.total} entries)
@@ -198,7 +198,7 @@ const AuditLogsPage = () => {
                   badge = (
                     <Badge
                       variant="outline"
-                      className="gap-1 text-[10px] bg-destructive/10 text-destructive border-destructive/20"
+                      className="gap-1 text-[11px] bg-destructive/10 text-destructive border-destructive/20"
                     >
                       <ShieldAlert className="h-3 w-3" />
                       tampered — broken at #{result.brokenSeq}
@@ -304,7 +304,7 @@ const AuditLogsPage = () => {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className="text-[10px] bg-success/10 text-success border-success/20"
+                            className="text-[11px] bg-success/10 text-success border-success/20"
                           >
                             {entry.status ?? "POSTED"}
                           </Badge>

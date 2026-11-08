@@ -169,7 +169,7 @@ const CompliancePage = () => {
                       <TableCell className="text-xs">{alert.alertType ?? alert.checkType ?? "—"}</TableCell>
                       <TableCell>
                         {alert.riskLevel ? (
-                          <Badge variant="outline" className={`text-[10px] ${riskColor[alert.riskLevel] ?? ""}`}>
+                          <Badge variant="outline" className={`text-[11px] ${riskColor[alert.riskLevel] ?? ""}`}>
                             {alert.riskLevel}
                           </Badge>
                         ) : (
@@ -177,7 +177,7 @@ const CompliancePage = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{alert.status}</Badge>
+                        <Badge variant="outline" className="text-[11px]">{alert.status}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {alert.checkedAt ?? alert.createdAt ?? "—"}
@@ -251,7 +251,7 @@ const CompliancePage = () => {
                         {doc.originalFilename}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{doc.category}</Badge>
+                        <Badge variant="outline" className="text-[11px]">{doc.category}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {doc.fileSize ? `${Math.round(doc.fileSize / 1024)} KB` : "—"}

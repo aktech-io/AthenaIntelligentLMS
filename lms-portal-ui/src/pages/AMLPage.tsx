@@ -269,7 +269,7 @@ const AMLPage = () => {
                       </TableCell>
                       <TableCell className="text-xs font-mono">{a.customerId ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[10px] ${
+                        <Badge variant="outline" className={`text-[11px] ${
                           a.severity === "CRITICAL" ? "bg-red-500/15 text-red-600 border-red-500/30" :
                           a.severity === "HIGH" ? "bg-destructive/15 text-destructive border-destructive/30" :
                           a.severity === "MEDIUM" ? "bg-warning/15 text-warning border-warning/30" :
@@ -285,7 +285,7 @@ const AMLPage = () => {
                         {a.description}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{a.status?.replace(/_/g, " ")}</Badge>
+                        <Badge variant="outline" className="text-[11px]">{a.status?.replace(/_/g, " ")}</Badge>
                       </TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{a.createdAt?.split("T")[0] ?? "—"}</TableCell>
                     </TableRow>

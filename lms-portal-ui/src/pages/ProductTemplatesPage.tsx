@@ -50,12 +50,12 @@ const ProductTemplatesPage = () => {
                       <span className="text-3xl">{tpl.icon}</span>
                       <div>
                         <h3 className="text-sm font-sans font-semibold leading-tight">{tpl.name}</h3>
-                        <Badge variant="outline" className="text-[9px] mt-1 font-sans">Template</Badge>
+                        <Badge variant="outline" className="text-[11px] mt-1 font-sans">Template</Badge>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground font-sans mb-3 flex-1">{tpl.description}</p>
                     <div className="bg-muted/50 rounded-md px-3 py-2 mb-4">
-                      <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider mb-0.5">Key Parameters</p>
+                      <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider mb-0.5">Key Parameters</p>
                       <p className="text-xs font-mono font-medium">{tpl.keyParams}</p>
                     </div>
                     <Button size="sm" className="w-full text-xs font-sans" onClick={() => navigate("/product-config")}>
@@ -89,14 +89,14 @@ const ProductTemplatesPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Name</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Code</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Rate</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Min Amount</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans text-right">Max Amount</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Schedule</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Name</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Code</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Rate</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Min Amount</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans text-right">Max Amount</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Schedule</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -110,7 +110,7 @@ const ProductTemplatesPage = () => {
                       <TableCell className="text-xs font-mono text-right">{formatKES(p.maxAmount)}</TableCell>
                       <TableCell className="text-xs font-sans">{p.scheduleType}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-[9px] font-sans ${
+                        <Badge variant="outline" className={`text-[11px] font-sans ${
                           p.status === "ACTIVE" ? "bg-success/15 text-success border-success/30" :
                           "bg-muted text-muted-foreground border-border"
                         }`}>

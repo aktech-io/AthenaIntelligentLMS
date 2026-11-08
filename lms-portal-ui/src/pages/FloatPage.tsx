@@ -197,7 +197,7 @@ const FloatPage = () => {
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={`text-[10px] ${
+                            className={`text-[11px] ${
                               statusColor[a.status] ?? ""
                             }`}
                           >

@@ -110,7 +110,7 @@ const ReportsPage = () => {
               { label: "Watch Loans", value: summary.watchLoans?.toLocaleString() ?? "0" },
             ].map((item) => (
               <Card key={item.label} className="p-3">
-                <p className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider">{item.label}</p>
+                <p className="text-[11px] text-muted-foreground font-sans uppercase tracking-wider">{item.label}</p>
                 <p className="text-sm font-mono font-bold mt-0.5">{item.value}</p>
               </Card>
             ))}
@@ -136,10 +136,10 @@ const ReportsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Event Type</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Category</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Date</TableHead>
-                    <TableHead className="text-[10px] uppercase tracking-wider font-sans">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Event Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Category</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Date</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider font-sans">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -149,7 +149,7 @@ const ReportsPage = () => {
                       <TableCell className="text-xs font-sans">{evt.eventCategory ?? "—"}</TableCell>
                       <TableCell className="text-xs font-sans">{evt.occurredAt?.split("T")[0] ?? evt.createdAt?.split("T")[0] ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[9px] bg-success/15 text-success border-success/30">
+                        <Badge variant="outline" className="text-[11px] bg-success/15 text-success border-success/30">
                           Processed
                         </Badge>
                       </TableCell>
