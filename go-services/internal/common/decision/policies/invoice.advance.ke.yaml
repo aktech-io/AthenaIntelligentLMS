@@ -61,5 +61,10 @@ rules:
       # seller D
       - { band: D/A, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: SCORE_BAND_LOW }
       - { band: D/B, advance_rate: 0.70, fee_per_day: 0.0009, outcome: REFER, reason: SCORE_BAND_LOW }
-      - { band: D/C, outcome: DECLINE, reason: SCORE_BAND_LOW }
+      # Thin-file sellers (no statement/CRB history score as D). The buyer's
+      # confirmation is the primary risk control in invoice finance, so a D
+      # seller with a confirmed, rated buyer goes to human review at a lower
+      # advance rather than being auto-declined. D/D (unrated/poor buyer) still
+      # declines.
+      - { band: D/C, advance_rate: 0.60, fee_per_day: 0.0010, outcome: REFER, reason: SCORE_BAND_LOW }
       - { band: D/D, outcome: DECLINE, reason: SCORE_BAND_LOW }
