@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useLocation, Link } from "react-router-dom";
 import { BranchSwitcher, type BranchSelection } from "@/components/BranchSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { isInvoiceAdminMode } from "@/lib/appConfig";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -43,12 +44,14 @@ export function DashboardLayout({ children, title, subtitle, breadcrumbs }: Dash
     id: "br-001", name: "Nairobi HQ", currency: "KES", countryFlag: "🇰🇪",
   });
   const currentLabel = routeLabels[location.pathname] || title;
+  const adminMode = isInvoiceAdminMode();
 
   const defaultBreadcrumbs = [
     { label: "Home", href: "/" },
     { label: currentLabel },
   ];
-  const crumbs = breadcrumbs || defaultBreadcrumbs;
+  // In invoice-admin mode "/" redirects to /invoice-finance, so drop the portal Home crumb.
+  const crumbs = (breadcrumbs || defaultBreadcrumbs).filter((c) => !(adminMode && c.href === "/" && c.label === "Home"));
 
   return (
     <SidebarProvider>
@@ -73,17 +76,21 @@ export function DashboardLayout({ children, title, subtitle, breadcrumbs }: Dash
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <BranchSwitcher currentBranch={currentBranch} onBranchChange={setCurrentBranch} />
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80" />
-                <Input
-                  placeholder="Search customers, loans, applications…"
-                  className="pl-9 h-10 w-80 text-sm bg-muted/60 border border-border/60 focus-visible:border-accent font-sans rounded-lg"
-                />
-              </div>
-              <button className="p-2 rounded-md hover:bg-muted transition-colors hidden sm:block">
-                <Globe className="h-[18px] w-[18px] text-muted-foreground" />
-              </button>
+              {!adminMode && <BranchSwitcher currentBranch={currentBranch} onBranchChange={setCurrentBranch} />}
+              {!adminMode && (
+                <div className="relative hidden md:block">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent/80" />
+                  <Input
+                    placeholder="Search customers, loans, applications…"
+                    className="pl-9 h-10 w-80 text-sm bg-muted/60 border border-border/60 focus-visible:border-accent font-sans rounded-lg"
+                  />
+                </div>
+              )}
+              {!adminMode && (
+                <button className="p-2 rounded-md hover:bg-muted transition-colors hidden sm:block">
+                  <Globe className="h-[18px] w-[18px] text-muted-foreground" />
+                </button>
+              )}
               <ThemeToggle />
               <button className="relative p-2 rounded-md hover:bg-muted transition-colors">
                 <Bell className="h-[18px] w-[18px] text-muted-foreground" />

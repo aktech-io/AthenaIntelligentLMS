@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,6 +78,8 @@ import AnchorsPage from "./pages/invoice-finance/AnchorsPage";
 import ConfirmPage from "./pages/public/ConfirmPage";
 import VerifyPage from "./pages/public/VerifyPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { appConfig } from "@/lib/appConfig";
+import SellerApp from "./pages/seller/SellerApp";
 
 const queryClient = new QueryClient();
 
@@ -114,7 +116,38 @@ const P = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute>{children}</ProtectedRoute>
 );
 
-const AppRoutes = () => (
+/** Public, unauthenticated routes shared by every mode (buyer confirm, public verify). */
+const publicRoutes = (
+  <>
+    <Route path="/confirm/:token" element={<ConfirmPage />} />
+    <Route path="/verify/:fingerprint" element={<VerifyPage />} />
+    <Route path="/verify" element={<VerifyPage />} />
+  </>
+);
+
+/** APP_MODE=invoice-admin — standalone "Nemo Invoice Finance · Admin": staff login, invoice-finance pages + Users/Settings only. */
+const InvoiceAdminRoutes = () => (
+  <ErrorBoundary>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<Navigate to="/invoice-finance" replace />} />
+      <Route path="/invoice-finance" element={<P><InvoiceFinanceOverviewPage /></P>} />
+      <Route path="/invoice-finance/queue" element={<P><ReviewQueuePage /></P>} />
+      <Route path="/invoice-finance/invoices" element={<P><InvoicesPage /></P>} />
+      <Route path="/invoice-finance/invoices/:id" element={<P><InvoiceDetailPage /></P>} />
+      <Route path="/invoice-finance/buyers" element={<P><BuyersPage /></P>} />
+      <Route path="/invoice-finance/policy" element={<P><PolicyPage /></P>} />
+      <Route path="/invoice-finance/anchors" element={<P><AnchorsPage /></P>} />
+      <Route path="/users" element={<P><UsersPage /></P>} />
+      <Route path="/settings" element={<P><SettingsPage /></P>} />
+      {publicRoutes}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </ErrorBoundary>
+);
+
+/** APP_MODE=portal (default) — the full Nemo portal. */
+const PortalRoutes = () => (
   <ErrorBoundary>
     <SetupBanner />
     <Routes>
@@ -189,13 +222,27 @@ const AppRoutes = () => (
       <Route path="/invoice-finance/policy" element={<P><PolicyPage /></P>} />
       <Route path="/invoice-finance/anchors" element={<P><AnchorsPage /></P>} />
       {/* Public — no auth, no sidebar */}
-      <Route path="/confirm/:token" element={<ConfirmPage />} />
-      <Route path="/verify/:fingerprint" element={<VerifyPage />} />
-      <Route path="/verify" element={<VerifyPage />} />
+      {publicRoutes}
       <Route path="*" element={<NotFound />} />
     </Routes>
   </ErrorBoundary>
 );
+
+/** Route tree chosen once from window.__NEMO_CONFIG__.mode (config.js) / VITE_APP_MODE. */
+const AppRoutes = () => {
+  switch (appConfig.mode) {
+    case "invoice-admin":
+      return <InvoiceAdminRoutes />;
+    case "invoice-client":
+      return (
+        <ErrorBoundary>
+          <SellerApp publicRoutes={publicRoutes} />
+        </ErrorBoundary>
+      );
+    default:
+      return <PortalRoutes />;
+  }
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

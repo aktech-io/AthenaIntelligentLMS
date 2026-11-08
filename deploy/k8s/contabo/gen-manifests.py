@@ -74,7 +74,10 @@ GO_SERVICES = [
     # gateway strips X-Service-Key, so service-key calls must not transit it).
     ("bff-gateway",              8110, "athena_mobile_gateway", {
         # F4: dev-only OTP echo must stay OFF in production (also the default).
-        "OTP_ECHO_ENABLED": "false",
+        # Contabo is the DEMO box (DEMO_MODE=true everywhere, no SMS provider
+        # wired), so the seller client app's phone+OTP login needs the echo.
+        # Flip back to "false" the moment an SMS gateway is configured.
+        "OTP_ECHO_ENABLED": "true",
         "ACCOUNT_SERVICE_URL": "http://account-service:8086",
         "OVERDRAFT_SERVICE_URL": "http://overdraft-service:8097",
         "PAYMENT_SERVICE_URL": "http://payment-service:8090",
@@ -299,6 +302,80 @@ spec:
         resources:
           requests: {{cpu: 25m, memory: 32Mi}}
           limits: {{cpu: 250m, memory: 128Mi}}
+""")
+
+# Standalone invoice-finance apps: the same nemo-portal image, switched at
+# container start by APP_MODE (see lms-portal-ui/docker-entrypoint.sh).
+#   invoice-admin-ui  → invoice-admin.athenafinance.cloud (bank staff)
+#   invoice-client-ui → invoice.athenafinance.cloud       (sellers / SMEs)
+# A bank on Nemo core banking uses the Invoice Finance section inside the
+# main portal instead; a bank with its own core gets these two apps.
+INVOICE_APPS = [
+    ("invoice-admin-ui",  "invoice-admin", "invoice-admin.athenafinance.cloud"),
+    ("invoice-client-ui", "invoice-client", "invoice.athenafinance.cloud"),
+]
+for app_name, mode, host in INVOICE_APPS:
+    out.append(f"""---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {app_name}
+  namespace: {NS}
+  labels: {{app: {app_name}}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{app: {app_name}}}
+  template:
+    metadata:
+      labels: {{app: {app_name}}}
+    spec:
+{PULL_SECRETS}      containers:
+      - name: {app_name}
+        image: {image_ref("nemo-portal")}
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: APP_MODE
+          value: "{mode}"
+        - name: DEMO_MODE
+          value: "true"
+        - name: PUBLIC_VERIFY_BASE
+          value: "https://{host}"
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet: {{path: /, port: 3000}}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests: {{cpu: 25m, memory: 32Mi}}
+          limits: {{cpu: 250m, memory: 128Mi}}
+""")
+    out.append(service(app_name, 3000))
+    out.append(f"""---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {app_name}
+  namespace: {NS}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts: [{host}]
+    secretName: {app_name}-tls
+  rules:
+  - host: {host}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {app_name}
+            port: {{number: 3000}}
 """)
 
 print("\n".join(out))

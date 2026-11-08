@@ -25,6 +25,8 @@
 
   <body>
     <div id="root"></div>
+    <!-- Runtime config (APP_MODE / DEMO_MODE / PUBLIC_VERIFY_BASE) — written by docker-entrypoint.sh; must load before the bundle -->
+    <script src="/config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

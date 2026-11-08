@@ -1174,7 +1174,7 @@ spec:
         - name: DB_NAME
           value: "athena_mobile_gateway"
         - name: OTP_ECHO_ENABLED
-          value: "false"
+          value: "true"
         - name: ACCOUNT_SERVICE_URL
           value: "http://account-service:8086"
         - name: OVERDRAFT_SERVICE_URL
@@ -1632,4 +1632,152 @@ spec:
         resources:
           requests: {cpu: 25m, memory: 32Mi}
           limits: {cpu: 250m, memory: 128Mi}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invoice-admin-ui
+  namespace: lms
+  labels: {app: invoice-admin-ui}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: invoice-admin-ui}
+  template:
+    metadata:
+      labels: {app: invoice-admin-ui}
+    spec:
+      containers:
+      - name: invoice-admin-ui
+        image: nemo-portal:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: APP_MODE
+          value: "invoice-admin"
+        - name: DEMO_MODE
+          value: "true"
+        - name: PUBLIC_VERIFY_BASE
+          value: "https://invoice-admin.athenafinance.cloud"
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet: {path: /, port: 3000}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests: {cpu: 25m, memory: 32Mi}
+          limits: {cpu: 250m, memory: 128Mi}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoice-admin-ui
+  namespace: lms
+  labels: {app: invoice-admin-ui}
+spec:
+  selector: {app: invoice-admin-ui}
+  ports:
+  - port: 3000
+    targetPort: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: invoice-admin-ui
+  namespace: lms
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts: [invoice-admin.athenafinance.cloud]
+    secretName: invoice-admin-ui-tls
+  rules:
+  - host: invoice-admin.athenafinance.cloud
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: invoice-admin-ui
+            port: {number: 3000}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invoice-client-ui
+  namespace: lms
+  labels: {app: invoice-client-ui}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: invoice-client-ui}
+  template:
+    metadata:
+      labels: {app: invoice-client-ui}
+    spec:
+      containers:
+      - name: invoice-client-ui
+        image: nemo-portal:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: APP_MODE
+          value: "invoice-client"
+        - name: DEMO_MODE
+          value: "true"
+        - name: PUBLIC_VERIFY_BASE
+          value: "https://invoice.athenafinance.cloud"
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet: {path: /, port: 3000}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests: {cpu: 25m, memory: 32Mi}
+          limits: {cpu: 250m, memory: 128Mi}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoice-client-ui
+  namespace: lms
+  labels: {app: invoice-client-ui}
+spec:
+  selector: {app: invoice-client-ui}
+  ports:
+  - port: 3000
+    targetPort: 3000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: invoice-client-ui
+  namespace: lms
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts: [invoice.athenafinance.cloud]
+    secretName: invoice-client-ui-tls
+  rules:
+  - host: invoice.athenafinance.cloud
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: invoice-client-ui
+            port: {number: 3000}
 

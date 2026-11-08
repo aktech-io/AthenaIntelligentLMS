@@ -86,6 +86,12 @@ export default defineConfig(() => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/proxy\/media/, ""),
       },
+      // bff-gateway (mobile OTP auth for the seller app)
+      "/proxy/bff": {
+        target: "http://localhost:28110",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy\/bff/, ""),
+      },
       // invoice-service (Nemo invoice finance) — gateway prefix /lms/
       "/lms": {
         target: "http://localhost:28103",

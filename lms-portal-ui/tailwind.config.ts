@@ -80,6 +80,8 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        "accent-soft": "hsl(var(--accent-soft))",
+        "primary-soft": "hsl(var(--primary-soft))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -89,6 +91,8 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+          label: "hsl(var(--sidebar-label))",
+          icon: "hsl(var(--sidebar-icon))",
         },
       },
       borderRadius: {

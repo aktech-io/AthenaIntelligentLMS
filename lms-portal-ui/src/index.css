@@ -33,9 +33,9 @@
     --nemo-stripe: 156 24% 96%;
     --nemo-glass: 174 16% 62%;
 
-    /* Light surface */
-    --background: var(--nemo-stripe);
-    --foreground: var(--nemo-abyss);
+    /* Light surface — "Nemo Clear": soft neutral canvas, white cards, ink text */
+    --background: 192 22% 97%;
+    --foreground: 195 55% 12%;
 
     --card: 0 0% 100%;
     --card-foreground: var(--nemo-abyss);
@@ -46,31 +46,33 @@
     --primary: var(--nemo-coral);
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 170 18% 92%;
-    --secondary-foreground: var(--nemo-abyss);
+    --secondary: 190 18% 93%;
+    --secondary-foreground: 195 55% 12%;
 
-    --muted: 170 18% 92%;
-    --muted-foreground: 190 14% 38%;
+    --muted: 190 18% 94%;
+    --muted-foreground: 193 14% 40%;
 
-    --accent: var(--nemo-aqua);
-    --accent-foreground: var(--nemo-aqua-on);
+    --accent: 171 52% 36%;        /* deep aqua: legible as text on white */
+    --accent-foreground: 0 0% 100%;
+    --accent-soft: 171 45% 92%;    /* tint for chips / hover fills */
+    --primary-soft: 18 100% 95%;   /* coral tint for active nav / chips */
 
     /* Slightly deeper than #FF7A6B so text on white stays legible */
     --destructive: 6 85% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 174 16% 85%;
-    --input: 174 16% 85%;
+    --border: 190 16% 88%;
+    --input: 190 16% 84%;
     --ring: var(--nemo-coral);
 
     --radius: 0.75rem;
 
     /* Semantic */
-    --success: var(--nemo-aqua);
-    --success-foreground: var(--nemo-aqua-on);
-    --warning: 38 92% 55%;
-    --warning-foreground: 38 92% 10%;
-    --info: 171 47% 40%;
+    --success: 171 52% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 36 95% 44%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 80% 40%;
     --info-foreground: 0 0% 100%;
 
     /* Legacy navy scale — remapped to deep water so old utilities keep working */
@@ -85,15 +87,17 @@
     --gold-400: 14 100% 70%;
     --gold-300: 14 100% 78%;
 
-    /* Sidebar — always abyss */
-    --sidebar-background: var(--nemo-abyss);
-    --sidebar-foreground: 174 24% 78%;
+    /* Sidebar — light: white rail, ink text, coral-tinted active item */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 193 18% 32%;
     --sidebar-primary: var(--nemo-coral);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: var(--nemo-water-2);
-    --sidebar-accent-foreground: var(--nemo-stripe);
-    --sidebar-border: 190 33% 24%; /* glass @ 25% on abyss */
+    --sidebar-accent: 18 100% 95%;          /* coral tint */
+    --sidebar-accent-foreground: 14 78% 44%; /* coral-deep text */
+    --sidebar-border: 190 16% 90%;
     --sidebar-ring: var(--nemo-coral);
+    --sidebar-label: 193 12% 52%;
+    --sidebar-icon: 193 14% 48%;
 
     /* Chart colors */
     --chart-1: var(--nemo-coral);
@@ -150,6 +154,10 @@
     --sidebar-accent-foreground: var(--nemo-stripe);
     --sidebar-border: 190 33% 24%;
     --sidebar-ring: var(--nemo-coral);
+    --sidebar-label: 171 40% 60%;
+    --sidebar-icon: 171 40% 62%;
+    --accent-soft: 171 40% 18%;
+    --primary-soft: 14 60% 20%;
 
     --chart-3: 192 40% 45%;
   }
@@ -199,7 +207,7 @@
     box-shadow: inset 0 1px 0 hsl(var(--nemo-glass) / 0.16), 0 12px 32px -20px rgba(0, 0, 0, .7);
   }
   [data-nemo-card], .stat-card, .kanban-card {
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -16px rgba(6, 34, 43, .25);
+    box-shadow: 0 1px 2px rgba(14, 42, 51, .05), 0 6px 20px -14px rgba(14, 42, 51, .18);
   }
 
   /* Focus is a coral ring everyone can see */
@@ -232,8 +240,9 @@
 
   /* Section eyebrow: small caps in aqua, never below 11px */
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-accent;
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
   }
+  .dark .eyebrow { @apply text-accent; }
 
   /* Big numbers */
   .num-display {

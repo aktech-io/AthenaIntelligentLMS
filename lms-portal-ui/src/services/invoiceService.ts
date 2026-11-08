@@ -6,6 +6,7 @@
  * Public (no JWT): /lms/api/public/invoices/...
  */
 import { apiGet, apiPost, apiPut, apiPatch, type PageResponse } from "@/lib/api";
+import { publicVerifyUrl } from "@/lib/appConfig";
 
 const BASE = "/lms/api/v1";
 const PUBLIC_BASE = "/lms/api/public/invoices";
@@ -273,6 +274,40 @@ export interface VerifyResult {
   chainOk?: boolean;
 }
 
+/** GET /invoices/mine/summary (seller dashboard). */
+export interface SellerSummary {
+  sellerCustomerId?: string;
+  currency: string;
+  outstanding: number;
+  fundedTotal: number;
+  nextDue?: { invoiceId: string; dueDate: string; amount: number } | null;
+  countsByStatus: Record<string, number>;
+  total?: number;
+}
+
+/** Error thrown by seller-facing calls; `code` is set for 409 SELLER_PROFILE_MISSING etc. */
+export class SellerApiError extends Error {
+  status: number;
+  code?: string;
+  body?: unknown;
+  constructor(message: string, status: number, code?: string, body?: unknown) {
+    super(message);
+    this.name = "SellerApiError";
+    this.status = status;
+    this.code = code;
+    this.body = body;
+  }
+}
+
+export const SELLER_PROFILE_MISSING = "SELLER_PROFILE_MISSING";
+
+export function isSellerProfileMissing(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const e = err as Partial<SellerApiError>;
+  if (e.code === SELLER_PROFILE_MISSING) return true;
+  return e.status === 409 && /SELLER_PROFILE_MISSING/i.test(err.message);
+}
+
 export interface InvoiceListFilter {
   status?: InvoiceStatus | "";
   sellerId?: string;
@@ -343,6 +378,63 @@ async function publicRequest<T>(url: string, init: RequestInit = {}): Promise<T>
     throw err;
   }
   return body as T;
+}
+
+/** Extract an error code from a Go error body ({code} | {error} | message text). */
+function errorCode(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const b = body as Record<string, unknown>;
+  for (const k of ["code", "errorCode", "error", "message"]) {
+    const v = b[k];
+    if (typeof v === "string" && /^[A-Z][A-Z0-9_]+$/.test(v.trim())) return v.trim();
+    if (typeof v === "string" && /SELLER_PROFILE_MISSING/.test(v)) return SELLER_PROFILE_MISSING;
+  }
+  return undefined;
+}
+
+/** Seller-facing JSON request: JWT, typed errors (status + code) so the app can branch on 409 SELLER_PROFILE_MISSING. */
+async function sellerRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
+  if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  const token = localStorage.getItem(JWT_KEY);
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers });
+  } catch (e) {
+    throw new SellerApiError(e instanceof Error ? e.message : "Network error", 0);
+  }
+  if (res.status === 204) return null as T;
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (!res.ok) {
+    const code = errorCode(body);
+    const msg =
+      typeof body === "object" && body !== null && "message" in body
+        ? String((body as Record<string, unknown>).message)
+        : res.status === 401
+          ? "Your session has expired — please sign in again."
+          : `Request failed with status ${res.status}`;
+    throw new SellerApiError(msg, res.status, code, body);
+  }
+  return body as T;
+}
+
+function normaliseSellerSummary(raw: Record<string, unknown>): SellerSummary {
+  const nd = raw.nextDue as Record<string, unknown> | null | undefined;
+  return {
+    sellerCustomerId: raw.sellerCustomerId as string | undefined,
+    currency: (raw.currency as string) || "KES",
+    outstanding: Number(raw.outstanding ?? raw.outstandingAmount ?? 0),
+    fundedTotal: Number(raw.fundedTotal ?? raw.fundedAmount ?? 0),
+    nextDue: nd && nd.invoiceId ? { invoiceId: String(nd.invoiceId), dueDate: String(nd.dueDate ?? ""), amount: Number(nd.amount ?? 0) } : null,
+    countsByStatus: ((raw.countsByStatus ?? raw.byStatus) as Record<string, number>) ?? {},
+    total: raw.total != null ? Number(raw.total) : undefined,
+  };
 }
 
 /** Normalise `GET /invoices` which may return a Spring-style page or a bare array. */
@@ -563,6 +655,84 @@ export const invoiceService = {
     return Array.isArray(raw) ? (raw as Anchor[]) : ((raw as { items?: Anchor[]; content?: Anchor[] }).items ?? (raw as { content?: Anchor[] }).content ?? []);
   },
 
+  // ── Seller-facing (invoice-client app; sellerCustomerId comes from the token) ──
+
+  /** POST /invoices — multipart {file, buyerEmail?}; seller taken from the JWT. */
+  async uploadMine(input: { file: File; buyerEmail?: string; requestedAmount?: number }): Promise<UploadResponse> {
+    const form = new FormData();
+    form.append("file", input.file);
+    if (input.buyerEmail) form.append("buyerEmail", input.buyerEmail);
+    if (input.requestedAmount !== undefined && Number.isFinite(input.requestedAmount)) {
+      form.append("requestedAmount", String(input.requestedAmount));
+    }
+    const raw = await sellerRequest<unknown>(`${BASE}/invoices`, { method: "POST", body: form });
+    return normaliseDetail(raw) as UploadResponse;
+  },
+
+  /** GET /invoices/mine?status&page&size */
+  async listMine(filter: { status?: InvoiceStatus | ""; page?: number; size?: number } = {}): Promise<PageResponse<Invoice>> {
+    const page = filter.page ?? 0;
+    const size = filter.size ?? 20;
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (filter.status) params.set("status", filter.status);
+    const raw = await sellerRequest<unknown>(`${BASE}/invoices/mine?${params}`);
+    const page_ = toPage<Record<string, unknown>>(raw, page, size);
+    return { ...page_, content: page_.content.map(normaliseInvoice) };
+  },
+
+  /** GET /invoices/mine/summary */
+  async mineSummary(): Promise<SellerSummary> {
+    const raw = await sellerRequest<Record<string, unknown>>(`${BASE}/invoices/mine/summary`);
+    return normaliseSellerSummary(raw ?? {});
+  },
+
+  /** GET /invoices/{id} with typed errors (seller app). */
+  async getMine(id: string): Promise<InvoiceDetail> {
+    return normaliseDetail(await sellerRequest<unknown>(`${BASE}/invoices/${encodeURIComponent(id)}`));
+  },
+
+  /** POST /invoices/{id}/offer/accept (seller app, typed errors). */
+  async acceptOfferMine(id: string): Promise<InvoiceDetail | null> {
+    const raw = await sellerRequest<unknown>(`${BASE}/invoices/${encodeURIComponent(id)}/offer/accept`, { method: "POST" });
+    return raw ? normaliseDetail(raw) : null;
+  },
+
+  /** POST /invoices/{id}/cancel {reason} — allowed while not funded. */
+  async cancel(id: string, reason?: string): Promise<InvoiceDetail | null> {
+    const raw = await sellerRequest<unknown>(`${BASE}/invoices/${encodeURIComponent(id)}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason: reason?.trim() || "Cancelled by seller" }),
+    });
+    return raw ? normaliseDetail(raw) : null;
+  },
+
+  /**
+   * PATCH /invoices/{id}/fields {fields} — seller confirms/corrects low-confidence OCR fields.
+   * ASSUMED endpoint (not in SPEC §6); callers treat 404/405 as "not supported yet".
+   */
+  async confirmFields(id: string, fields: Record<string, string | number>): Promise<InvoiceDetail | null> {
+    const raw = await sellerRequest<unknown>(`${BASE}/invoices/${encodeURIComponent(id)}/fields`, {
+      method: "PATCH",
+      body: JSON.stringify({ fields }),
+    });
+    return raw ? normaliseDetail(raw) : null;
+  },
+
+  /** GET /invoices/{id}/document — PDF bytes as a Blob (JWT attached). */
+  async documentBlob(id: string): Promise<Blob> {
+    const token = localStorage.getItem(JWT_KEY);
+    const res = await fetch(`${BASE}/invoices/${encodeURIComponent(id)}/document`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new SellerApiError(res.status === 404 ? "Document not available yet" : `Document request failed (${res.status})`, res.status);
+    return res.blob();
+  },
+
+  /** URL of the stored document (invoice-service; JWT required so fetch via documentBlob). */
+  documentUrl(id: string): string {
+    return `${BASE}/invoices/${encodeURIComponent(id)}/document`;
+  },
+
   // Buyers
   async listBuyers(): Promise<Buyer[]> {
     const raw = unwrap(await apiGet<unknown>(`${BASE}/buyers`), "Failed to list buyers");
@@ -616,8 +786,7 @@ export const invoiceService = {
 
 /** Public portal verify URL for a fingerprint (for links / QR). */
 export function verifyUrl(fingerprint: string): string {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/verify/${fingerprint}`;
+  return publicVerifyUrl(fingerprint);
 }
 
 export const shortHash = (h?: string, n = 10) => (h ? `${h.slice(0, n)}…${h.slice(-4)}` : "—");

@@ -18,6 +18,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  /** Establish a session from an externally obtained JWT (e.g. bff-gateway phone+OTP in the seller app). */
+  loginWithToken: (token: string, user: User) => void;
   isBiometricAvailable: boolean;
   enableBiometric: () => Promise<boolean>;
   loginWithBiometric: () => Promise<{ success: boolean; error?: string }>;
@@ -189,6 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loginWithToken = useCallback((jwt: string, userObj: User) => {
+    setUser(userObj);
+    setToken(jwt);
+    localStorage.setItem(JWT_KEY, jwt);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(userObj));
+  }, []);
+
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
@@ -295,6 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        loginWithToken,
         isBiometricAvailable,
         enableBiometric,
         loginWithBiometric,

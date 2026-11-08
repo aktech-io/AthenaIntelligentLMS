@@ -55,6 +55,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/permissions";
+import { branding, isInvoiceAdminMode } from "@/lib/appConfig";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -187,7 +188,19 @@ const tellerNav = [
   { title: "Branch Cash Summary", url: "/teller", icon: ClipboardList },
 ];
 
-const navSections = [
+/** invoice-admin mode: only the invoice-finance section plus a small Administration group. */
+const invoiceAdminSections = [
+  { label: "Invoice Finance", items: invoiceFinanceNav },
+  {
+    label: "Administration",
+    items: [
+      { title: "Users", url: "/users", icon: UserCog },
+      { title: "Settings", url: "/settings", icon: Settings },
+    ],
+  },
+];
+
+const portalSections = [
   { label: "Lending", items: lendingNav },
   { label: "Invoice Finance", items: invoiceFinanceNav },
   { label: "Products", items: productsNav },
@@ -203,6 +216,8 @@ const navSections = [
   { label: "Setup & Configuration", items: setupNav },
   { label: "Teller", items: tellerNav },
 ];
+
+const navSections = isInvoiceAdminMode() ? invoiceAdminSections : portalSections;
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -228,9 +243,9 @@ export function AppSidebar() {
       );
       openSections[section.label] = hasActiveRoute;
     });
-    // If no section is active, open Lending by default
+    // If no section is active, open the first section by default
     if (!Object.values(openSections).some(Boolean)) {
-      openSections["Lending"] = true;
+      openSections[navSections[0]?.label ?? "Lending"] = true;
     }
     return openSections;
   };
@@ -254,7 +269,7 @@ export function AppSidebar() {
             <NavLink
               to={item.url}
               end={item.url === "/" || item.url === "/invoice-finance"}
-              className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-accent/80 [&_svg]:transition-colors hover:[&_svg]:text-accent"
+              className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-sidebar-icon [&_svg]:transition-colors hover:[&_svg]:text-sidebar-accent-foreground"
               activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold !border-primary [&_svg]:!text-primary shadow-[inset_0_1px_0_hsl(var(--nemo-glass)/0.12)]"
             >
               <div className="relative shrink-0">
@@ -278,16 +293,16 @@ export function AppSidebar() {
     });
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <NemoMark className="h-9 w-9 shrink-0" />
           {!collapsed && (
             <div>
-              <h2 className="font-heading text-sidebar-accent-foreground text-lg font-bold tracking-[0.08em] uppercase leading-none">
+              <h2 className="font-heading text-foreground dark:text-sidebar-accent-foreground text-lg font-bold tracking-[0.08em] uppercase leading-none">
                 Nemo
               </h2>
-              <p className="text-[11px] text-sidebar-foreground/80 uppercase tracking-[0.18em] font-sans mt-1">
+              <p className="text-[11px] text-sidebar-label uppercase tracking-[0.18em] font-sans mt-1">
                 Neobank in a Box
               </p>
             </div>
@@ -296,7 +311,8 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-2 overflow-y-auto">
-        {/* Dashboard - standalone */}
+        {/* Dashboard - standalone (portal only; invoice-admin has Overview in its section) */}
+        {!isInvoiceAdminMode() && (
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -305,7 +321,7 @@ export function AppSidebar() {
                   <NavLink
                     to="/"
                     end
-                    className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-accent/80 hover:[&_svg]:text-accent"
+                    className="group flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/70 transition-colors text-sm border-l-2 border-transparent [&_svg]:text-sidebar-icon hover:[&_svg]:text-sidebar-accent-foreground"
                     activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold !border-primary [&_svg]:!text-primary"
                   >
                     <LayoutDashboard className="h-[18px] w-[18px] shrink-0" />
@@ -316,6 +332,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {navSections.map((section) => (
           <Collapsible
@@ -326,7 +343,7 @@ export function AppSidebar() {
             <SidebarGroup>
               {!collapsed ? (
                 <CollapsibleTrigger asChild>
-                  <SidebarGroupLabel className="text-accent/90 text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold cursor-pointer hover:text-accent transition-colors select-none flex items-center justify-between w-full h-auto">
+                  <SidebarGroupLabel className="text-sidebar-label text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold cursor-pointer hover:text-sidebar-accent-foreground transition-colors select-none flex items-center justify-between w-full h-auto">
                     <span>{section.label}</span>
                     <ChevronDown
                       className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
@@ -336,7 +353,7 @@ export function AppSidebar() {
                   </SidebarGroupLabel>
                 </CollapsibleTrigger>
               ) : (
-                <SidebarGroupLabel className="text-accent/90 text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold h-auto">
+                <SidebarGroupLabel className="text-sidebar-label text-[11px] uppercase tracking-[0.16em] px-3 mb-1 mt-3 font-sans font-bold h-auto">
                   {section.label}
                 </SidebarGroupLabel>
               )}
@@ -357,7 +374,7 @@ export function AppSidebar() {
               {user?.initials || "??"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sidebar-accent-foreground truncate font-sans">{user?.name || "Guest"}</p>
+              <p className="text-sm font-semibold text-foreground dark:text-sidebar-accent-foreground truncate font-sans">{user?.name || "Guest"}</p>
               <p className="text-xs text-sidebar-foreground/90 truncate font-sans">{user?.role || ""}</p>
             </div>
             <button onClick={handleLogout} className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors" title="Log out">
