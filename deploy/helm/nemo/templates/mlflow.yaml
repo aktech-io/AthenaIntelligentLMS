@@ -77,6 +77,12 @@ spec:
             httpGet: {path: /health, port: {{ .Values.mlflow.port }}}
             initialDelaySeconds: 45
             periodSeconds: 20
+          # First boot runs the alembic schema migration on athena_mlflow,
+          # which can outlast the liveness window on a 500m CPU cap.
+          startupProbe:
+            httpGet: {path: /health, port: {{ .Values.mlflow.port }}}
+            periodSeconds: 10
+            failureThreshold: 60
           volumeMounts:
             - name: artifacts
               mountPath: /mlflow/artifacts
