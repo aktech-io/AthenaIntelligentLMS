@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -32,7 +33,8 @@ const (
 type NemoProvider struct {
 	c             *client.Clients
 	logger        *zap.Logger
-	productID     string
+	mu            sync.Mutex
+	productIDs    map[string]string // tenant → INVOICE_FINANCE product id
 	currency      string
 	loanPollTries int
 	loanPollWait  time.Duration
@@ -40,7 +42,7 @@ type NemoProvider struct {
 
 // NewNemoProvider wires the provider; call EnsureProduct once at startup.
 func NewNemoProvider(c *client.Clients, defaultCurrency string, logger *zap.Logger) *NemoProvider {
-	return &NemoProvider{c: c, logger: logger, currency: defaultCurrency, loanPollTries: 6, loanPollWait: 500 * time.Millisecond}
+	return &NemoProvider{c: c, logger: logger, currency: defaultCurrency, productIDs: map[string]string{}, loanPollTries: 6, loanPollWait: 500 * time.Millisecond}
 }
 
 func (p *NemoProvider) Name() string { return "nemo" }
@@ -48,11 +50,31 @@ func (p *NemoProvider) Name() string { return "nemo" }
 // EnsureProduct finds product INVOICE_FINANCE in product-service or creates
 // and activates it (ADMIN service identity). Schedule: FLAT_RATE / MONTHLY —
 // the closest loan-management supports (see COREBANKING.md "Limitations").
+//
+// Products are tenant-scoped in product-service, so the product is resolved
+// per tenant: EnsureProduct primes the "default" tenant at startup and
+// Disburse resolves (and if needed creates) it for the invoice's own tenant.
 func (p *NemoProvider) EnsureProduct(ctx context.Context) error {
-	ctx = auth.WithUserID(auth.WithTenantID(ctx, "default"), actorAdmin)
+	_, err := p.EnsureProductForTenant(ctx, "default")
+	return err
+}
+
+// EnsureProductForTenant returns the INVOICE_FINANCE product id for tenantID,
+// creating and activating the product on first use.
+func (p *NemoProvider) EnsureProductForTenant(ctx context.Context, tenantID string) (string, error) {
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	p.mu.Lock()
+	if id := p.productIDs[tenantID]; id != "" {
+		p.mu.Unlock()
+		return id, nil
+	}
+	p.mu.Unlock()
+	ctx = auth.WithUserID(auth.WithTenantID(ctx, tenantID), actorAdmin)
 	prod, err := p.c.Products.FindByCode(ctx, ProductCode)
 	if err != nil {
-		return fmt.Errorf("lookup product %s: %w", ProductCode, err)
+		return "", fmt.Errorf("lookup product %s: %w", ProductCode, err)
 	}
 	if prod == nil {
 		body := map[string]any{
@@ -75,20 +97,26 @@ func (p *NemoProvider) EnsureProduct(ctx context.Context) error {
 		}
 		prod, err = p.c.Products.Create(ctx, body)
 		if err != nil {
-			return fmt.Errorf("create product %s: %w", ProductCode, err)
+			return "", fmt.Errorf("create product %s: %w", ProductCode, err)
 		}
-		p.logger.Info("Created core product", zap.String("code", ProductCode), zap.String("id", prod.ID))
+		p.logger.Info("Created core product", zap.String("code", ProductCode), zap.String("tenant", tenantID), zap.String("id", prod.ID))
 	} else if prod.Status != "" && prod.Status != "ACTIVE" {
 		if err := p.c.Products.Activate(ctx, prod.ID); err != nil {
 			p.logger.Warn("Could not activate product", zap.String("id", prod.ID), zap.Error(err))
 		}
 	}
-	p.productID = prod.ID
-	return nil
+	p.mu.Lock()
+	p.productIDs[tenantID] = prod.ID
+	p.mu.Unlock()
+	return prod.ID, nil
 }
 
-// ProductID returns the resolved product id ("" until EnsureProduct ran).
-func (p *NemoProvider) ProductID() string { return p.productID }
+// ProductID returns the "default"-tenant product id ("" until EnsureProduct ran).
+func (p *NemoProvider) ProductID() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.productIDs["default"]
+}
 
 // EnsureCustomer resolves the seller in account-service, creating a BUSINESS
 // customer with the same business id when missing.
@@ -110,10 +138,9 @@ func (p *NemoProvider) EnsureCustomer(ctx context.Context, ref CustomerRef) (Cor
 
 // Disburse books the advance as a loan application and walks it to DISBURSED.
 func (p *NemoProvider) Disburse(ctx context.Context, req FundingRequest) (FundingResult, error) {
-	if p.productID == "" {
-		if err := p.EnsureProduct(ctx); err != nil {
-			return FundingResult{}, &ErrUnavailable{err}
-		}
+	productID, err := p.EnsureProductForTenant(ctx, req.TenantID)
+	if err != nil {
+		return FundingResult{}, &ErrUnavailable{err}
 	}
 	customerID := string(req.CoreCustomerID)
 	if customerID == "" {
@@ -133,7 +160,7 @@ func (p *NemoProvider) Disburse(ctx context.Context, req FundingRequest) (Fundin
 		return FundingResult{}, &ErrUnavailable{fmt.Errorf("resolve seller account: %w", err)}
 	}
 	purpose := fmt.Sprintf("Invoice finance advance %s (invoice %s, buyer %s)", req.InvoiceID, req.InvoiceNumber, req.BuyerName)
-	app, err := p.c.Orig.Create(maker, customerID, p.productID, req.AdvanceAmount, TenorMonths(req.TenorDays), currency, purpose, acct.ID)
+	app, err := p.c.Orig.Create(maker, customerID, productID, req.AdvanceAmount, TenorMonths(req.TenorDays), currency, purpose, acct.ID)
 	if err != nil {
 		return FundingResult{}, fmt.Errorf("create application: %w", err)
 	}
@@ -161,7 +188,7 @@ func (p *NemoProvider) Disburse(ctx context.Context, req FundingRequest) (Fundin
 		CoreCustomerID: CoreCustomerID(customerID),
 		AccountRef:     acct.ID,
 		DisbursedAt:    time.Now().UTC(),
-		Raw:            map[string]any{"applicationId": app.ID, "accountId": acct.ID, "productId": p.productID},
+		Raw:            map[string]any{"applicationId": app.ID, "accountId": acct.ID, "productId": productID},
 	}
 	// loan-management creates the loan asynchronously from loan.disbursed;
 	// try briefly to pick up the loan id, else keep the application ref and

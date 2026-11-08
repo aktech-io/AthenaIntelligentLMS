@@ -269,15 +269,22 @@ type Score struct {
 func (s Score) Trusted() bool { return !strings.EqualFold(s.Provider, "mock") }
 
 // BandFromScoreBand maps the ai-scoring band vocabulary to A-D.
+//
+// athena-python-service bands (pdo_transformer._BANDS): Excellent ≥780,
+// Very Good ≥720, Good ≥680, Fair ≥640, Marginal ≥600, Poor <600. The
+// invoice.advance table has four seller bands, so Fair and Marginal both
+// land in C (priced, not declined) and only Poor is D. Labels may arrive
+// with spaces ("Very Good") or underscores.
 func BandFromScoreBand(sb string) string {
-	switch strings.ToUpper(sb) {
+	norm := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(sb), " ", "_"))
+	switch norm {
 	case "EXCELLENT", "VERY_GOOD", "A", "A_PLUS":
 		return "A"
 	case "GOOD", "B", "B_PLUS":
 		return "B"
-	case "FAIR", "C":
+	case "FAIR", "MARGINAL", "C":
 		return "C"
-	case "MARGINAL", "POOR", "D", "E":
+	case "POOR", "VERY_POOR", "D", "E":
 		return "D"
 	}
 	return ""
@@ -442,7 +449,8 @@ func (c *AccountClient) ListAccounts(ctx context.Context, customerID string) ([]
 
 // CreateAccount opens a CURRENT account for the customer.
 func (c *AccountClient) CreateAccount(ctx context.Context, customerID, currency, name string) (*Account, error) {
-	body := map[string]any{"customerId": customerID, "accountType": "CURRENT", "currency": currency, "kycTier": "TIER_2", "accountName": name}
+	// account-service CreateAccountRequest: kycTier is an int (1-3), not a label.
+	body := map[string]any{"customerId": customerID, "accountType": "CURRENT", "currency": currency, "kycTier": 2, "accountName": name}
 	var out Account
 	if err := c.sc.Post(ctx, c.base+"/api/v1/accounts", body, &out); err != nil {
 		return nil, err
