@@ -227,13 +227,16 @@ func (s *Service) stepExtract(ctx context.Context, inv *model.Invoice) error {
 	})
 }
 
+// errNoMedia: the invoice has neither cached bytes nor a media id.
+var errNoMedia = errors.New("no media id")
+
 // fileBytes returns the uploaded bytes (memory cache, else media-service).
 func (s *Service) fileBytes(ctx context.Context, inv *model.Invoice) ([]byte, error) {
 	if v, ok := s.files.Load(inv.ID); ok {
 		return v.([]byte), nil
 	}
 	if inv.MediaID == "" {
-		return nil, errors.New("no media id")
+		return nil, errNoMedia
 	}
 	return s.clients.Media.Download(ctx, inv.MediaID)
 }

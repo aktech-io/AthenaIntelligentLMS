@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -26,9 +27,49 @@ import (
 
 const maxUpload = 15 << 20
 
+// Service is the slice of *service.Service the handler depends on (an
+// interface so handler tests can run against a fake).
+type Service interface {
+	Config() service.Config
+	ConfirmURL(token string) string
+
+	Upload(ctx context.Context, in service.UploadInput, syncWait time.Duration) (*model.UploadResponse, error)
+	List(ctx context.Context, f model.ListFilter) (*model.Page[model.Invoice], error)
+	Get(ctx context.Context, id uuid.UUID) (*model.InvoiceDetail, error)
+	Timeline(ctx context.Context, id uuid.UUID) (*model.Timeline, error)
+	ResendConfirmation(ctx context.Context, id uuid.UUID, email string) (string, error)
+	AcceptOffer(ctx context.Context, id uuid.UUID) (*model.InvoiceDetail, error)
+	Approve(ctx context.Context, id uuid.UUID, note string) (*model.InvoiceDetail, error)
+	Reject(ctx context.Context, id uuid.UUID, reason string) (*model.InvoiceDetail, error)
+	Cancel(ctx context.Context, id uuid.UUID, reason string) (*model.InvoiceDetail, error)
+	Fund(ctx context.Context, id uuid.UUID) (*model.InvoiceDetail, error)
+	RecordPayment(ctx context.Context, id uuid.UUID, req model.PaymentRequest, source string) (*model.InvoiceDetail, error)
+	Queue(ctx context.Context) ([]model.QueueItem, error)
+	Stats(ctx context.Context) (*model.Stats, error)
+	Anchors(ctx context.Context) ([]model.Anchor, error)
+	Buyers(ctx context.Context) ([]model.Buyer, error)
+	Buyer(ctx context.Context, id uuid.UUID) (*model.Buyer, error)
+	PatchBuyer(ctx context.Context, id uuid.UUID, p model.BuyerPatch) (*model.Buyer, error)
+	PolicyView(ctx context.Context) model.PolicyView
+	PutPolicy(ctx context.Context, yamlDoc string) (model.PolicyView, error)
+
+	PublicConfirmView(ctx context.Context, token string) (*model.PublicConfirmView, error)
+	PublicConfirm(ctx context.Context, token string, req model.PublicConfirmRequest, ip, userAgent string) (*model.PublicConfirmView, error)
+	PublicVerify(ctx context.Context, fp string) (*model.PublicVerifyView, error)
+	PublicVerifyBytes(ctx context.Context, data []byte) (*model.PublicVerifyView, error)
+
+	// Seller mode (SPEC §6 "Auth modes").
+	Owner(ctx context.Context, id uuid.UUID) (*model.Invoice, error)
+	SellerProfileExists(ctx context.Context, sellerID string) (bool, error)
+	SellerSummary(ctx context.Context, sellerID string) (*model.SellerSummary, error)
+	Document(ctx context.Context, id uuid.UUID) (fileName string, data []byte, err error)
+}
+
+var _ Service = (*service.Service)(nil)
+
 // Handler serves the invoice routes.
 type Handler struct {
-	svc        *service.Service
+	svc        Service
 	logger     *zap.Logger
 	syncWait   time.Duration
 	officer    func(http.Handler) http.Handler
@@ -38,7 +79,7 @@ type Handler struct {
 }
 
 // New creates a Handler. syncWait bounds inline pipeline execution on upload.
-func New(svc *service.Service, syncWait time.Duration, trustProxy bool, logger *zap.Logger) *Handler {
+func New(svc Service, syncWait time.Duration, trustProxy bool, logger *zap.Logger) *Handler {
 	return &Handler{
 		svc: svc, logger: logger, syncWait: syncWait, trustProxy: trustProxy,
 		officer: auth.RequireRole("ADMIN", "MANAGER", "OFFICER"),
@@ -48,29 +89,39 @@ func New(svc *service.Service, syncWait time.Duration, trustProxy bool, logger *
 }
 
 // RegisterRoutes mounts the protected routes (behind the JWT middleware).
+//
+// Two auth modes share the router: staff (ADMIN/MANAGER/OFFICER from
+// account-service) keep their role gates; sellers (customer tokens from the
+// mobile BFF) reach only the routes wrapped in sellerOr*/sellerOnly, and those
+// are scoped to the seller's own invoices (see seller.go).
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1/invoices", func(r chi.Router) {
-		r.With(h.officer).Post("/", h.Upload)
-		r.Get("/", h.List)
-		r.Get("/queue", h.Queue)
-		r.Get("/stats", h.Stats)
-		r.Get("/anchors", h.Anchors)
-		r.Get("/{id}", h.Get)
-		r.Get("/{id}/timeline", h.Timeline)
-		r.With(h.officer).Post("/{id}/resend-confirmation", h.Resend)
-		r.With(h.officer).Post("/{id}/offer/accept", h.Accept)
-		r.With(h.manager).Post("/{id}/approve", h.Approve)
-		r.With(h.manager).Post("/{id}/reject", h.Reject)
-		r.With(h.officer).Post("/{id}/fund", h.Fund)
-		r.With(h.officer).Post("/{id}/payments", h.Payment)
-		r.With(h.manager).Post("/{id}/cancel", h.Cancel)
+		r.With(h.sellerOr(h.officer)).Post("/", h.Upload)
+		r.With(h.staffOnly).Get("/", h.List)
+		r.With(h.staffOnly).Get("/queue", h.Queue)
+		r.With(h.staffOnly).Get("/stats", h.Stats)
+		r.With(h.staffOnly).Get("/anchors", h.Anchors)
+		r.With(h.sellerOnly).Get("/mine", h.Mine)
+		r.With(h.sellerOnly).Get("/mine/summary", h.MineSummary)
+		r.With(h.sellerOr(nil)).Get("/{id}", h.Get)
+		r.With(h.sellerOr(nil)).Get("/{id}/timeline", h.Timeline)
+		r.With(h.sellerOr(nil)).Get("/{id}/document", h.Document)
+		r.With(h.sellerOr(h.officer)).Post("/{id}/resend-confirmation", h.Resend)
+		r.With(h.sellerOr(h.officer)).Post("/{id}/offer/accept", h.Accept)
+		r.With(h.staffOnly, h.manager).Post("/{id}/approve", h.Approve)
+		r.With(h.staffOnly, h.manager).Post("/{id}/reject", h.Reject)
+		r.With(h.staffOnly, h.officer).Post("/{id}/fund", h.Fund)
+		r.With(h.staffOnly, h.officer).Post("/{id}/payments", h.Payment)
+		r.With(h.sellerOr(h.manager)).Post("/{id}/cancel", h.Cancel)
 	})
 	r.Route("/api/v1/buyers", func(r chi.Router) {
+		r.Use(h.staffOnly)
 		r.Get("/", h.Buyers)
 		r.Get("/{id}", h.Buyer)
 		r.With(h.manager).Patch("/{id}", h.PatchBuyer)
 	})
 	r.Route("/api/v1/invoice-policy", func(r chi.Router) {
+		r.Use(h.staffOnly)
 		r.Get("/", h.GetPolicy)
 		r.With(h.admin).Put("/", h.PutPolicy)
 	})
@@ -109,6 +160,15 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	in := service.UploadInput{
 		FileName: hdr.Filename, Data: data, SellerCustomerID: r.FormValue("sellerCustomerId"), BuyerEmail: r.FormValue("buyerEmail"),
 		SellerName: r.FormValue("sellerName"), SellerEmail: r.FormValue("sellerEmail"), InvoiceNumber: r.FormValue("invoiceNumber"),
+	}
+	if p := principalFrom(r.Context()); p.Seller() {
+		// Sellers can only file for themselves: the form value is ignored and
+		// the token's customer id wins. The seller must already exist in
+		// account-service (409 SELLER_PROFILE_MISSING otherwise).
+		if !h.requireSellerProfile(w, r, p) {
+			return
+		}
+		in.SellerCustomerID = p.SellerID
 	}
 	if v := strings.TrimSpace(r.FormValue("requestedAmount")); v != "" {
 		d, err := decimal.NewFromString(v)
@@ -170,6 +230,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if _, ok := h.authorizeInvoice(w, r, id); !ok {
+		return
+	}
 	d, err := h.svc.Get(r.Context(), id)
 	if err != nil {
 		h.handleError(w, r, err)
@@ -184,6 +247,9 @@ func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if _, ok := h.authorizeInvoice(w, r, id); !ok {
+		return
+	}
 	tl, err := h.svc.Timeline(r.Context(), id)
 	if err != nil {
 		h.handleError(w, r, err)
@@ -196,6 +262,9 @@ func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Resend(w http.ResponseWriter, r *http.Request) {
 	id, ok := h.idParam(w, r)
 	if !ok {
+		return
+	}
+	if _, ok := h.authorizeInvoice(w, r, id); !ok {
 		return
 	}
 	var body struct {
@@ -216,7 +285,19 @@ func (h *Handler) Resend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) detailAction(w http.ResponseWriter, r *http.Request, fn func(id uuid.UUID, note model.NoteRequest) (*model.InvoiceDetail, error)) {
+	h.ownedDetailAction(w, r, func(id uuid.UUID, _ *model.Invoice, note model.NoteRequest) (*model.InvoiceDetail, error) {
+		return fn(id, note)
+	})
+}
+
+// ownedDetailAction is detailAction with the seller ownership check applied
+// first; owner is the invoice for seller callers and nil for staff.
+func (h *Handler) ownedDetailAction(w http.ResponseWriter, r *http.Request, fn func(id uuid.UUID, owner *model.Invoice, note model.NoteRequest) (*model.InvoiceDetail, error)) {
 	id, ok := h.idParam(w, r)
+	if !ok {
+		return
+	}
+	owner, ok := h.authorizeInvoice(w, r, id)
 	if !ok {
 		return
 	}
@@ -224,7 +305,7 @@ func (h *Handler) detailAction(w http.ResponseWriter, r *http.Request, fn func(i
 	if r.Body != nil {
 		_ = json.NewDecoder(r.Body).Decode(&note)
 	}
-	d, err := fn(id, note)
+	d, err := fn(id, owner, note)
 	if err != nil {
 		h.handleError(w, r, err)
 		return
@@ -257,9 +338,13 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Cancel handles POST /api/v1/invoices/{id}/cancel {reason}.
+// Cancel handles POST /api/v1/invoices/{id}/cancel {reason}. Staff: MANAGER.
+// Sellers: their own invoice, only while it is not yet funded.
 func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
-	h.detailAction(w, r, func(id uuid.UUID, n model.NoteRequest) (*model.InvoiceDetail, error) {
+	h.ownedDetailAction(w, r, func(id uuid.UUID, owner *model.Invoice, n model.NoteRequest) (*model.InvoiceDetail, error) {
+		if owner != nil && fundedStatuses[owner.Status] {
+			return nil, cerrors.Conflict("a funded invoice cannot be cancelled (status " + owner.Status + ")")
+		}
 		return h.svc.Cancel(r.Context(), id, n.Reason+n.Note)
 	})
 }

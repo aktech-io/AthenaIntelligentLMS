@@ -511,3 +511,21 @@ type PolicyView struct {
 type PolicyPut struct {
 	YAML string `json:"yaml"`
 }
+
+// SellerSummary is GET /invoices/mine/summary (seller dashboard).
+type SellerSummary struct {
+	SellerCustomerID string           `json:"sellerCustomerId"`
+	Currency         string           `json:"currency,omitempty"`
+	Outstanding      decimal.Decimal  `json:"outstanding"`
+	FundedTotal      decimal.Decimal  `json:"fundedTotal"`
+	NextDue          *SellerNextDue   `json:"nextDue,omitempty"`
+	Counts           map[string]int64 `json:"countsByStatus"`
+	Total            int64            `json:"total"`
+}
+
+// SellerNextDue is the soonest open advance of the seller.
+type SellerNextDue struct {
+	InvoiceID uuid.UUID       `json:"invoiceId"`
+	DueDate   time.Time       `json:"dueDate"`
+	Amount    decimal.Decimal `json:"amount"`
+}

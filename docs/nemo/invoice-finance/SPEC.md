@@ -149,12 +149,46 @@ GET    /buyers, /buyers/{id}, PATCH /buyers/{id} {tier, limitAmount}
 GET    /invoice-policy                    current policy yaml + version + hash
 PUT    /invoice-policy                    ADMIN      new yaml → validates, bumps version, event policy.changed
 GET    /invoices/anchors                  anchor list
+Seller (customer token; always scoped to the token's customerId):
+POST   /invoices                          SELLER     multipart upload; form sellerCustomerId ignored, createdBy = seller
+GET    /invoices/mine?status&page&size    SELLER     own invoices (List with forced sellerId)
+GET    /invoices/mine/summary             SELLER     {outstanding, fundedTotal, nextDue:{invoiceId,dueDate,amount}, countsByStatus, total}
+GET    /invoices/{id}, /{id}/timeline     SELLER     own invoice only (404 otherwise — never 403, no enumeration)
+GET    /invoices/{id}/document            STAFF|SELLER  streams the stored PDF from media-service (owner check)
+POST   /invoices/{id}/offer/accept        SELLER     own invoice
+POST   /invoices/{id}/resend-confirmation SELLER     own invoice
+POST   /invoices/{id}/cancel              SELLER     own invoice, 409 once FUNDED/PARTIALLY_PAID/PAID/OVERDUE
 Public (no JWT, rate-limited):
 GET    /public/invoices/confirm/{token}
 POST   /public/invoices/confirm/{token}
 GET    /public/invoices/verify/{fingerprint}   → {known, status (coarse), buyerConfirmedAt, fundedAt?, anchoredAt?, chainOk}
 POST   /public/invoices/verify                  multipart file → computes fingerprint → same as above
 ```
+
+### 6.1 Auth modes
+
+The protected router accepts two kinds of JWT (same `JWT_SECRET`):
+
+* **Staff** — issued by account-service; `roles` contain `ADMIN`/`MANAGER`/`OFFICER`
+  (service-to-service calls via `X-Service-Key` act as `SERVICE`/`ADMIN`). Unchanged behaviour:
+  role gates above, no seller scoping.
+* **Seller** — issued by bff-gateway after OTP login (`POST /api/v1/mobile/auth/otp/verify`).
+  Claims: `sub=<phone>`, `roles=["MOBILE_USER"]`, `customerId="MOB-XXXXXXXX"`,
+  `userId=<mobile user UUID>`, `tenantId`. The `customerId` is the account-service customer
+  business id, auto-created by account-service's consumer of `mobile.user.registered`, and is
+  exactly what `invoices.seller_customer_id` stores. A token with no staff role but a `customerId`
+  is a seller; `sellerId := customerId`. Sellers reach only the routes marked SELLER, every
+  `{id}` route checks `invoice.sellerCustomerId == sellerId` (404 otherwise), `/mine*` and upload
+  force the seller id, and ledger `actor`/`createdBy` is the seller id (not the phone number).
+  If account-service has no customer for the id yet (event not consumed / mobile-only user), upload
+  and `/mine/summary` answer `409 {code:"SELLER_PROFILE_MISSING"}` so the client app starts onboarding.
+  Everything else (list, queue, stats, anchors, approve/reject/fund/payments, buyers, policy) is
+  staff-only (403 for sellers). In `DEMO_MODE` the upload response carries `confirmUrl`/`demoOtp`
+  for sellers as well as staff.
+
+Routing: lms-api-gateway already forwards `/lms/api/v1/invoices/**` (covers `/mine`, `/{id}/document`);
+bff-gateway has no generic reverse proxy, so the seller client calls invoice-service through the portal
+nginx / lms-api-gateway with its customer token.
 
 ## 7. Portal (lms-portal-ui) — Nemo deep-water tokens, shadcn
 

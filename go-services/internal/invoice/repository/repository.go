@@ -1027,3 +1027,45 @@ func (r *Repository) QueueInvoices(ctx context.Context, tenantID string) ([]mode
 	}
 	return out, rows.Err()
 }
+
+// SellerSummary aggregates one seller's invoices and open advances.
+func (r *Repository) SellerSummary(ctx context.Context, tenantID, sellerID string) (*model.SellerSummary, error) {
+	s := &model.SellerSummary{SellerCustomerID: sellerID, Counts: map[string]int64{}, Outstanding: decimal.Zero, FundedTotal: decimal.Zero}
+	rows, err := r.pool.Query(ctx, `SELECT status, count(*) FROM invoices WHERE tenant_id=$1 AND seller_customer_id=$2 GROUP BY status`, tenantID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var st string
+		var n int64
+		if err := rows.Scan(&st, &n); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		s.Counts[st] = n
+		s.Total += n
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.pool.QueryRow(ctx, `SELECT coalesce(sum(a.principal),0),
+		coalesce(sum(a.principal - a.repaid + a.fees_accrued - a.fees_repaid) FILTER (WHERE a.status IN ('ACTIVE','OVERDUE')),0)
+		FROM advances a JOIN invoices i ON i.id=a.invoice_id WHERE i.tenant_id=$1 AND i.seller_customer_id=$2`, tenantID, sellerID).
+		Scan(&s.FundedTotal, &s.Outstanding); err != nil {
+		return nil, err
+	}
+	var nd model.SellerNextDue
+	err = r.pool.QueryRow(ctx, `SELECT a.invoice_id, a.due_date, a.principal - a.repaid + a.fees_accrued - a.fees_repaid
+		FROM advances a JOIN invoices i ON i.id=a.invoice_id
+		WHERE i.tenant_id=$1 AND i.seller_customer_id=$2 AND a.status IN ('ACTIVE','OVERDUE')
+		ORDER BY a.due_date ASC LIMIT 1`, tenantID, sellerID).Scan(&nd.InvoiceID, &nd.DueDate, &nd.Amount)
+	switch {
+	case err == nil:
+		s.NextDue = &nd
+	case errors.Is(err, pgx.ErrNoRows):
+	default:
+		return nil, err
+	}
+	return s, nil
+}
