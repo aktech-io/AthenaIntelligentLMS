@@ -18,6 +18,7 @@ never expose this port publicly).
 | `POST /v1/face/match` | multipart `document` + `selfie` images | `{engine, score (0..1), documentFaceFound, selfieFaceFound}` |
 | `POST /v1/face/liveness` | multipart, 1..5 `frame` parts (selfie frames) | `{liveScore (0..1, min across frames), label (LIVE\|SPOOF\|UNKNOWN), perFrame:[{score, faceFound}], model}` |
 | `POST /v1/screen` | JSON `{"fullName": "...", "threshold": 0.85?}` | `{sanctionsHit, pepHit, matches[], listsLoaded}` |
+| `POST /v1/invoice/extract` | multipart `file` (invoice PDF or image) | `{engine, fields, lineItems[], wordCount}` — `fields` has `invoiceNumber, issueDate, dueDate, currency, subtotal, vat, total, sellerName, sellerTaxId, sellerEmail, buyerName, buyerTaxId, buyerEmail, buyerPhone, paymentTerms`, each `{value, confidence}` (dates ISO, amounts numeric, missing → `value: null, confidence: 0`); `lineItems[]` are `{description, qty, unitPrice, amount, confidence}`. See "Invoice extraction" below |
 | `GET /health` | — | engine availability: OCR, face engine mode, loaded list files |
 
 Error contract: the service **fails loudly** (4xx/5xx) rather than returning
@@ -69,6 +70,37 @@ and the onboarding flow refers the applicant to a human (fail closed).
   diacritic stripping + casefold + token-sort/token-set similarity, default
   threshold 0.85. Same algorithm mirrored in the Go provider for
   declared-vs-extracted name comparison.
+
+## Invoice extraction (`POST /v1/invoice/extract`, Nemo invoice finance)
+
+Consumed by `invoice-service` (docs/nemo/invoice-finance/SPEC.md §3 step 2);
+fields under 0.6 confidence are flagged `needsSellerConfirmation` Go-side.
+
+- **Input routing** (`api/invoice.py`): a PDF with a text layer is read
+  directly with PyMuPDF (words + bboxes, grouped into visual lines) and
+  answered with `engine: "pdf-text"` — no OCR, no model files needed. A PDF
+  without text (scan) has pages 1–2 rendered at 200 dpi and OCR'd with the
+  same engine selection as the document endpoint (`engine: ppocr|tesseract`);
+  images go straight to OCR. Errors: empty upload 400, unreadable PDF/image
+  422, OCR needed but no engine 503 (fail loudly, never fabricate).
+- **Extraction** (`engine/invoice.py`, pure logic over OCR words/lines) is
+  country-neutral: label synonyms (Invoice No / # / Tax Invoice, Bill To /
+  Sold To / Customer / To, From / Supplier, KRA PIN / PIN / TIN / VAT No /
+  Tax ID, Total Due / Amount Due / Grand Total / Balance Due, VAT / Sales
+  Tax / GST…), OCR-tolerant matching (`Payment.Terms`, `Subtotat`), tolerant
+  numbers (`1,234.50`, `1.234,50`, `1 234,50`, `8;500.00`), many date formats,
+  currency from ISO codes / symbols / words (Ksh → KES, Br → ETB, $ → USD…),
+  `Net N` terms (derives `dueDate` when absent), Bill-To block detection and
+  side-by-side From | Bill To columns, line-item table parsing.
+- **Confidence** = mean OCR confidence of the source line, scaled by how the
+  value was found (label 1.0, regex fallback 0.7, derived 0.8), then adjusted
+  by consistency checks: `subtotal + vat ≈ total`, `Σ lineItems ≈ subtotal`,
+  `qty × unitPrice ≈ amount`, `dueDate ≥ issueDate`, `dueDate − issueDate ==
+  Net N` (agreement +0.06, disagreement ×0.7 / ×0.6).
+- **Samples**: `docs/nemo/invoice-finance/samples/` (fictional companies;
+  regenerate with `python scripts/make_sample_invoices.py`, needs
+  `requirements-dev.txt`). (a)/(b) Kenyan KES invoices, (c) USD "Bill To"
+  layout, (d) a rasterised noisy scan of (a) that exercises the OCR path.
 
 ## Model & data files (deploy-time responsibilities)
 
@@ -223,7 +255,10 @@ files needed, stdlib imports only. Exceptions: `test_liveness.py` exercises
 the liveness fallback path and endpoint contract, and `test_readiness.py`
 exercises the `/health` gating endpoint; both need numpy/OpenCV/FastAPI for
 those parts but **skip themselves** when they're missing and never need
-model files. The OCR and face pipelines are exercised via the running
+model files. `test_invoice_extract.py` is pure logic plus endpoint tests on
+the sample PDFs: the text-layer path always runs (FastAPI + PyMuPDF), the
+scanned-PDF test asserts 200 when an OCR engine is provisioned and 503
+otherwise. `pip install -r requirements-dev.txt` for pytest/httpx/reportlab. The OCR and face pipelines are exercised via the running
 service.
 
 ## Plugging in a commercial vendor instead

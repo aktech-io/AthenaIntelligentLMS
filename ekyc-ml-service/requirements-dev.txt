@@ -1,0 +1,5 @@
+# Test / tooling deps (not installed in the Docker image)
+-r requirements.txt
+pytest>=8.0
+httpx>=0.27
+reportlab>=4.0

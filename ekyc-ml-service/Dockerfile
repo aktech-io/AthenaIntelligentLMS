@@ -7,6 +7,8 @@ WORKDIR /app
 # chosen over PaddleOCR because it installs reliably in a slim image.
 # libglib2.0-0: runtime dep of opencv-python-headless.
 # curl/ca-certificates: face-model download below.
+# PDF handling (/v1/invoice/extract) uses PyMuPDF (pip wheel, bundles MuPDF)
+# — no poppler-utils needed.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-eng libglib2.0-0 curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*

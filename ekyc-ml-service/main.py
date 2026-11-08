@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from api.document import router as document_router
 from api.face import router as face_router
+from api.invoice import router as invoice_router
 from api.screening import router as screening_router
 
 app = FastAPI(
@@ -11,13 +12,15 @@ app = FastAPI(
     description="In-house eKYC engine sidecar for compliance-service: "
     "ID-document OCR + MRZ extraction (Tesseract), document-vs-selfie "
     "face match (YuNet + SFace ONNX, deterministic fallback), passive "
-    "liveness / PAD (MiniFASNetV2 ONNX, deterministic fallback), and "
-    "sanctions/PEP name screening.",
+    "liveness / PAD (MiniFASNetV2 ONNX, deterministic fallback), "
+    "sanctions/PEP name screening, and invoice field extraction "
+    "(PDF text layer or OCR) for invoice-service.",
     version="1.0.0",
 )
 
 app.include_router(document_router, prefix="/v1", tags=["Document"])
 app.include_router(face_router, prefix="/v1", tags=["Face"])
+app.include_router(invoice_router, prefix="/v1", tags=["Invoice"])
 app.include_router(screening_router, prefix="/v1", tags=["Screening"])
 
 
