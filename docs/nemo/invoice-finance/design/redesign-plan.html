@@ -1,0 +1,188 @@
+<title>Invoice Finance Redesign Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design brief, read top to bottom. One reading column (70ch) for prose; wireframes and tables break out to the full 1040px container. Light, paper-like, deliberately quiet — the plan should look like the standard it argues for. */
+:root{--bg:#FBFBF9;--fg:#141A1D;--muted:#5E6B70;--line:#E4E7E6;--panel:#FFFFFF;--panel-2:#F3F5F4;--accent:#D9471F;--accent-soft:#FBE9E2;--ok:#1F7A5C;--warn:#9A6A00;--font-display:'Inter Tight',system-ui,sans-serif;--font-body:'Source Serif 4',Georgia,serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111517;--fg:#ECEFEE;--muted:#9AA6A9;--line:#2A3135;--panel:#181D20;--panel-2:#1F2629;--accent:#FF7A50;--accent-soft:#3A2218;--ok:#5BC4A4;--warn:#E0B24A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111517;--fg:#ECEFEE;--muted:#9AA6A9;--line:#2A3135;--panel:#181D20;--panel-2:#1F2629;--accent:#FF7A50;--accent-soft:#3A2218;--ok:#5BC4A4;--warn:#E0B24A;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 var(--font-body);padding-block:48px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto}.prose{max-width:70ch}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;letter-spacing:-.01em}h1{font-size:clamp(34px,5vw,50px);line-height:1.05;margin:8px 0 14px;font-weight:700}
+h2{font-size:26px;margin:64px 0 10px;padding-top:28px;border-top:1px solid var(--line);font-weight:600}h3{font-size:18px;margin:30px 0 8px;font-weight:600}
+p{margin:12px 0}.eyebrow{font:600 12px var(--font-display);letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}.lede{font-size:21px;line-height:1.5;color:var(--muted);max-width:62ch}
+.verdict{border-left:3px solid var(--accent);background:var(--panel);padding:18px 22px;margin:28px 0;border-radius:0 12px 12px 0;max-width:72ch}
+ul,ol{padding-left:22px}li{margin:7px 0}li::marker{color:var(--muted)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:16px 0}table{border-collapse:collapse;width:100%;min-width:680px;font-size:15.5px}
+th,td{text-align:left;padding:11px 14px;vertical-align:top;border-top:1px solid var(--line)}thead th{border-top:0;background:var(--panel-2);font:600 12px var(--font-display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+code{font-family:var(--font-mono);font-size:.86em;background:var(--panel-2);padding:1px 6px;border-radius:5px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:16px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;min-width:0}.card h3{margin-top:0}
+.wire{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:14px 0;overflow-x:auto}.wire svg{display:block;width:100%;height:auto;max-width:100%}.wire figcaption{font:500 13px var(--font-display);color:var(--muted);margin-top:8px}
+.bad{color:var(--accent);font-weight:600}.good{color:var(--ok);font-weight:600}
+.phase{display:grid;grid-template-columns:120px 1fr;gap:18px;padding:18px 0;border-top:1px solid var(--line)}.phase:first-of-type{border-top:0}.phase b{font-family:var(--font-display);font-size:15px}.phase .when{font:600 13px var(--font-display);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+@media (max-width:600px){.phase{grid-template-columns:1fr;gap:6px}}
+.q{background:var(--accent-soft);border-radius:12px;padding:18px 22px;margin:24px 0;max-width:72ch}.q h3{margin-top:0}
+.foot{margin-top:56px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+<div class="wrap">
+<div class="eyebrow">Nemo Invoice Finance · design brief · 8 Nov 2026</div>
+<h1>Invoice Finance Redesign Plan</h1>
+<p class="lede">The functionality is real and works end to end. The product does not yet look or feel like something a bank would buy. This is the plan to close that gap: what is wrong, the standard we are designing to, the screens, and the order of work.</p>
+
+<div class="verdict"><strong>Diagnosis in one line.</strong> We styled a component kit; we did not design a product. The seller app reads as a mobile layout stretched onto a laptop, the copy talks to developers, the data is thin, and session handling breaks after fifteen minutes. Colour was never the main problem.</div>
+
+<h2>1. What is wrong, specifically</h2>
+<div class="tbl"><table>
+<thead><tr><th style="width:26%">Problem</th><th>Evidence</th><th style="width:30%">Why it reads as amateur</th></tr></thead>
+<tbody>
+<tr><td><b>Mobile layout on desktop</b></td><td>Seller pages are one 720px column centred in a 1440px window; 60% of the screen is empty grey.</td><td>Real products use the width: document on the left, facts on the right; tables, not stacked cards.</td></tr>
+<tr><td><b>Component-kit look</b></td><td>Default shadcn radii, pill chips everywhere, pastel tinted icon circles, dashed drop zone, generic empty-state icon.</td><td>These are the tell-tale defaults of a template. Nothing is specific to invoices, buyers or money.</td></tr>
+<tr><td><b>Developer language in the UI</b></td><td>Login shows "<code>OTP_ECHO_ENABLED=true</code>"; errors show "Provide a valid Bearer token or service key"; IDs like <code>MOB-FAED733A</code> appear in tables.</td><td>Users should never see configuration flags, token words or internal identifiers.</td></tr>
+<tr><td><b>Session breaks</b></td><td>Mobile tokens expire after 15 minutes and the web client never refreshes, so every list shows "Couldn't load this data".</td><td>A demo that fails mid-walkthrough is worse than no demo.</td></tr>
+<tr><td><b>Thin information</b></td><td>Home shows three zeros and two rows. Detail shows amounts but no document, no buyer history, no payment schedule, no what-happens-next.</td><td>Finance software earns trust through density done well: numbers, dates, documents, status reasons.</td></tr>
+<tr><td><b>Decorative, not meaningful</b></td><td>Clownfish stripe band across the login, orange gradient hero card, "GET PAID TODAY" eyebrow.</td><td>Consumer-app marketing devices on a business lending tool. The brand should be in the type, spacing and restraint, not in stripes.</td></tr>
+<tr><td><b>No real states</b></td><td>Loading is a spinner, empty is an icon, error is a red circle. No skeletons, no guided empty states, no inline recovery.</td><td>States are where quality shows. They were treated as afterthoughts.</td></tr>
+<tr><td><b>Two visual languages</b></td><td>Wallet is dark deep-water, web is light "Nemo Clear", portal was navy/gold until this morning.</td><td>One product, one system. Light and dark must be the same design in two palettes, not two designs.</td></tr>
+</tbody></table></div>
+
+<h2>2. The standard</h2>
+<p class="prose">Design to the level of the best B2B finance tools SMEs already use and trust — the Stripe dashboard, Wise Business, Mercury, Ramp. What they share is not a colour; it is a set of habits:</p>
+<div class="two">
+<div class="card"><h3>Restraint</h3><p>White or near-white surfaces, one accent used for one purpose (the primary action and the active state), a grey scale with real hierarchy, hairline borders instead of shadows and tints. No gradients on functional surfaces.</p></div>
+<div class="card"><h3>Typography carries the brand</h3><p>A single, excellent sans in 4–5 sizes with tight tracking on headings and tabular numerals on every figure. Money is always right-aligned and monospaced-figure. Labels are small caps in grey, never coloured.</p></div>
+<div class="card"><h3>Density with hierarchy</h3><p>Tables with 44px rows, sticky headers, sortable columns, row hover, inline status; summary strips above tables; side panels for detail instead of full-page jumps. 12–16 data points visible at once on a laptop.</p></div>
+<div class="card"><h3>Documents are first-class</h3><p>The invoice PDF is the hero of the detail page, rendered large, with extracted fields overlaid or listed beside it and low-confidence fields highlighted on the page itself.</p></div>
+<div class="card"><h3>Copy written by a product person</h3><p>Every sentence in the user's words: "Your buyer hasn't confirmed yet — remind them" not "AWAITING_BUYER". No codes, flags or IDs. Errors say what happened and what to do.</p></div>
+<div class="card"><h3>States designed, not defaulted</h3><p>Skeletons that match the layout; empty states that teach the first action with a sample; error states that recover inline; optimistic updates on accept/approve; toasts that confirm what changed.</p></div>
+</div>
+
+<h3>Visual system (shared by seller web, admin, portal module and wallet)</h3>
+<div class="tbl"><table>
+<thead><tr><th style="width:22%">Token</th><th>Decision</th></tr></thead>
+<tbody>
+<tr><td>Canvas / surface</td><td>Light default. Canvas <code>#F7F8F8</code>, surface white, hairline <code>#E5E8E8</code>, elevated surface only for popovers. Dark: <code>#0F1517</code> canvas, <code>#161D20</code> surface — same structure, inverted.</td></tr>
+<tr><td>Ink</td><td>Primary text <code>#101820</code>, secondary <code>#5B6670</code>, disabled <code>#9AA3AA</code>. Contrast ≥ 7:1 for body, ≥ 4.5:1 for secondary.</td></tr>
+<tr><td>Accent</td><td>Nemo coral <code>#E8562B</code> (slightly deepened for legibility on white), used only for: primary button, active nav, links, selected states. Never as a background wash.</td></tr>
+<tr><td>Semantic</td><td>Positive <code>#1F7A5C</code>, attention <code>#9A6A00</code>, negative <code>#B42318</code>, info <code>#175CD3</code>. Status chips are grey with a coloured dot, not filled pastels.</td></tr>
+<tr><td>Type</td><td>Inter Tight for UI (13 / 14 / 16 / 20 / 28 / 40), tabular numerals on, <code>-0.01em</code> tracking on headings. JetBrains Mono only for hashes and references. Drop Jost and DM Sans.</td></tr>
+<tr><td>Shape</td><td>Radius 8 (controls) / 10 (cards) / 999 (chips). One shadow level, for popovers only. Borders do the separating.</td></tr>
+<tr><td>Spacing</td><td>4-pt grid; page gutter 32 on desktop, 16 on mobile; section gap 32; card padding 20.</td></tr>
+<tr><td>Iconography</td><td>Lucide at 16/20, stroke 1.75, always grey unless inside the primary button. No tinted icon circles.</td></tr>
+<tr><td>Brand</td><td>NemoMark in the top-left, 24px, with the wordmark in Inter Tight 600. No stripe bands. The clownfish motif lives in marketing, not inside the app.</td></tr>
+</tbody></table></div>
+
+<h2>3. Product structure</h2>
+<p class="prose">Three surfaces, one design system, one backend. The seller web app and the wallet show the same information architecture; the admin app is a workbench built for throughput.</p>
+
+<h3>3.1 Seller web app — desktop</h3>
+<figure class="wire"><svg viewBox="0 0 1000 560" role="img" aria-label="Seller desktop layout wireframe">
+<rect width="1000" height="560" fill="#F7F8F8"/>
+<rect x="0" y="0" width="1000" height="52" fill="#fff" stroke="#E5E8E8"/>
+<rect x="24" y="16" width="20" height="20" rx="4" fill="#101820"/><text x="52" y="31" font-family="Inter Tight,sans-serif" font-size="13" font-weight="600" fill="#101820">Nemo Invoice Finance</text>
+<text x="300" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">Overview</text><text x="372" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#101820" font-weight="600">Invoices</text><text x="440" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">Buyers</text><text x="498" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">Payments</text><text x="570" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">Documents</text>
+<rect x="840" y="12" width="136" height="28" rx="6" fill="#E8562B"/><text x="908" y="30" text-anchor="middle" font-family="Inter Tight,sans-serif" font-size="12" font-weight="600" fill="#fff">Finance an invoice</text>
+<text x="32" y="98" font-family="Inter Tight,sans-serif" font-size="24" font-weight="700" fill="#101820">Invoices</text>
+<g font-family="Inter Tight,sans-serif">
+<rect x="32" y="116" width="220" height="64" rx="8" fill="#fff" stroke="#E5E8E8"/><text x="46" y="138" font-size="10" fill="#5B6670" letter-spacing="1">OUTSTANDING</text><text x="46" y="166" font-size="20" font-weight="600" fill="#101820">KES 1,284,500</text>
+<rect x="264" y="116" width="220" height="64" rx="8" fill="#fff" stroke="#E5E8E8"/><text x="278" y="138" font-size="10" fill="#5B6670" letter-spacing="1">AVAILABLE TO DRAW</text><text x="278" y="166" font-size="20" font-weight="600" fill="#101820">KES 715,000</text>
+<rect x="496" y="116" width="220" height="64" rx="8" fill="#fff" stroke="#E5E8E8"/><text x="510" y="138" font-size="10" fill="#5B6670" letter-spacing="1">NEXT BUYER PAYMENT</text><text x="510" y="166" font-size="20" font-weight="600" fill="#101820">KES 292,204 · 7 Dec</text>
+<rect x="728" y="116" width="240" height="64" rx="8" fill="#fff" stroke="#E5E8E8"/><text x="742" y="138" font-size="10" fill="#5B6670" letter-spacing="1">AVG. COST OF FUNDS</text><text x="742" y="166" font-size="20" font-weight="600" fill="#101820">2.1% / 30 days</text>
+</g>
+<rect x="32" y="200" width="936" height="328" rx="8" fill="#fff" stroke="#E5E8E8"/>
+<g font-family="Inter Tight,sans-serif" font-size="11" fill="#5B6670"><text x="48" y="226">All 14</text><text x="96" y="226">Needs you 2</text><text x="176" y="226">In progress 5</text><text x="262" y="226">Funded 4</text><text x="328" y="226">Settled 3</text></g>
+<rect x="760" y="212" width="196" height="24" rx="6" fill="#F7F8F8" stroke="#E5E8E8"/><text x="772" y="228" font-family="Inter Tight,sans-serif" font-size="11" fill="#9AA3AA">Search invoice, buyer…</text>
+<rect x="32" y="244" width="936" height="28" fill="#F7F8F8"/>
+<g font-family="Inter Tight,sans-serif" font-size="10" fill="#5B6670" letter-spacing="1"><text x="48" y="262">INVOICE</text><text x="200" y="262">BUYER</text><text x="420" y="262">DUE</text><text x="520" y="262">STATUS</text><text x="760" y="262" text-anchor="end">AMOUNT</text><text x="920" y="262" text-anchor="end">ADVANCE</text></g>
+<g font-family="Inter Tight,sans-serif" font-size="12" fill="#101820">
+<g><text x="48" y="296">MAS-2026-0147</text><text x="200" y="296">Nakuru Fresh Mart Ltd</text><text x="420" y="296">5 Dec</text><circle cx="526" cy="292" r="3.5" fill="#E8562B"/><text x="536" y="296">Offer ready — accept by Fri</text><text x="760" y="296" text-anchor="end">441,844.00</text><text x="920" y="296" text-anchor="end">309,290.80</text><rect x="32" y="304" width="936" height="1" fill="#E5E8E8"/></g>
+<g><text x="48" y="330">MAS-2026-0152</text><text x="200" y="330">Nakuru Fresh Mart Ltd</text><text x="420" y="330">7 Dec</text><circle cx="526" cy="326" r="3.5" fill="#1F7A5C"/><text x="536" y="330">Funded · repaid 0%</text><text x="760" y="330" text-anchor="end">292,204.00</text><text x="920" y="330" text-anchor="end">204,542.80</text><rect x="32" y="338" width="936" height="1" fill="#E5E8E8"/></g>
+<g><text x="48" y="364">BL-10482</text><text x="200" y="364">Cedar Hollow Coffee Roasters</text><text x="420" y="364">12 Dec</text><circle cx="526" cy="360" r="3.5" fill="#9A6A00"/><text x="536" y="364">Waiting for buyer · reminded 2d ago</text><text x="760" y="364" text-anchor="end">USD 3,392.97</text><text x="920" y="364" text-anchor="end">—</text><rect x="32" y="372" width="936" height="1" fill="#E5E8E8"/></g>
+<g><text x="48" y="398">KGT-0091</text><text x="200" y="398">Kitale Grain Traders</text><text x="420" y="398">20 Dec</text><circle cx="526" cy="394" r="3.5" fill="#9AA3AA"/><text x="536" y="398">Reading document…</text><text x="760" y="398" text-anchor="end">186,500.00</text><text x="920" y="398" text-anchor="end">—</text><rect x="32" y="406" width="936" height="1" fill="#E5E8E8"/></g>
+<g><text x="48" y="432">MAS-2026-0141</text><text x="200" y="432">Molo Dairy Society</text><text x="420" y="432">28 Nov</text><circle cx="526" cy="428" r="3.5" fill="#1F7A5C"/><text x="536" y="432">Settled · reserve released</text><text x="760" y="432" text-anchor="end">118,200.00</text><text x="920" y="432" text-anchor="end">82,740.00</text></g>
+</g>
+</svg><figcaption>Seller desktop: top nav (no sidebar for five items), four honest KPIs, one dense table with status in words. Clicking a row opens a side panel; the full detail page is one more click.</figcaption></figure>
+
+<figure class="wire"><svg viewBox="0 0 1000 540" role="img" aria-label="Invoice detail wireframe">
+<rect width="1000" height="540" fill="#F7F8F8"/>
+<rect x="0" y="0" width="1000" height="52" fill="#fff" stroke="#E5E8E8"/>
+<text x="24" y="31" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">Invoices  ›  MAS-2026-0147</text>
+<text x="32" y="96" font-family="Inter Tight,sans-serif" font-size="24" font-weight="700" fill="#101820">MAS-2026-0147 · Nakuru Fresh Mart Ltd</text>
+<text x="32" y="118" font-family="Inter Tight,sans-serif" font-size="13" fill="#5B6670">KES 441,844.00 · issued 5 Nov · due 5 Dec · confirmed by payables@nakurufreshmart.co.ke on 8 Nov, 13:52</text>
+<rect x="32" y="140" width="560" height="380" rx="8" fill="#fff" stroke="#E5E8E8"/>
+<rect x="56" y="164" width="512" height="332" fill="#FBFBFA" stroke="#E5E8E8"/>
+<g font-family="Inter Tight,sans-serif" font-size="11" fill="#5B6670"><text x="76" y="192">MAVUNO AGRO SUPPLIES LTD</text><text x="76" y="208">PIN P051234567K</text><text x="420" y="192">INVOICE</text><text x="420" y="208">MAS-2026-0147</text></g>
+<rect x="414" y="196" width="100" height="16" fill="none" stroke="#E8562B" stroke-width="1.5" rx="2"/>
+<g font-family="Inter Tight,sans-serif" font-size="11" fill="#101820"><text x="76" y="250">Bill to: Nakuru Fresh Mart Ltd</text><text x="76" y="266">payables@nakurufreshmart.co.ke</text></g>
+<rect x="72" y="238" width="230" height="34" fill="none" stroke="#1F7A5C" stroke-width="1.5" rx="2"/>
+<g font-family="Inter Tight,sans-serif" font-size="11" fill="#101820"><text x="76" y="310">Hybrid maize seed (DK777) 10kg × 40</text><text x="540" y="310" text-anchor="end">194,000.00</text><text x="76" y="330">NPK 17:17:17 fertiliser 50kg × 25</text><text x="540" y="330" text-anchor="end">155,000.00</text><text x="76" y="350">Knapsack sprayer 16L × 6</text><text x="540" y="350" text-anchor="end">23,400.00</text><text x="76" y="370">Delivery Nairobi–Nakuru</text><text x="540" y="370" text-anchor="end">8,500.00</text></g>
+<g font-family="Inter Tight,sans-serif" font-size="11" fill="#101820" font-weight="600"><text x="420" y="420">Total</text><text x="540" y="420" text-anchor="end">441,844.00</text></g>
+<rect x="414" y="408" width="130" height="18" fill="none" stroke="#E8562B" stroke-width="1.5" rx="2"/>
+<text x="56" y="514" font-family="Inter Tight,sans-serif" font-size="10" fill="#5B6670">Read by Nemo · 15 of 15 fields · outlined fields were used for the decision</text>
+<rect x="616" y="140" width="352" height="150" rx="8" fill="#fff" stroke="#E8562B"/>
+<g font-family="Inter Tight,sans-serif"><text x="632" y="164" font-size="10" fill="#5B6670" letter-spacing="1">OFFER · EXPIRES FRI 13 NOV</text><text x="632" y="196" font-size="26" font-weight="700" fill="#101820">KES 297,537.00 now</text><text x="632" y="218" font-size="12" fill="#5B6670">70% advance · 0.09%/day · 27 days · fees KES 11,753</text><text x="632" y="236" font-size="12" fill="#5B6670">Buyer pays KES 441,844 on 5 Dec → you receive KES 132,553</text>
+<rect x="632" y="250" width="150" height="28" rx="6" fill="#E8562B"/><text x="707" y="268" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Accept offer</text><text x="800" y="268" font-size="12" fill="#5B6670">Decline</text></g>
+<rect x="616" y="306" width="352" height="214" rx="8" fill="#fff" stroke="#E5E8E8"/>
+<g font-family="Inter Tight,sans-serif" font-size="12" fill="#101820"><text x="632" y="330" font-size="10" fill="#5B6670" letter-spacing="1">ACTIVITY</text>
+<circle cx="640" cy="356" r="4" fill="#E8562B"/><text x="654" y="360">Offer made · 70% advance</text><text x="956" y="360" text-anchor="end" fill="#5B6670">13:57</text>
+<circle cx="640" cy="382" r="4" fill="#1F7A5C"/><text x="654" y="386">Reviewed by Nemo credit team</text><text x="956" y="386" text-anchor="end" fill="#5B6670">13:57</text>
+<circle cx="640" cy="408" r="4" fill="#1F7A5C"/><text x="654" y="412">Buyer confirmed the invoice</text><text x="956" y="412" text-anchor="end" fill="#5B6670">13:52</text>
+<circle cx="640" cy="434" r="4" fill="#9AA3AA"/><text x="654" y="438">Confirmation emailed to buyer</text><text x="956" y="438" text-anchor="end" fill="#5B6670">13:49</text>
+<circle cx="640" cy="460" r="4" fill="#9AA3AA"/><text x="654" y="464">Document read · 15 fields</text><text x="956" y="464" text-anchor="end" fill="#5B6670">13:49</text>
+<text x="632" y="504" font-size="11" fill="#5B6670">Record verified · anchored 14:04 · view public proof</text></g>
+</svg><figcaption>Invoice detail: the document is the page. Extracted fields are outlined on the PDF itself; the offer is a single decisive card; activity is in human words with the ledger proof as a quiet footnote.</figcaption></figure>
+
+<h3>3.2 Seller mobile and wallet</h3>
+<ul class="prose">
+<li>Same IA, re-flowed: KPIs become a two-line header (outstanding + next payment), the table becomes grouped rows (Needs you / In progress / Funded / Settled).</li>
+<li>Upload is a two-step sheet: capture → "we're reading it" with the document thumbnail and fields appearing as they're read; no engine names, no word counts.</li>
+<li>Offer acceptance is a full-screen confirmation with the three numbers and a slide-to-accept control; the receipt that follows is shareable.</li>
+<li>Wallet: light theme by default, dark as an option, tokens shared with web so the screens are visibly the same product.</li>
+</ul>
+
+<h3>3.3 Admin workbench</h3>
+<ul class="prose">
+<li>Three-pane: queue list (left), case detail with the PDF and evidence (centre), decision panel (right) with approve/reject/adjust-terms and the policy explanation ("referred because seller has &lt;6 months history; buyer tier B").</li>
+<li>Keyboard-first: J/K to move, A to approve, R to reject — reviewers process dozens a day.</li>
+<li>Portfolio page: exposure by buyer, concentration, ageing, dilution, a 90-day funded/settled chart; policy editor with diff and effective-date.</li>
+<li>No internal IDs in cells; seller and buyer names link to profiles that show history, statements and limits.</li>
+</ul>
+
+<h2>4. Copy, states and trust</h2>
+<div class="two">
+<div class="card"><h3>Copy rules</h3><ul><li>Status in words: "Offer ready — accept by Friday", "Waiting for buyer — reminded 2 days ago", "Funded — buyer pays 5 Dec".</li><li>Never show codes, flags, hashes or IDs unless the user asks ("View proof").</li><li>Money always with currency, thousands separators, two decimals in tables, none in headlines.</li><li>Errors: what happened + what to do + one button. No stack words.</li></ul></div>
+<div class="card"><h3>States</h3><ul><li>Skeletons mirroring the final layout for every list and card.</li><li>Empty states that show a sample row and the single next action.</li><li>Inline recovery: expired session → silent refresh, then a one-line "signed you back in".</li><li>Optimistic accept/approve with undo for 5 seconds.</li></ul></div>
+<div class="card"><h3>Trust signals</h3><ul><li>Document always visible; extracted values shown next to where they came from.</li><li>"Why this offer" expander: buyer tier, seller history, tenor — in sentences.</li><li>Public proof page redesigned as a certificate, not a checklist.</li></ul></div>
+<div class="card"><h3>Demo mode</h3><ul><li>A small "Demo" tag in the header only. The OTP is auto-filled with no explanation text; the buyer-confirmation link appears as "Open the buyer's email" button. No configuration words anywhere.</li></ul></div>
+</div>
+
+<h2>5. Defects to fix regardless of design</h2>
+<ol class="prose">
+<li><span class="bad">Session expiry.</span> Implement refresh-token rotation in the seller web client (bff-gateway already issues refresh tokens) and retry the failed request.</li>
+<li><span class="bad">Developer text in UI.</span> Remove the OTP explanation box, "Bearer token" error text, internal IDs in admin cells, engine names and word counts.</li>
+<li><span class="bad">Desktop layout.</span> Replace the centred column with a top-nav + full-width layout; remove the sidebar for five items.</li>
+<li><span class="bad">Stripe band and hero gradient.</span> Remove.</li>
+<li><span class="bad">Wallet dashboard shows "$128,430.50".</span> Currency formatting bug, pre-existing.</li>
+<li><span class="bad">Admin queue columns clipped at 1440px.</span> Rebuild as the workbench above.</li>
+</ol>
+
+<h2>6. How we work this time</h2>
+<ul class="prose">
+<li><b>Design first, in the browser.</b> I build the design system and the five key screens as static, data-filled HTML mockups (seller overview, invoice detail, upload flow, admin workbench, mobile home) and show you screenshots at 390 / 1024 / 1440 in light and dark <em>before</em> any React or Flutter work. You approve or redirect at that point.</li>
+<li><b>One system, three surfaces.</b> Tokens live in one file consumed by web and exported to Flutter; no surface drifts.</li>
+<li><b>Review gate.</b> Nothing is called done until I have looked at every screen in every state at three widths and fixed what I see. You get the screenshot set with each delivery, not a URL to go find problems in.</li>
+<li><b>Real data in demos.</b> A seeded demo tenant with 14 invoices across every status, three buyers with history, and one invoice mid-pipeline, so no screen is ever empty.</li>
+</ul>
+
+<h2>7. Plan</h2>
+<div class="phase"><div><div class="when">Step 1 · 1 day</div><b>Design system + mockups</b></div><div>Token file, component sheet (buttons, inputs, table, chips, side panel, skeletons), and the five key screens as HTML mockups with real content. Deliverable: screenshot set for your approval.</div></div>
+<div class="phase"><div><div class="when">Step 2 · 2–3 days</div><b>Seller web app rebuild</b></div><div>New shell (top nav), overview with KPIs + table + side panel, invoice detail with PDF viewer and field overlay, upload flow, buyers, payments, settings. Session refresh. Demo-tenant seed. Screenshot set at three widths.</div></div>
+<div class="phase"><div><div class="when">Step 3 · 2 days</div><b>Admin workbench</b></div><div>Three-pane review, keyboard shortcuts, portfolio page, policy editor with diff, buyer/seller profiles. Same shell as seller for consistency.</div></div>
+<div class="phase"><div><div class="when">Step 4 · 2 days</div><b>Wallet alignment</b></div><div>Light theme as default (already in progress), shared tokens, redesigned invoice-finance screens, slide-to-accept, fixed currency formatting. Rendered screenshots.</div></div>
+<div class="phase"><div><div class="when">Step 5 · ½ day</div><b>Public pages + proof certificate</b></div><div>Buyer confirmation page and verification page redesigned to the same system; these are what the buyer sees first, so they must look like a bank sent them.</div></div>
+
+<div class="q"><h3>Two things I need from you</h3>
+<ol><li><b>Reference point.</b> Which of these is closest to the feel you want: Stripe dashboard (dense, neutral, engineering-grade), Wise Business (friendly, clear, consumer-polished), Mercury (editorial, premium), or something else you can point me to? Two or three links or screenshots is enough.</li>
+<li><b>A real designer?</b> This plan gets us to a credible, professional product. If this is going in front of a bank's board, a day of a product designer's time on Step 1 mockups would be money well spent — I can brief them with this document and build exactly what they draw. Your call.</li></ol></div>
+
+<p class="foot">Companion documents: Invoice Finance Map (architecture and what's live) · Invoice Finance Screens (current state). Both will be superseded by the Step 1 mockup set.</p>
+</div>

@@ -1,0 +1,624 @@
+<title>Nemo Invoice Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* ─── Nemo Invoice design system v1 ─────────────────────────────────────────
+   Light-first. White surfaces, hairlines, one accent (coral) for one job.
+   Inter Tight everywhere, tabular numerals on every figure. 4pt grid.
+   Layout: app shell = 56px top bar + full-width content; views switch on #hash. */
+:root{
+  --canvas:#F6F7F7; --surface:#FFFFFF; --surface-2:#F1F3F3; --line:#E4E7E7; --line-strong:#CBD1D1;
+  --ink:#0F171C; --ink-2:#55626A; --ink-3:#8A959B;
+  --accent:#E24F22; --accent-hover:#C94419; --accent-soft:#FCEDE7; --on-accent:#FFFFFF;
+  --pos:#1A7A5A; --pos-soft:#E3F3EC; --warn:#9A6400; --warn-soft:#FBF1DC; --neg:#B3261E; --neg-soft:#FBE7E5; --info:#1756C4; --info-soft:#E6EEFB;
+  --radius:12px; --radius-lg:16px; --radius-pill:999px;
+  --brand-tint:#FFF1EB; --brand-tint-2:#FFE3D6; --mint:#E6F4EF;
+  --shadow-pop:0 8px 24px -12px rgba(15,23,28,.28), 0 0 0 1px var(--line);
+  --font:'Inter Tight',system-ui,-apple-system,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--canvas:#0E1416;--surface:#151C1F;--surface-2:#1B2327;--line:#263034;--line-strong:#36434A;--ink:#EEF2F2;--ink-2:#A3AFB4;--ink-3:#6E7B81;--accent:#FF7A50;--accent-hover:#FF8E6A;--accent-soft:#3A2016;--on-accent:#1A0E09;--pos:#4FC39A;--pos-soft:#15302A;--warn:#E3B04B;--warn-soft:#332B16;--neg:#FF8277;--neg-soft:#3A1E1C;--info:#7AA7F6;--info-soft:#1A2740;--shadow-pop:0 8px 24px -12px rgba(0,0,0,.6),0 0 0 1px var(--line);--brand-tint:#3A2016;--brand-tint-2:#4A2A1C;--mint:#15302A;color-scheme:dark}}
+:root[data-theme="dark"]{--canvas:#0E1416;--surface:#151C1F;--surface-2:#1B2327;--line:#263034;--line-strong:#36434A;--ink:#EEF2F2;--ink-2:#A3AFB4;--ink-3:#6E7B81;--accent:#FF7A50;--accent-hover:#FF8E6A;--accent-soft:#3A2016;--on-accent:#1A0E09;--pos:#4FC39A;--pos-soft:#15302A;--warn:#E3B04B;--warn-soft:#332B16;--neg:#FF8277;--neg-soft:#3A1E1C;--info:#7AA7F6;--info-soft:#1A2740;--shadow-pop:0 8px 24px -12px rgba(0,0,0,.6),0 0 0 1px var(--line);--brand-tint:#3A2016;--brand-tint-2:#4A2A1C;--mint:#15302A;color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font:15px/1.5 var(--font);font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono);font-size:12.5px}
+
+/* ─── Shell ─── */
+.topbar{height:64px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));position:sticky;top:env(safe-area-inset-top,0px);z-index:20}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:21}
+.brand{display:flex;align-items:center;gap:10px;margin-right:18px}
+.mark{width:24px;height:24px;border-radius:6px;background:#0F171C;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:6px 5px}
+.mark i{display:block;border-radius:1px;background:#E24F22}.mark i:nth-child(2){background:#F2F7F5}.mark i:nth-child(3){opacity:.55}
+.brand b{font-weight:700;font-size:16px;letter-spacing:-.02em}.brand span{color:var(--ink-3);font-size:12px;margin-left:6px}
+nav.primary{display:flex;gap:2px}
+nav.primary a{padding:9px 14px;border-radius:var(--radius-pill);color:var(--ink-2);font-weight:600;font-size:14px}
+nav.primary a:hover{background:var(--surface-2);color:var(--ink)}
+nav.primary a.active{color:var(--ink);background:var(--surface-2)}
+.spacer{flex:1}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--line);border-radius:var(--radius-pill);color:var(--ink-3);font-size:13px;width:240px;background:var(--surface)}
+.search kbd{margin-left:auto;font:500 11px var(--font);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink-3)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:var(--radius-pill);font-weight:700;font-size:14px;border:1px solid transparent;white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--on-accent)}.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--surface);border-color:var(--line-strong);color:var(--ink)}.btn-secondary:hover{background:var(--surface-2)}
+.btn-ghost{color:var(--ink-2)}.btn-ghost:hover{background:var(--surface-2);color:var(--ink)}
+.btn-sm{height:34px;padding:0 14px;font-size:13.5px}
+.btn-lg{height:48px;padding:0 24px;font-size:15px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--ink-2)}
+.demo-tag{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+.icon{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.page{padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.container{max-width:1280px;margin:0 auto}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+h1{font-size:30px;font-weight:700;letter-spacing:-.025em;margin:0;line-height:1.15}
+.sub{color:var(--ink-2);margin:6px 0 0;font-size:15px}
+.crumbs{font-size:13px;color:var(--ink-2);display:flex;gap:6px;align-items:center;margin-bottom:10px}.crumbs b{color:var(--ink);font-weight:500}
+h2{font-size:17px;font-weight:700;margin:0;letter-spacing:-.015em}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ─── Cards, KPIs ─── */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)}
+.card-b{padding:20px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px 22px;min-width:0}
+.kpi:first-child{background:var(--brand-tint);border-color:transparent}
+.kpi:first-child .label{color:var(--accent)}
+.kpi .label{margin-bottom:10px}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink-2);margin-left:2px}
+.kpi .d{margin-top:8px;font-size:13.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.delta-up{color:var(--pos);font-weight:600}.delta-dn{color:var(--neg);font-weight:600}
+
+/* ─── Attention strip ─── */
+.attn{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.attn .item{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg)}
+.attn .item::before{content:"";width:40px;height:40px;border-radius:12px;background:var(--brand-tint);flex:none;background-image:radial-gradient(circle at center,var(--accent) 0 5px,transparent 6px)}
+.attn .item.warn::before{background-color:var(--warn-soft);background-image:radial-gradient(circle at center,var(--warn) 0 5px,transparent 6px)}
+.attn .t{font-weight:600}.attn .s{color:var(--ink-2);font-size:13px;margin-top:2px}
+.attn .item .btn{margin-left:auto}
+
+/* ─── Table ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+td:nth-child(4){white-space:normal;min-width:180px}td:nth-child(4) .status{display:inline}td:nth-child(4) .status::before{display:inline-block;margin-right:7px}
+th{font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:none;color:var(--ink-2);text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);background:transparent;white-space:nowrap}
+th.r,td.r{text-align:right}
+td{padding:0 16px;height:56px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:14.5px}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+tbody tr.selected td{background:var(--accent-soft)}
+td .pri{font-weight:500}td .sec{color:var(--ink-2);font-size:12.5px;margin-top:1px}
+.status{display:inline-flex;align-items:center;gap:7px;font-weight:500}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
+.status.pos::before{background:var(--pos)}.status.warn::before{background:var(--warn)}.status.act::before{background:var(--accent)}.status.neg::before{background:var(--neg)}.status.info::before{background:var(--info)}
+.status .when{color:var(--ink-3);font-weight:400}
+.tabs{display:flex;gap:4px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:var(--radius-pill);font-size:14px;color:var(--ink-2);font-weight:600}
+.tab.active{background:var(--ink);color:var(--surface)}
+.tab.active .n{color:var(--surface);opacity:.7}
+.tab .n{color:var(--ink-3);margin-left:4px;font-weight:500}
+.tabs .search{margin-left:auto;width:220px;height:30px}
+
+/* ─── Two-column with side panel ─── */
+.split{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.panel .card-b{padding:16px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 16px;font-size:13.5px}
+.kv dt{color:var(--ink-2)}.kv dd{margin:0;text-align:right;font-weight:500}
+.hr{height:1px;background:var(--line);margin:14px 0}
+
+/* ─── Chips ─── */
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink-2);background:var(--surface)}
+.chip.pos{color:var(--pos);background:var(--pos-soft);border-color:transparent}.chip.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}.chip.act{color:var(--accent);background:var(--accent-soft);border-color:transparent}.chip.neg{color:var(--neg);background:var(--neg-soft);border-color:transparent}.chip.info{color:var(--info);background:var(--info-soft);border-color:transparent}
+
+/* ─── Detail: document + offer ─── */
+.detail{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:16px;align-items:start}
+.doc-frame{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px}
+.doc-tools{display:flex;gap:8px;align-items:center;margin-bottom:12px;color:var(--ink-2);font-size:13px}
+.doc-tools .spacer{flex:1}
+.paper{background:#fff;color:#1a1a1a;border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.06);padding:36px 40px;font-family:Georgia,'Times New Roman',serif;font-size:12.5px;line-height:1.45;position:relative;min-height:560px}
+:root[data-theme="dark"] .paper,.dark-paper{filter:none}
+.paper .ph{display:flex;justify-content:space-between;gap:24px}
+.paper h4{margin:0;font-size:16px;letter-spacing:.02em}
+.paper .muted{color:#6a6a6a}
+.paper table{min-width:0;margin-top:22px;font-family:inherit}
+.paper th{background:none;color:#6a6a6a;font-family:inherit;letter-spacing:.04em;font-size:10.5px;border-bottom:1px solid #ddd;padding:6px 0}
+.paper td{height:auto;padding:7px 0;border-bottom:1px solid #eee;font-size:12.5px;font-family:inherit;white-space:normal;color:#1a1a1a}
+.paper th{color:#6a6a6a}
+.paper tbody tr:hover td{background:none}
+.paper .totals{margin-top:14px;margin-left:auto;width:260px;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+.paper .totals b{font-size:14px}
+.hl{position:relative;display:inline-block}
+.hl::after{content:attr(data-f);position:absolute;left:-6px;right:-6px;top:-4px;bottom:-4px;border:1.5px solid var(--accent);border-radius:3px;pointer-events:none}
+.hl.ok::after{border-color:var(--pos)}
+.hl .tag{display:none}
+.legend{display:flex;gap:16px;align-items:center;color:var(--ink-2);font-size:12.5px;margin-top:10px}
+.legend i{display:inline-block;width:14px;height:10px;border:1.5px solid var(--accent);border-radius:2px;vertical-align:-1px;margin-right:6px}.legend i.ok{border-color:var(--pos)}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 18px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.fields .f .label{margin-bottom:2px}.fields .f .v{font-weight:500;font-size:13.5px}
+.fields .f .c{color:var(--ink-3);font-size:11.5px}
+
+.offer{border:0;border-radius:var(--radius-lg);background:var(--brand-tint);padding:24px}
+.offer .label{color:var(--accent)}
+.offer .big{font-size:38px;font-weight:700;letter-spacing:-.035em;line-height:1.05;margin:10px 0 4px}
+.offer .big small{font-size:14px;font-weight:500;color:var(--ink-2);letter-spacing:0;margin-left:6px}
+.offer .terms{color:var(--ink-2);font-size:13px;margin:8px 0 14px;line-height:1.5}
+.offer .flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:center;margin:16px 0;padding:16px;border-radius:var(--radius);background:var(--surface)}
+.offer .flow .st{min-width:0}.offer .flow .st .label{color:var(--ink-3);font-size:10px}.offer .flow .st .v{font-weight:700;font-size:16px;margin-top:3px}.offer .flow .st .v.pos{color:var(--pos)}
+.offer .flow .ar{color:var(--ink-3);font-size:14px}
+.offer .actions{display:flex;gap:10px;align-items:center}
+.why{margin-top:14px;font-size:13px;color:var(--ink-2)}
+.why summary{cursor:pointer;color:var(--ink);font-weight:500;list-style:none;display:flex;align-items:center;gap:6px}
+.why summary::-webkit-details-marker{display:none}
+.why p{margin:8px 0 0}
+
+.activity{list-style:none;margin:0;padding:0}
+.activity li{display:grid;grid-template-columns:14px 1fr auto;gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.activity li:last-child{border-bottom:0}
+.activity .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-3);margin-top:6px;justify-self:center}
+.activity .dot.pos{background:var(--pos)}.activity .dot.act{background:var(--accent)}
+.activity .s{color:var(--ink-2);font-size:12.5px;margin-top:1px}
+.activity time{color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+.proof{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:12.5px;margin-top:12px}
+.proof a{color:var(--info);font-weight:500}
+
+/* ─── Upload / reading ─── */
+.steps{display:flex;gap:0;align-items:center;margin-bottom:22px;flex-wrap:wrap;row-gap:8px}
+.step{display:flex;align-items:center;gap:10px;color:var(--ink-3);font-weight:500;font-size:13.5px}
+.step .n{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line-strong);display:grid;place-items:center;font-size:12px;font-weight:600}
+.step.done{color:var(--ink-2)}.step.done .n{background:var(--pos);border-color:var(--pos);color:#fff}
+.step.cur{color:var(--ink)}.step.cur .n{border-color:var(--accent);color:var(--accent)}
+.step-sep{width:48px;height:1px;background:var(--line);margin:0 12px}
+.reading{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+.thumb{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:12px}
+.thumb .paper{min-height:360px;padding:22px 24px;font-size:9px;transform:none}
+.thumb .meta{margin-top:10px;font-size:12.5px;color:var(--ink-2);display:flex;justify-content:space-between}
+.progress{height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden;margin:10px 0 2px}
+.progress i{display:block;height:100%;width:64%;background:var(--accent);border-radius:2px}
+.read-list{list-style:none;margin:0;padding:0}
+.read-list li{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.read-list li:last-child{border-bottom:0}
+.read-list .k{color:var(--ink-2)}.read-list .v{font-weight:500}
+.skel{display:inline-block;height:12px;width:120px;border-radius:4px;background:linear-gradient(90deg,var(--surface-2),var(--line),var(--surface-2));background-size:200% 100%;animation:sh 1.4s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.check{display:inline-flex;align-items:center;gap:6px;color:var(--pos);font-size:12.5px;font-weight:500}
+.confirm-field{display:flex;align-items:center;gap:10px}
+.confirm-field input{height:32px;border:1px solid var(--accent);border-radius:6px;padding:0 10px;font:inherit;font-weight:500;color:var(--ink);background:var(--surface);width:150px}
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);color:var(--ink-2);font-size:13px;margin-top:14px}
+.note b{color:var(--ink)}
+
+/* ─── Admin workbench ─── */
+.bench{display:grid;grid-template-columns:320px minmax(0,1fr) 340px;gap:0;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);overflow:hidden;min-height:640px}
+.bench > *{min-width:0}
+.queue{border-right:1px solid var(--line)}
+.queue .tabs{padding:10px 12px}
+.qitem{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.qitem:hover{background:var(--surface-2)}
+.qitem.sel{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.qitem .t{font-weight:600}.qitem .amt{font-weight:600;text-align:right}
+.qitem .s{grid-column:1/-1;color:var(--ink-2);font-size:12.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.case{padding:18px 20px;border-right:1px solid var(--line)}
+.case .paper{min-height:420px;padding:28px 30px;font-size:11px}
+.evidence{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.ev{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.ev .label{margin-bottom:6px}.ev .v{font-weight:600;font-size:15px}.ev .s{color:var(--ink-2);font-size:12.5px;margin-top:2px}
+.ev.flag{border-color:var(--warn)}
+.decide{padding:18px}
+.decide h2{margin-bottom:12px}
+.radio{display:flex;flex-direction:column;gap:8px}
+.radio label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);cursor:pointer}
+.radio label.sel{border-color:var(--accent);background:var(--accent-soft)}
+.radio input{margin-top:3px;accent-color:var(--accent)}
+.radio b{display:block;font-weight:600}.radio span{color:var(--ink-2);font-size:12.5px}
+.field{margin-top:12px}.field .label{margin-bottom:6px}
+.field input,.field textarea{width:100%;border:1px solid var(--line-strong);border-radius:6px;padding:8px 10px;font:inherit;color:var(--ink);background:var(--surface)}
+.field textarea{min-height:70px;resize:vertical}
+.keys{margin-top:14px;color:var(--ink-3);font-size:12px;display:flex;gap:10px;flex-wrap:wrap}
+.keys kbd{font:500 11px var(--font);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+
+/* ─── Mobile ─── */
+.tabbar{display:none}
+@media (max-width:1100px){.split{grid-template-columns:1fr}.panel{display:none}.detail{grid-template-columns:1fr}.bench{grid-template-columns:1fr;min-height:0}.queue,.case{border-right:0;border-bottom:1px solid var(--line)}.reading{grid-template-columns:1fr}}
+@media (max-width:760px){
+  nav.primary,.search,.topbar .avatar,.topbar .demo-tag,.brand span{display:none}
+  .kpi .d{flex-wrap:wrap}.kpi .d .delta-up,.kpi .d .delta-dn{white-space:nowrap}
+  .page-head .btn{height:32px}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}.kpi{padding:16px}.kpi .v{font-size:22px}.kpi .d{font-size:12.5px}
+  .topbar{height:60px}.btn{height:38px;padding:0 14px;font-size:13.5px}h1{font-size:24px}.sub{font-size:14px}
+  .attn{grid-template-columns:1fr}
+  .page{padding-block:18px 96px}
+  h1{font-size:21px}
+  .tabbar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:20}
+  .tabbar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;font-weight:500;color:var(--ink-3)}
+  .tabbar a.active{color:var(--accent)}
+  .tabbar .icon{width:20px;height:20px}
+  .offer .flow{grid-template-columns:1fr;gap:10px}.offer .flow .ar{display:none}
+  .evidence{grid-template-columns:1fr}
+  /* On a phone the document is a preview: header + totals only; the field list carries the detail. */
+  .detail .paper{min-height:0;padding:18px 18px 14px;font-size:11.5px}
+  .detail .paper table{display:none}
+  .detail .paper .totals{width:auto;margin-top:12px}
+  .detail .paper .ph{flex-direction:column;gap:8px}
+  .detail .paper .ph > div[style*="text-align:right"]{text-align:left!important}
+  .doc-tools{flex-wrap:wrap}
+  .fields{grid-template-columns:1fr 1fr}
+}
+.view{display:none}.view.active{display:block}
+.switcher{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px;box-shadow:var(--shadow-pop)}
+.switcher a{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.switcher a.active{background:var(--ink);color:var(--surface)}
+.switcher .theme{padding:6px 8px;color:var(--ink-3)}
+@media (max-width:760px){.switcher{left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));justify-content:space-between;border-radius:12px;overflow-x:auto}.switcher a{padding:6px 8px;font-size:11.5px}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.5 3 7.8 7 9 4-1.2 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M20 20l-3.5-3.5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+</svg>
+
+<header class="topbar">
+  <a class="brand" href="#overview"><span class="mark"><i></i><i></i><i></i></span><b>Nemo</b><span>Invoice Finance</span></a>
+  <nav class="primary" id="nav">
+    <a href="#overview" data-v="overview">Overview</a><a href="#overview" data-v="overview-invoices">Invoices</a><a href="#detail" data-v="detail">Buyers</a><a href="#payments" data-v="payments">Payments</a><a href="#upload" data-v="documents">Documents</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="search"><svg class="icon"><use href="#i-search"/></svg>Search invoices, buyers…<kbd>/</kbd></div>
+  <a class="btn btn-primary" href="#upload"><svg class="icon"><use href="#i-plus"/></svg>Finance an invoice</a>
+  <span class="demo-tag">DEMO</span>
+  <div class="avatar">MA</div>
+</header>
+
+<!-- ───────────────────────── OVERVIEW ───────────────────────── -->
+<main class="view page" id="v-overview">
+<div class="container">
+  <div class="page-head">
+    <div><h1>Good afternoon, Mavuno</h1><p class="sub">Your buyers owe KES 1,284,500 across 4 invoices. Everything is on track.</p></div>
+    <div style="display:flex;gap:8px"><a class="btn btn-secondary" href="#detail"><svg class="icon"><use href="#i-dl"/></svg>Statement</a></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Buyers owe you</div><div class="v num">KES 1,284,500</div><div class="d">4 funded invoices · next one lands 24 Nov</div></div>
+    <div class="kpi"><div class="label">You can still finance</div><div class="v num">KES 715,500</div><div class="d"><span class="delta-up">+ 204,543</span> after Friday's settlement</div></div>
+    <div class="kpi"><div class="label">Next buyer payment</div><div class="v num">KES 292,204</div><div class="d">Nakuru Fresh Mart · 7 Dec · in 29 days</div></div>
+    <div class="kpi"><div class="label">What it costs you</div><div class="v num">2.1<small>% / 30 days</small></div><div class="d"><span class="delta-up">▼ 0.3 pt</span> vs last quarter</div></div>
+  </div>
+
+  <div class="attn">
+    <div class="item"><div><div class="t">Your offer on MAS-2026-0147 is ready</div><div class="s">KES 297,537 today · ready until Friday</div></div><a class="btn btn-primary btn-sm" href="#detail">See offer</a></div>
+    <div class="item warn"><div><div class="t">Cedar Hollow hasn't confirmed yet</div><div class="s">BL-10482 · we reminded them 2 days ago · closes in 3 days</div></div><button class="btn btn-secondary btn-sm">Nudge them</button></div>
+  </div>
+
+  <div class="split">
+    <section class="card">
+      <div class="tabs">
+        <span class="tab active">All <span class="n">14</span></span><span class="tab">Needs you <span class="n">2</span></span><span class="tab">In progress <span class="n">5</span></span><span class="tab">Funded <span class="n">4</span></span><span class="tab">Settled <span class="n">3</span></span>
+        <div class="search"><svg class="icon"><use href="#i-search"/></svg>Filter</div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Invoice</th><th>Buyer</th><th>Due</th><th>Status</th><th class="r">Amount</th><th class="r">Advance</th></tr></thead>
+        <tbody>
+          <tr class="selected"><td><div class="pri">MAS-2026-0147</div><div class="sec">issued 5 Nov</div></td><td>Nakuru Fresh Mart Ltd</td><td class="num">5 Dec</td><td><span class="status act">Offer ready <span class="when">· accept by Fri</span></span></td><td class="r num">441,844.00</td><td class="r num">309,290.80</td></tr>
+          <tr><td><div class="pri">MAS-2026-0152</div><div class="sec">issued 7 Nov</div></td><td>Nakuru Fresh Mart Ltd</td><td class="num">7 Dec</td><td><span class="status pos">Funded <span class="when">· buyer pays 7 Dec</span></span></td><td class="r num">292,204.00</td><td class="r num">204,542.80</td></tr>
+          <tr><td><div class="pri">BL-10482</div><div class="sec">issued 28 Oct</div></td><td>Cedar Hollow Coffee Roasters</td><td class="num">12 Dec</td><td><span class="status warn">Waiting for buyer <span class="when">· reminded 2d ago</span></span></td><td class="r num">USD 3,392.97</td><td class="r num">—</td></tr>
+          <tr><td><div class="pri">KGT-0091</div><div class="sec">uploaded 2 min ago</div></td><td>Kitale Grain Traders</td><td class="num">20 Dec</td><td><span class="status info">Reading document…</span></td><td class="r num">186,500.00</td><td class="r num">—</td></tr>
+          <tr><td><div class="pri">MAS-2026-0144</div><div class="sec">issued 1 Nov</div></td><td>Greenfields Agrovet</td><td class="num">1 Dec</td><td><span class="status pos">Funded <span class="when">· 38% repaid</span></span></td><td class="r num">318,900.00</td><td class="r num">255,120.00</td></tr>
+          <tr><td><div class="pri">MAS-2026-0141</div><div class="sec">issued 28 Oct</div></td><td>Molo Dairy Society</td><td class="num">28 Nov</td><td><span class="status pos">Funded <span class="when">· due in 20 days</span></span></td><td class="r num">118,200.00</td><td class="r num">82,740.00</td></tr>
+          <tr><td><div class="pri">RVC-2211</div><div class="sec">issued 24 Oct</div></td><td>Rift Valley Cooperative</td><td class="num">24 Nov</td><td><span class="status pos">Funded <span class="when">· due in 16 days</span></span></td><td class="r num">402,000.00</td><td class="r num">321,600.00</td></tr>
+          <tr><td><div class="pri">MAS-2026-0138</div><div class="sec">issued 10 Oct</div></td><td>Nakuru Fresh Mart Ltd</td><td class="num">9 Nov</td><td><span class="status">Settled <span class="when">· reserve released 9 Nov</span></span></td><td class="r num">265,300.00</td><td class="r num">185,710.00</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <aside class="panel card">
+      <div class="card-h"><div><div class="label">MAS-2026-0147</div><h2>Nakuru Fresh Mart Ltd</h2></div><span class="chip act">Offer ready</span></div>
+      <div class="card-b">
+        <dl class="kv"><dt>Invoice amount</dt><dd class="num">KES 441,844.00</dd><dt>Due</dt><dd>5 Dec 2026 · 27 days</dd><dt>Buyer confirmed</dt><dd>8 Nov, 13:52</dd><dt>Advance</dt><dd class="num">70% · KES 309,290.80</dd><dt>You receive now</dt><dd class="num">KES 297,537.00</dd><dt>Fees</dt><dd class="num">KES 11,753.80</dd><dt>Back after settlement</dt><dd class="num">KES 132,553.20</dd></dl>
+        <div class="hr"></div>
+        <div style="display:flex;gap:8px"><a class="btn btn-primary" href="#detail" style="flex:1;justify-content:center">Accept offer</a><a class="btn btn-secondary" href="#detail">Details</a></div>
+        <div class="hr"></div>
+        <div class="label" style="margin-bottom:8px">Buyer history</div>
+        <dl class="kv"><dt>Invoices financed</dt><dd>6</dd><dt>Paid on time</dt><dd>5 of 5</dd><dt>Average days late</dt><dd>0</dd><dt>Buyer rating</dt><dd><span class="chip pos" style="height:20px">B · reliable</span></dd></dl>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+
+<!-- ───────────────────────── PAYMENTS ───────────────────────── -->
+<main class="view page" id="v-payments">
+<div class="container">
+  <div class="page-head">
+    <div><h1>Payments</h1><p class="sub">Every shilling in and out of your invoice finance, and what comes back to you when buyers pay.</p></div>
+    <div style="display:flex;gap:8px"><a class="btn btn-secondary" href="#payments"><svg class="icon"><use href="#i-dl"/></svg>Statement · Nov</a><a class="btn btn-primary" href="#payments">Repay an invoice</a></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Coming back to you</div><div class="v num">KES 322,456</div><div class="d">reserves on 4 funded invoices · released when buyers pay</div></div>
+    <div class="kpi"><div class="label">Buyers still to pay</div><div class="v num">KES 1,131,304</div><div class="d">4 invoices · earliest Rift Valley Co-op, 24 Nov</div></div>
+    <div class="kpi"><div class="label">Fees so far this month</div><div class="v num">KES 18,412</div><div class="d">0.09%/day on advances · <span class="delta-up">▼ 2,100</span> vs Oct</div></div>
+    <div class="kpi"><div class="label">Paid to you in 2026</div><div class="v num">KES 2,804,910</div><div class="d">11 advances · 7 reserve releases · 0 late</div></div>
+  </div>
+
+  <div class="attn">
+    <div class="item"><div><div class="t">Nakuru Fresh Mart paid MAS-2026-0138 in full</div><div class="s">KES 265,300 received 9 Nov · your KES 68,470 reserve is on its way to KCB ···4471</div></div><a class="btn btn-secondary btn-sm" href="#payments">Receipt</a></div>
+    <div class="item warn"><div><div class="t">Greenfields Agrovet paid you directly</div><div class="s">MAS-2026-0144 · KES 120,000 received 6 Nov · KES 138,900 left on the invoice</div></div><button class="btn btn-primary btn-sm">Repay KES 120,000</button></div>
+  </div>
+
+  <div class="split">
+    <section class="card">
+      <div class="tabs">
+        <span class="tab active">All <span class="n">23</span></span><span class="tab">Paid to you <span class="n">11</span></span><span class="tab">Buyer payments <span class="n">7</span></span><span class="tab">Fees <span class="n">4</span></span><span class="tab">Upcoming <span class="n">4</span></span>
+        <div class="search"><svg class="icon"><use href="#i-search"/></svg>Filter</div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>What happened</th><th>Invoice</th><th>Status</th><th class="r">Out</th><th class="r">In</th></tr></thead>
+        <tbody>
+          <tr><td class="num">24 Nov</td><td><div class="pri">Rift Valley Cooperative pays</div><div class="sec">expected on due date · reserve KES 80,400 follows</div></td><td>RVC-2211</td><td><span class="status info">Upcoming <span class="when">· in 16 days</span></span></td><td class="r num">—</td><td class="r num" style="color:var(--ink-3)">80,400.00</td></tr>
+          <tr><td class="num">9 Nov</td><td><div class="pri">Reserve released to you</div><div class="sec">KCB ···4471 · after KES 11,230 fees</div></td><td>MAS-2026-0138</td><td><span class="status pos">On its way <span class="when">· today</span></span></td><td class="r num">—</td><td class="r num">68,470.00</td></tr>
+          <tr><td class="num">9 Nov</td><td><div class="pri">Nakuru Fresh Mart paid in full</div><div class="sec">bank transfer · ref NFM-77120</div></td><td>MAS-2026-0138</td><td><span class="status pos">Settled</span></td><td class="r num">—</td><td class="r num" style="color:var(--ink-3)">265,300.00</td></tr>
+          <tr class="selected"><td class="num">6 Nov</td><td><div class="pri">Greenfields Agrovet paid you directly</div><div class="sec">you told us · M-Pesa ref RK6H1Z</div></td><td>MAS-2026-0144</td><td><span class="status warn">Repay KES 120,000 <span class="when">· within 2 days</span></span></td><td class="r num">120,000.00</td><td class="r num">—</td></tr>
+          <tr><td class="num">7 Nov</td><td><div class="pri">Advance paid to you</div><div class="sec">70% of KES 292,204 · KCB ···4471</div></td><td>MAS-2026-0152</td><td><span class="status pos">Paid</span></td><td class="r num">—</td><td class="r num">196,891.00</td></tr>
+          <tr><td class="num">1 Nov</td><td><div class="pri">Advance paid to you</div><div class="sec">80% of KES 318,900 · KCB ···4471</div></td><td>MAS-2026-0144</td><td><span class="status pos">Paid</span></td><td class="r num">—</td><td class="r num">245,430.00</td></tr>
+          <tr><td class="num">31 Oct</td><td><div class="pri">October fees</div><div class="sec">3 advances · 0.09%/day · itemised in statement</div></td><td>—</td><td><span class="status">Charged</span></td><td class="r num">20,512.00</td><td class="r num">—</td></tr>
+          <tr><td class="num">28 Oct</td><td><div class="pri">Advance paid to you</div><div class="sec">70% of KES 118,200 · KCB ···4471</div></td><td>MAS-2026-0141</td><td><span class="status pos">Paid</span></td><td class="r num">—</td><td class="r num">79,600.00</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <aside class="panel card">
+      <div class="card-h"><div><div class="label">MAS-2026-0144</div><h2>Greenfields Agrovet</h2></div><span class="chip warn">Repay</span></div>
+      <div class="card-b">
+        <p class="sub" style="margin:0 0 12px">Greenfields paid KES 120,000 straight to you instead of the collection account. Pass it on and the invoice balance updates immediately.</p>
+        <dl class="kv"><dt>Invoice</dt><dd class="num">KES 318,900.00</dd><dt>Advance you received</dt><dd class="num">KES 245,430.00</dd><dt>Fees to date</dt><dd class="num">KES 5,740.20</dd><dt>Buyer still owes</dt><dd class="num">KES 198,900.00</dd><dt>Reserve waiting for you</dt><dd class="num">KES 63,780.00</dd></dl>
+        <div class="hr"></div>
+        <div class="label" style="margin-bottom:8px">Repay KES 120,000 from</div>
+        <div style="display:grid;gap:8px">
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--accent);border-radius:12px;background:var(--accent-soft)"><input type="radio" checked style="accent-color:var(--accent)"><span><b>Nemo wallet</b><br><span class="sub" style="font-size:13px">KES 184,220 available · instant</span></span></label>
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px"><input type="radio" style="accent-color:var(--accent)"><span><b>M-Pesa</b><br><span class="sub" style="font-size:13px">prompt sent to 07·· ··· 418</span></span></label>
+          <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px"><input type="radio" style="accent-color:var(--accent)"><span><b>Bank transfer</b><br><span class="sub" style="font-size:13px">to the collection account · 1–2 days</span></span></label>
+        </div>
+        <a class="btn btn-primary" href="#payments" style="width:100%;justify-content:center;margin-top:12px">Repay KES 120,000</a>
+        <div class="hr"></div>
+        <div class="label" style="margin-bottom:8px">Payouts go to</div>
+        <dl class="kv"><dt>Bank account</dt><dd>KCB ···4471</dd><dt>Fallback</dt><dd>Nemo wallet</dd></dl>
+        <a class="btn btn-ghost btn-sm" href="#payments" style="margin-top:6px;padding-left:0">Change payout account</a>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+
+<!-- ───────────────────────── DETAIL ───────────────────────── -->
+<main class="view page" id="v-detail">
+<div class="container">
+  <div class="crumbs"><a href="#overview">Invoices</a><svg class="icon" style="width:12px;height:12px"><use href="#i-chev"/></svg><b>MAS-2026-0147</b></div>
+  <div class="page-head">
+    <div><h1>MAS-2026-0147 · Nakuru Fresh Mart Ltd</h1><p class="sub">KES 441,844.00 · issued 5 Nov · due 5 Dec · confirmed by payables@nakurufreshmart.co.ke on 8 Nov, 13:52</p></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-secondary"><svg class="icon"><use href="#i-dl"/></svg>Download PDF</button><button class="btn btn-ghost">Cancel request</button></div>
+  </div>
+
+  <div class="detail">
+    <section class="doc-frame">
+      <div class="doc-tools"><svg class="icon"><use href="#i-doc"/></svg>invoice-MAS-2026-0147.pdf · 1 page · read by Nemo in 1.8 s<div class="spacer"></div><button class="btn btn-ghost btn-sm"><svg class="icon"><use href="#i-zoom"/></svg>Zoom</button></div>
+      <article class="paper">
+        <div class="ph">
+          <div><h4><span class="hl ok" data-f=""><span class="tag">Seller</span>MAVUNO AGRO SUPPLIES LTD</span></h4><div class="muted">Industrial Area, Nakuru · PIN <span class="hl ok"><span class="tag">Seller PIN</span>P051234567K</span></div><div class="muted">accounts@mavunoagro.co.ke · +254 722 000 111</div></div>
+          <div style="text-align:right"><div class="muted">TAX INVOICE</div><div><span class="hl"><span class="tag">Invoice no.</span>MAS-2026-0147</span></div><div class="muted" style="margin-top:6px">Issued <span class="hl"><span class="tag">Issue date</span>05 Nov 2026</span></div><div class="muted">Due <span class="hl"><span class="tag">Due date</span>05 Dec 2026</span> · Net 30</div></div>
+        </div>
+        <div style="margin-top:26px"><div class="muted" style="font-size:10.5px;letter-spacing:.06em">BILL TO</div><div><span class="hl ok"><span class="tag">Buyer</span>Nakuru Fresh Mart Ltd</span></div><div class="muted">PIN <span class="hl ok"><span class="tag">Buyer PIN</span>P051998877Q</span> · payables@nakurufreshmart.co.ke · +254 722 019 338</div></div>
+        <table><thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody><tr><td>Hybrid maize seed (DK777) 10 kg bag</td><td style="text-align:right">40</td><td style="text-align:right">4,850.00</td><td style="text-align:right">194,000.00</td></tr><tr><td>NPK 17:17:17 fertiliser 50 kg</td><td style="text-align:right">25</td><td style="text-align:right">6,200.00</td><td style="text-align:right">155,000.00</td></tr><tr><td>Knapsack sprayer 16 L</td><td style="text-align:right">6</td><td style="text-align:right">3,900.00</td><td style="text-align:right">23,400.00</td></tr><tr><td>Delivery – Nairobi to Nakuru</td><td style="text-align:right">1</td><td style="text-align:right">8,500.00</td><td style="text-align:right">8,500.00</td></tr></tbody></table>
+        <div class="totals"><span class="muted">Subtotal</span><span>380,900.00</span><span class="muted">VAT 16%</span><span>60,944.00</span><b>Total due</b><b><span class="hl"><span class="tag">Total</span>KES 441,844.00</span></b></div>
+      </article>
+      <div class="legend"><span><i></i>Used for the decision</span><span><i class="ok"></i>Identity verified against KRA</span></div>
+      <div class="fields">
+        <div class="f"><div class="label">Invoice no.</div><div class="v">MAS-2026-0147</div><div class="c">read · 98%</div></div>
+        <div class="f"><div class="label">Issue date</div><div class="v">5 Nov 2026</div><div class="c">read · 98%</div></div>
+        <div class="f"><div class="label">Due date</div><div class="v">5 Dec 2026</div><div class="c">read · 99% · matches Net 30</div></div>
+        <div class="f"><div class="label">Total</div><div class="v num">KES 441,844.00</div><div class="c">read · 99% · lines + VAT agree</div></div>
+        <div class="f"><div class="label">Buyer</div><div class="v">Nakuru Fresh Mart Ltd</div><div class="c">verified · KRA PIN active</div></div>
+        <div class="f"><div class="label">Seller</div><div class="v">Mavuno Agro Supplies Ltd</div><div class="c">verified · matches your profile</div></div>
+      </div>
+    </section>
+
+    <aside>
+      <div class="offer">
+        <div class="label">Your offer · ready until Friday 13 Nov</div>
+        <div class="big num">KES 297,537<small>today</small></div>
+        <div class="terms">That's 70% of the invoice, paid to your Nemo account within minutes of accepting. Total cost KES 11,754 for 27 days.</div>
+        <div class="flow">
+          <div class="st"><div class="label">You receive now</div><div class="v num pos">KES 297,537</div></div><div class="ar">→</div>
+          <div class="st"><div class="label">Buyer pays 5 Dec</div><div class="v num">KES 441,844</div></div><div class="ar">→</div>
+          <div class="st"><div class="label">You receive after</div><div class="v num pos">KES 132,553</div></div>
+        </div>
+        <div class="actions"><button class="btn btn-primary btn-lg">Accept and get paid</button><button class="btn btn-ghost">Not now</button></div>
+        <details class="why"><summary><svg class="icon" style="width:14px;height:14px"><use href="#i-chev"/></svg>Why this offer</summary><p>Your buyer has paid 5 of 5 financed invoices on time, so they are rated B. Your own trading history with Nemo is still short (3 months), which keeps the advance at 70%. After two more settled invoices the rate moves to 80%.</p></details>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-h"><h2>Activity</h2><span class="chip pos"><svg class="icon" style="width:12px;height:12px"><use href="#i-shield"/></svg>Record verified</span></div>
+        <div class="card-b" style="padding-top:4px">
+          <ul class="activity">
+            <li><span class="dot act"></span><div>Offer made — 70% advance<div class="s">Reviewed by Nemo credit team</div></div><time>13:57</time></li>
+            <li><span class="dot pos"></span><div>Buyer confirmed the invoice<div class="s">payables@nakurufreshmart.co.ke · from their email link</div></div><time>13:52</time></li>
+            <li><span class="dot"></span><div>Confirmation sent to buyer</div><time>13:49</time></li>
+            <li><span class="dot"></span><div>Document read<div class="s">15 fields · totals agree with line items</div></div><time>13:49</time></li>
+            <li><span class="dot"></span><div>Uploaded by you</div><time>13:49</time></li>
+          </ul>
+          <div class="proof"><svg class="icon" style="width:14px;height:14px"><use href="#i-shield"/></svg>Anchored 14:04 · <a href="#detail">View public proof</a></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</main>
+
+<!-- ───────────────────────── UPLOAD / READING ───────────────────────── -->
+<main class="view page" id="v-upload">
+<div class="container" style="max-width:1040px">
+  <div class="page-head"><div><h1>Finance an invoice</h1><p class="sub">Upload it, we read it, your buyer taps to confirm, and you get an offer — usually within the hour.</p></div></div>
+  <div class="steps">
+    <div class="step done"><span class="n"><svg class="icon" style="width:12px;height:12px"><use href="#i-check"/></svg></span>Upload</div><span class="step-sep"></span>
+    <div class="step cur"><span class="n">2</span>Check what we read</div><span class="step-sep"></span>
+    <div class="step"><span class="n">3</span>Buyer confirms</div><span class="step-sep"></span>
+    <div class="step"><span class="n">4</span>Offer</div>
+  </div>
+
+  <div class="reading">
+    <div class="thumb">
+      <article class="paper">
+        <div class="ph"><div><h4 style="font-size:11px">KITALE GRAIN TRADERS</h4><div class="muted">PIN P051776655R</div></div><div style="text-align:right"><div class="muted">INVOICE</div><div>KGT-0091</div><div class="muted">20 Nov 2026</div></div></div>
+        <div style="margin-top:18px"><div class="muted" style="font-size:8px">BILL TO</div><div>Mavuno Agro Supplies Ltd</div></div>
+        <table style="margin-top:14px"><tbody><tr><td>Sorghum 90 kg × 60</td><td style="text-align:right">148,200.00</td></tr><tr><td>Transport</td><td style="text-align:right">12,500.00</td></tr></tbody></table>
+        <div class="totals" style="width:160px"><span class="muted">VAT</span><span>25,800.00</span><b>Total</b><b>186,500.00</b></div>
+      </article>
+      <div class="progress"><i></i></div>
+      <div class="meta"><span>KGT-0091.pdf · 412 KB</span><span>Reading… 12 of 15</span></div>
+    </div>
+
+    <section class="card">
+      <div class="card-h"><h2>What we read</h2><span class="check"><svg class="icon" style="width:14px;height:14px"><use href="#i-check"/></svg>Totals agree with line items</span></div>
+      <div class="card-b" style="padding-top:2px">
+        <ul class="read-list">
+          <li><span class="k">Invoice number</span><span class="v">KGT-0091</span><span class="check">Read</span></li>
+          <li><span class="k">Issued</span><span class="v">20 Nov 2026</span><span class="check">Read</span></li>
+          <li><span class="k">Due</span><span class="v">20 Dec 2026 <span style="color:var(--ink-3);font-weight:400">· Net 30</span></span><span class="check">Read</span></li>
+          <li><span class="k">Total</span><span class="v num">KES 186,500.00</span><span class="check">Read</span></li>
+          <li><span class="k">Buyer</span><div class="confirm-field"><input value="Kitale Grain Traders" aria-label="Buyer name"><span style="color:var(--warn);font-size:12.5px;font-weight:500">Please check — the print was faint</span></div><button class="btn btn-secondary btn-sm">Looks right</button></li>
+          <li><span class="k">Buyer email</span><div class="confirm-field"><input placeholder="accounts@kitalegrain.co.ke" aria-label="Buyer email" style="width:230px;border-color:var(--line-strong)"><span style="color:var(--ink-3);font-size:12.5px">Not on the invoice — who should confirm it?</span></div><span></span></li>
+          <li><span class="k">Line items</span><span class="v">2 lines</span><span class="check">Read</span></li>
+          <li><span class="k">VAT</span><span class="skel"></span><span style="color:var(--ink-3);font-size:12.5px">Reading…</span></li>
+          <li><span class="k">Buyer PIN</span><span class="skel" style="width:90px"></span><span style="color:var(--ink-3);font-size:12.5px">Reading…</span></li>
+        </ul>
+        <div class="note"><svg class="icon" style="width:16px;height:16px;margin-top:1px"><use href="#i-mail"/></svg><div><b>Next:</b> we'll email Kitale Grain Traders a one-tap confirmation. Most buyers confirm within a day; we remind them twice, then close the request after 5 days.</div></div>
+        <div style="display:flex;gap:10px;margin-top:16px;align-items:center"><button class="btn btn-primary btn-lg">Ask my buyer to confirm</button><button class="btn btn-ghost">Save for later</button></div>
+      </div>
+    </section>
+  </div>
+</div>
+</main>
+
+<!-- ───────────────────────── ADMIN WORKBENCH ───────────────────────── -->
+<main class="view page" id="v-admin">
+<div class="container">
+  <div class="page-head"><div><h1>Review queue</h1><p class="sub">3 need a decision · 1 fraud flag · median time in queue 41 min</p></div><div style="display:flex;gap:8px"><button class="btn btn-secondary">Portfolio</button><button class="btn btn-secondary">Policy v3</button></div></div>
+  <div class="bench">
+    <section class="queue">
+      <div class="tabs"><span class="tab active">Needs decision <span class="n">3</span></span><span class="tab">Flags <span class="n">1</span></span><span class="tab">Done today <span class="n">11</span></span></div>
+      <div class="qitem sel"><div class="t">MAS-2026-0147</div><div class="amt num">KES 441,844</div><div class="s">Mavuno Agro → Nakuru Fresh Mart <span class="chip warn" style="height:20px">Referred</span></div></div>
+      <div class="qitem"><div class="t">RVC-2219</div><div class="amt num">KES 1,240,000</div><div class="s">Rift Valley Coop → Unga Group <span class="chip info" style="height:20px">2nd approval</span></div></div>
+      <div class="qitem"><div class="t">GFA-0310</div><div class="amt num">KES 96,400</div><div class="s">Greenfields → Molo Dairy <span class="chip warn" style="height:20px">Referred</span></div></div>
+      <div class="qitem"><div class="t">BL-10488</div><div class="amt num">USD 8,120</div><div class="s">Brightline → Cedar Hollow <span class="chip neg" style="height:20px">Duplicate suspected</span></div></div>
+    </section>
+    <section class="case">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><div class="label">Referred · policy invoice.advance v3 · rule IF-BAND D/B</div><h2 style="font-size:18px;margin-top:4px">Mavuno Agro Supplies Ltd → Nakuru Fresh Mart Ltd · KES 441,844</h2><p class="sub">Seller has 3 months of history (band D); buyer is rated B with 5 of 5 paid on time. Policy proposes 70% at 0.09%/day and asks a person to confirm.</p></div><span class="chip warn">In queue 38 min</span></div>
+      <div class="evidence">
+        <div class="ev"><div class="label">Buyer confirmation</div><div class="v">Confirmed</div><div class="s">payables@nakurufreshmart.co.ke · 8 Nov 13:52 · same domain as 4 prior invoices</div></div>
+        <div class="ev"><div class="label">Seller 6-month turnover</div><div class="v num">KES 2.61M / month</div><div class="s">M-Pesa statement · invoice is 17% of monthly inflow</div></div>
+        <div class="ev"><div class="label">Buyer exposure after funding</div><div class="v num">KES 751,000 · 37%</div><div class="s">limit KES 5,000,000 · concentration cap 40%</div></div>
+        <div class="ev flag"><div class="label">Fraud checks</div><div class="v">No flags</div><div class="s">not a duplicate · buyer registered 2019 · amounts in range</div></div>
+      </div>
+      <article class="paper"><div class="ph"><div><h4 style="font-size:13px">MAVUNO AGRO SUPPLIES LTD</h4><div class="muted">PIN P051234567K</div></div><div style="text-align:right"><div class="muted">TAX INVOICE</div><div>MAS-2026-0147</div><div class="muted">05 Nov 2026 · due 05 Dec</div></div></div><div style="margin-top:18px"><div class="muted" style="font-size:9px">BILL TO</div><div>Nakuru Fresh Mart Ltd · P051998877Q</div></div><table style="margin-top:14px"><tbody><tr><td>Hybrid maize seed (DK777) 10 kg × 40</td><td style="text-align:right">194,000.00</td></tr><tr><td>NPK 17:17:17 fertiliser 50 kg × 25</td><td style="text-align:right">155,000.00</td></tr><tr><td>Knapsack sprayer 16 L × 6</td><td style="text-align:right">23,400.00</td></tr><tr><td>Delivery</td><td style="text-align:right">8,500.00</td></tr></tbody></table><div class="totals" style="width:200px"><span class="muted">VAT 16%</span><span>60,944.00</span><b>Total</b><b>441,844.00</b></div></article>
+    </section>
+    <aside class="decide">
+      <h2>Decision</h2>
+      <div class="radio">
+        <label class="sel"><input type="radio" name="d" checked><div><b>Approve at policy terms</b><span>70% advance · 0.09%/day · 27 days · KES 297,537 to seller</span></div></label>
+        <label><input type="radio" name="d"><div><b>Approve with adjusted terms</b><span>Change advance rate or fee</span></div></label>
+        <label><input type="radio" name="d"><div><b>Ask seller for more</b><span>Delivery note, LPO or bank statement</span></div></label>
+        <label><input type="radio" name="d"><div><b>Decline</b><span>Seller is told the reason in plain words</span></div></label>
+      </div>
+      <div class="field"><div class="label">Note for the record</div><textarea>Buyer confirmed from a known domain; invoice consistent with LPO and 6-month turnover. Approving at policy terms.</textarea></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" style="flex:1;justify-content:center">Approve · A</button><button class="btn btn-secondary">Next · J</button></div>
+      <div class="keys"><span><kbd>J</kbd><kbd>K</kbd> move</span><span><kbd>A</kbd> approve</span><span><kbd>R</kbd> decline</span><span><kbd>D</kbd> document</span><span><kbd>?</kbd> help</span></div>
+    </aside>
+  </div>
+</div>
+</main>
+
+<!-- ───────────────────────── SYSTEM SHEET ───────────────────────── -->
+<main class="view page" id="v-system">
+<div class="container" style="max-width:980px">
+  <div class="page-head"><div><h1>Design system v1</h1><p class="sub">Everything in the five screens is built from this sheet. Same tokens ship to the Flutter wallet.</p></div></div>
+  <div class="card"><div class="card-h"><h2>Colour</h2><span class="sub">light · dark follows the same roles</span></div><div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+    <div><div style="height:44px;border-radius:8px;background:var(--canvas);border:1px solid var(--line)"></div><div class="label" style="margin-top:6px">canvas</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--surface);border:1px solid var(--line)"></div><div class="label" style="margin-top:6px">surface</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line)"></div><div class="label" style="margin-top:6px">surface-2</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--ink)"></div><div class="label" style="margin-top:6px">ink</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--ink-2)"></div><div class="label" style="margin-top:6px">ink-2</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--accent)"></div><div class="label" style="margin-top:6px">accent · one job</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--pos)"></div><div class="label" style="margin-top:6px">positive</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--warn)"></div><div class="label" style="margin-top:6px">attention</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--neg)"></div><div class="label" style="margin-top:6px">negative</div></div>
+    <div><div style="height:44px;border-radius:8px;background:var(--info)"></div><div class="label" style="margin-top:6px">info</div></div>
+  </div></div>
+  <div class="card" style="margin-top:14px"><div class="card-h"><h2>Type</h2><span class="sub">Inter Tight · tabular numerals · −0.02em on display</span></div><div class="card-b" style="display:grid;gap:12px">
+    <div style="font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1" class="num">KES 1,284,500 <span style="font-size:13px;color:var(--ink-3);font-weight:500;letter-spacing:0">40 / 700 · hero figures</span></div>
+    <div style="font-size:24px;font-weight:700;letter-spacing:-.02em">Page title <span style="font-size:13px;color:var(--ink-3);font-weight:500;letter-spacing:0">24 / 700</span></div>
+    <div style="font-size:15px;font-weight:600">Section heading <span style="font-size:13px;color:var(--ink-3);font-weight:500">15 / 600</span></div>
+    <div style="font-size:14px">Body — Your buyer has paid 5 of 5 financed invoices on time. <span style="font-size:13px;color:var(--ink-3)">14 / 400</span></div>
+    <div style="font-size:13px;color:var(--ink-2)">Secondary — issued 5 Nov · due 5 Dec <span style="color:var(--ink-3)">13 / 400 · ink-2</span></div>
+    <div class="label">Label — 11 / 600 / +8% tracking</div>
+    <div class="mono">521260207df0c44e… <span style="font-family:var(--font);font-size:13px;color:var(--ink-3)">JetBrains Mono · hashes and references only</span></div>
+  </div></div>
+  <div class="card" style="margin-top:14px"><div class="card-h"><h2>Controls &amp; status</h2></div><div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <button class="btn btn-primary">Accept offer</button><button class="btn btn-secondary">Remind buyer</button><button class="btn btn-ghost">Decline</button><button class="btn btn-primary btn-sm">Small</button>
+    <span class="status act">Offer ready <span class="when">· accept by Fri</span></span><span class="status pos">Funded</span><span class="status warn">Waiting for buyer</span><span class="status info">Reading document…</span><span class="status neg">Declined</span><span class="status">Settled</span>
+    <span class="chip pos">B · reliable</span><span class="chip warn">Referred</span><span class="chip neg">Duplicate suspected</span><span class="chip">Draft</span>
+  </div></div>
+  <div class="card" style="margin-top:14px"><div class="card-h"><h2>Rules</h2></div><div class="card-b" style="color:var(--ink-2);font-size:13.5px;display:grid;gap:6px">
+    <div>Status is a grey dot plus words, never a filled pastel pill. Pills are reserved for ratings and flags.</div><div>Money: currency code, thousands separators, two decimals in tables, none in hero figures; always right-aligned and tabular.</div><div>One primary button per view. The accent appears nowhere else except active navigation and links.</div><div>Borders separate; shadows only on things that float (popovers, menus).</div><div>No internal identifiers, codes or configuration words in any user-facing text. Proof and hashes live behind "View public proof".</div><div>Every list has a skeleton that matches its final layout, an empty state with a sample row, and an inline error with one recovery action.</div>
+  </div></div>
+</div>
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <a href="#overview" data-v="overview"><svg class="icon"><use href="#i-home"/></svg>Home</a>
+  <a href="#overview" data-noactive><svg class="icon"><use href="#i-doc"/></svg>Invoices</a>
+  <a href="#upload" data-v="upload"><svg class="icon"><use href="#i-plus"/></svg>Finance</a>
+  <a href="#payments" data-v="payments"><svg class="icon"><use href="#i-card"/></svg>Payments</a>
+</nav>
+
+<div class="switcher" id="sw">
+  <a href="#overview">Overview</a><a href="#detail">Invoice</a><a href="#payments">Payments</a><a href="#upload">Upload</a><a href="#admin">Admin</a><a href="#system">System</a>
+  <button class="theme" id="themeBtn" title="Toggle light / dark"><svg class="icon" style="width:14px;height:14px"><use href="#i-sun"/></svg></button>
+</div>
+
+<script>
+(function(){
+  var views=['overview','detail','payments','upload','admin','system'];
+  function show(){
+    var h=(location.hash||'#overview').slice(1); if(views.indexOf(h)<0) h='overview';
+    views.forEach(function(v){document.getElementById('v-'+v).classList.toggle('active',v===h)});
+    document.querySelectorAll('#sw a').forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+h)});
+    var navMap={overview:'overview',detail:'overview',payments:'payments',upload:'documents',admin:'overview',system:'overview'};
+    document.querySelectorAll('#nav a').forEach(function(a){a.classList.toggle('active',a.dataset.v===navMap[h])});
+    document.querySelectorAll('#tabbar a').forEach(function(a){a.classList.toggle('active',!a.hasAttribute('data-noactive')&&a.getAttribute('href')==='#'+h)});
+    window.scrollTo(0,0);
+  }
+  window.addEventListener('hashchange',show); show();
+  var p=new URLSearchParams(location.search); if(p.get('theme')) document.documentElement.setAttribute('data-theme',p.get('theme'));
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var dark=cur?cur==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme',dark?'light':'dark');
+  });
+})();
+</script>
